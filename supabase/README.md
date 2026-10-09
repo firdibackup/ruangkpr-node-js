@@ -11,7 +11,14 @@ Isi folder ini:
 
 ## Status VPS (2026-10-09)
 
-Migration `20261009051240_auth_foundation`, `20261009071328_app_data`, `20261009071331_seed_articles`, dan `20261009074226_tighten_rules` **sudah jalan** dan tercatat di `supabase_migrations.schema_migrations`, jadi `db push` hanya akan menjalankan migration yang lebih baru. Test pgTAP: `001` 14/14, `002` 30/30, `003` 10/10. Linter Supabase (splinter) bersih, hanya catatan INFO untuk index yang belum terpakai karena tabelnya masih kosong. Uji live seluruh alur lulus 6/6. Katalog bank/produk masih kosong dan diisi admin. Ada 5 artikel edukasi published.
+Migration `20261009051240_auth_foundation`, `20261009071328_app_data`, `20261009071331_seed_articles`, `20261009074226_tighten_rules`, dan `20261009075346_reminders` **sudah jalan** dan tercatat di `supabase_migrations.schema_migrations`, jadi `db push` hanya akan menjalankan migration yang lebih baru. Test pgTAP: `001` 14/14, `002` 30/30, `003` 10/10, `004` 16/16. Linter Supabase (splinter) bersih, hanya catatan INFO untuk index yang belum terpakai karena tabelnya masih kosong. Uji live seluruh alur lulus 6/6.
+
+**Reminder in-app (Fase 4a)** berjalan lewat `pg_cron` setiap hari pukul 07:00 WIB (`ruangkpr-reminders`): pengingat H-x sebelum jatuh tempo (kalau bulan itu belum ditandai bayar) dan sebelum masa fixed berakhir, masuk ke Activity user, tanpa dobel. Email dicatat `queued` di `reminder_deliveries` dan baru terkirim setelah Fase 4b (SMTP). Cek riwayat job:
+
+```sql
+select status, return_message, start_time from cron.job_run_details order by start_time desc limit 5;
+select channel, status, count(*) from public.reminder_deliveries group by 1, 2;
+``` Katalog bank/produk masih kosong dan diisi admin. Ada 5 artikel edukasi published.
 
 ## Fase 0: persiapan VPS (sekali, oleh pemilik VPS)
 
