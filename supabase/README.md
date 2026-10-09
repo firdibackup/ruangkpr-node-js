@@ -11,9 +11,9 @@ Isi folder ini:
 
 ## Status VPS (2026-10-09)
 
-Migration `20261009051240_auth_foundation`, `20261009071328_app_data`, `20261009071331_seed_articles`, `20261009074226_tighten_rules`, dan `20261009075346_reminders` **sudah jalan** dan tercatat di `supabase_migrations.schema_migrations`, jadi `db push` hanya akan menjalankan migration yang lebih baru. Test pgTAP: `001` 14/14, `002` 30/30, `003` 10/10, `004` 16/16. Linter Supabase (splinter) bersih, hanya catatan INFO untuk index yang belum terpakai karena tabelnya masih kosong. Uji live seluruh alur lulus 6/6.
+Migration `20261009051240_auth_foundation`, `20261009071328_app_data`, `20261009071331_seed_articles`, `20261009074226_tighten_rules`, `20261009075346_reminders`, dan `20261009084157_email_via_resend` **sudah jalan** dan tercatat di `supabase_migrations.schema_migrations`, jadi `db push` hanya akan menjalankan migration yang lebih baru. Test pgTAP: `001` 14/14, `002` 30/30, `003` 10/10, `004` 16/16, `005` 12/12. Linter Supabase (splinter) bersih, hanya catatan INFO untuk index yang belum terpakai karena tabelnya masih kosong. Uji live seluruh alur lulus 6/6.
 
-**Reminder in-app (Fase 4a)** berjalan lewat `pg_cron` setiap hari pukul 07:00 WIB (`ruangkpr-reminders`): pengingat H-x sebelum jatuh tempo (kalau bulan itu belum ditandai bayar) dan sebelum masa fixed berakhir, masuk ke Activity user, tanpa dobel. Email dicatat `queued` di `reminder_deliveries` dan baru terkirim setelah Fase 4b (SMTP). Cek riwayat job:
+**Reminder in-app (Fase 4a)** berjalan lewat `pg_cron` setiap hari pukul 07:00 WIB (`ruangkpr-reminders`): pengingat H-x sebelum jatuh tempo (kalau bulan itu belum ditandai bayar) dan sebelum masa fixed berakhir, masuk ke Activity user, tanpa dobel. Email reminder dikirim di job yang sama lewat Resend (langkah 4). Email yang harinya sudah lewat dilewati, tidak pernah terkirim terlambat. Cek riwayat job:
 
 ```sql
 select status, return_message, start_time from cron.job_run_details order by start_time desc limit 5;
@@ -60,47 +60,38 @@ JWT_EXPIRY=3600
 
 Cek: `/auth/v1/settings` → `"google": true`.
 
-### 4. Email lewat Resend (OTP sekarang, reminder di Fase 4)
-1. Daftar di resend.com → **Domains** → tambah `firdiaudi.my.id` (atau subdomain seperti `mail.firdiaudi.my.id`) → pasang record DNS (SPF, DKIM, MX return-path) yang diberikan → tunggu *Verified*.
-2. Tambahkan record DMARC: `_dmarc` TXT `v=DMARC1; p=none; rua=mailto:<email-kamu>`.
-3. Buat API key (permission *Sending access*).
-4. `.env` VPS:
+### 4. Email (kode OTP + reminder) lewat Resend, dikirim dari database
+Email tidak memakai SMTP. Database mengirimnya lewat API Resend (`pg_net`), dengan key yang disimpan terenkripsi di Supabase Vault. Server login cukup diarahkan ke fungsi `public.send_email_hook`. Tidak perlu file template, container tambahan, atau Edge Function.
 
-```dotenv
-SMTP_HOST=smtp.resend.com
-SMTP_PORT=465
-SMTP_USER=resend
-SMTP_PASS=<API key Resend>
-SMTP_ADMIN_EMAIL=notifikasi@firdiaudi.my.id
-SMTP_SENDER_NAME=RuangKPR
+1. **Resend:** domain `firdiaudi.my.id` sudah *Verified*. Buat API key baru dengan permission **Sending access**. Hapus key lama berpermission *full access* yang sempat terkirim lewat chat.
+2. **Studio → SQL Editor** (key tidak pernah masuk ke kode atau repo):
+
+```sql
+select vault.create_secret('re_…', 'resend_api_key', 'Resend sending key for RuangKPR emails');
+-- mengganti key nanti:
+-- select vault.update_secret((select id from vault.secrets where name = 'resend_api_key'), 're_…');
+-- opsional, untuk tombol "Buka RuangKPR" di email reminder:
+-- select vault.create_secret('https://<domain-app>', 'app_url');
 ```
 
-### 5. Template kode OTP (6 digit, 10 menit)
-1. Salin `supabase/templates/otp.html` ke VPS: `volumes/templates/otp.html`.
-2. Tambahkan service ke `docker-compose.yml` (tanpa port publik):
+3. **`docker-compose.yml` → `auth:` → `environment:`.** Dua baris hook sudah ada sebagai komentar: hapus `#` dan isi seperti ini. Baris `GOTRUE_HOOK_SEND_EMAIL_SECRETS` biarkan tetap komentar, karena tidak dipakai untuk `pg-functions`. Tambahkan juga dua baris OTP:
 
 ```yaml
-  templates-server:
-    image: caddy:2-alpine
-    command: ['caddy', 'file-server', '-r', '/templates', '--listen', ':80']
-    volumes:
-      - ./volumes/templates:/templates
-```
-
-3. Tambahkan ke `environment:` service `auth`:
-
-```yaml
+      GOTRUE_HOOK_SEND_EMAIL_ENABLED: "true"
+      GOTRUE_HOOK_SEND_EMAIL_URI: "pg-functions://postgres/public/send_email_hook"
       GOTRUE_MAILER_OTP_EXP: 600
       GOTRUE_MAILER_OTP_LENGTH: 6
-      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: http://templates-server/otp.html
-      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: http://templates-server/otp.html
-      GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: Kode masuk RuangKPR
-      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: Kode masuk RuangKPR
 ```
 
-4. Jalankan `docker compose up -d templates-server`, lalu recreate `auth`.
+4. Jalankan `docker compose up -d --force-recreate auth`, lalu `docker compose logs auth --tail 30` dan pastikan tidak ada error.
 
-Cek: login di app memakai email kamu sendiri. Email yang masuk berisi kode 6 digit (bukan link).
+Cek pengiriman (status dari Resend):
+
+```sql
+select status_code, left(content, 120), created from net._http_response order by created desc limit 5;
+```
+
+`supabase/templates/otp.html` dan `config.toml` hanya dipakai Supabase lokal. Di VPS, isi email ada di fungsi `private.email_html`.
 
 ### 6. Jalankan migration
 **Cara A (awal, paling mudah): SQL Editor di Studio.** Buka setiap file di `migrations/` sesuai urutan nama, tempel isinya, lalu **Run**. Setelah itu tempel file di `tests/` dan **Run**. Semua baris harus `ok`, dan baris terakhir tidak boleh berisi `Looks like you failed`.

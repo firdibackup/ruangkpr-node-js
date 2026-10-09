@@ -262,3 +262,16 @@ Batas yang diterima (`ponytail:`):
 - Admin yang sengaja memanggil REST langsung bisa melewati pencatatan audit untuk mutasi katalog, artikel, dan konfigurasi. Transisi pengajuan tetap dijaga matriks di database. Upgrade: pindahkan mutasi admin ke RPC.
 - Setiap operasi memuat data akun (admin: semua akun). Ini cukup untuk skala pilot. Upgrade: query agregat SQL saat sudah ribuan user.
 - Reminder email (Fase 4) belum termasuk.
+
+## Amandemen 2 (2026-10-09): email dari database, bukan SMTP
+
+Di self-hosted, pengaturan server login hanya bisa diubah lewat env VPS. Supaya urusan VPS seminimal mungkin (keputusan user), email dikirim dari Postgres:
+
+| Topik | Keputusan | Menggantikan |
+|---|---|---|
+| Email kode OTP | Send Email Hook GoTrue → `public.send_email_hook` (pg-functions) → `private.send_email` → API Resend lewat `pg_net` | SMTP Resend di env GoTrue + template server Caddy |
+| Email reminder (Fase 4b) | `private.send_reminder_emails` dijalankan job harian (`private.run_daily_reminders`, setelah `enqueue_reminders`). Email yang harinya (`target_date − offset_days`) sudah lewat ditandai `skipped` | Edge Function `send-reminders` + Nodemailer |
+| Key Resend | Supabase Vault (`resend_api_key`, key *Sending access*), dimasukkan user sendiri lewat SQL Editor | env Edge Function |
+| VPS | `ENABLE_PHONE_*=false` + 2 baris hook + 2 baris OTP. Google OAuth tetap lewat env bila dipakai | SMTP_* + templates-server + 6 baris template |
+
+Batas (`ponytail:`): `pg_net` mengirim secara asinkron. Kegagalan dari Resend tercatat di `net._http_response`, tidak dilaporkan ke server login atau baris reminder (yang sudah ditandai `sent`). Upgrade: rekonsiliasi status dari `net._http_response` bila perlu.
