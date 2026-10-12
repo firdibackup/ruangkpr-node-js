@@ -13,6 +13,8 @@ Isi folder ini:
 
 Migration `20261009051240_auth_foundation`, `20261009071328_app_data`, `20261009071331_seed_articles`, `20261009074226_tighten_rules`, `20261009075346_reminders`, dan `20261009084157_email_via_resend` **sudah jalan** dan tercatat di `supabase_migrations.schema_migrations`, jadi `db push` hanya akan menjalankan migration yang lebih baru. Test pgTAP: `001` 14/14, `002` 30/30, `003` 10/10, `004` 16/16, `005` 12/12. Linter Supabase (splinter) bersih, hanya catatan INFO untuk index yang belum terpakai karena tabelnya masih kosong. Uji live seluruh alur lulus 6/6.
 
+**Email di VPS (dipasang 2026-10-09):** kode OTP dikirim lewat **SMTP Resend + template server** (`volumes/templates/otp.html`, container `templates-server`), jadi hook `send_email_hook` **tidak diaktifkan**. Email reminder tetap dikirim dari database lewat API Resend dan butuh key `resend_api_key` di Vault (langkah 4.2). Tes OTP terkirim, dan user pertama tercipta dengan profil otomatis.
+
 **Reminder in-app (Fase 4a)** berjalan lewat `pg_cron` setiap hari pukul 07:00 WIB (`ruangkpr-reminders`): pengingat H-x sebelum jatuh tempo (kalau bulan itu belum ditandai bayar) dan sebelum masa fixed berakhir, masuk ke Activity user, tanpa dobel. Email reminder dikirim di job yang sama lewat Resend (langkah 4). Email yang harinya sudah lewat dilewati, tidak pernah terkirim terlambat. Cek riwayat job:
 
 ```sql
