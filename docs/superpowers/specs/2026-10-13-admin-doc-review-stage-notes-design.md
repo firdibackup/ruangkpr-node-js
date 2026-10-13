@@ -74,7 +74,7 @@ Semua method admin baru memakai `expectedVersion` (konflik → `CONFLICT_VERSION
 |---|---|
 | `admin.applications.reviewDocument(id, { documentType, result: 'ok' \| 'rejected', reasonCode, note, expectedVersion })` | Status harus `docs_verification` dan dokumen punya file, selain itu `INVALID_STATE_TRANSITION`. `rejected` memvalidasi `reasonCode`/`note` (`fieldErrors`). Menulis audit `application.document_review` (before/after status dokumen + alasan). |
 | `admin.applications.transition(id, { toStatus: 'additional_docs_requested', reason, expectedVersion })` | **Berubah**: tidak lagi menerima `metadata.documentTypes/message`. Mengambil dokumen ber-`review`; tanpa satu pun → `fieldErrors` "Tolak minimal satu dokumen dulu." Satu Activity ke user. |
-| `admin.applications.transition(…, toStatus: 'bank_processing')` | Tambahan syarat: semua dokumen wajib (`requiredDocuments`) `verified`, selain itu `INVALID_STATE_TRANSITION` "Semua dokumen wajib harus Sesuai sebelum diteruskan ke bank." |
+| `admin.applications.transition(…, toStatus: 'bank_processing')` | Tambahan syarat: semua dokumen wajib (`requiredDocuments`) `verified`, selain itu `INVALID_STATE_TRANSITION` "Semua dokumen wajib harus Sesuai sebelum diteruskan ke bank." Juga ditolak bila masih ada draf penolakan yang belum dikirim (mis. di dokumen opsional): "Masih ada dokumen ditolak yang belum dikirim ke user." |
 | `admin.applications.saveStageNote(id, { message, schedule, expectedVersion })` | Menyimpan `stageNotes[app.status]`. Status di luar `STAGE_NOTE_STATUSES` → `INVALID_STATE_TRANSITION`. Audit `application.stage_note`. Activity ke user. |
 
 Halaman admin mengimpor `DOC_REJECT_REASONS` langsung dari `documentRules.js`, seperti `UploadRow.jsx` dan `ConfigurationPage.jsx` sekarang.
