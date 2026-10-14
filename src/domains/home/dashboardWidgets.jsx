@@ -56,7 +56,7 @@ export const HEALTH_SENTENCE = {
 };
 // What KPR Health is, behind its ⓘ on Home and on the Health page.
 export const HEALTH_ABOUT =
-  "KPR Health menilai kondisi KPR kamu dari 0–100: aman, perlu diperhatikan, atau berisiko. Skornya rata-rata dari 4 komponen: beban cicilan, nilai properti, risiko bunga, dan progres pinjaman. Bukan skor kredit bank, bukan keputusan persetujuan KPR, dan bukan hasil AI: dihitung dengan rumus tetap dari data yang kamu isi.";
+  "KPR Health menilai kondisi KPR kamu dari 0–100: aman, perlu diperhatikan, atau berisiko. Skornya rata-rata dari 4 komponen: beban cicilan, nilai properti, risiko bunga, dan progres pinjaman. Bukan skor kredit bank, bukan keputusan persetujuan KPR";
 const HEALTH_MISSING = {
   dti: "penghasilan",
   ltv: "estimasi nilai properti",
@@ -541,7 +541,9 @@ function MyKprWidget({ m, d }) {
         <div className="flex flex-wrap items-baseline justify-between gap-2.5">
           <div className="flex flex-col gap-0.5">
             <span className="text-[13px] text-ink-3">
-              Sisa pokok{(m.outstandingEstimated || m.outstandingProjected) && " (estimasi)"}
+              Sisa pokok
+              {(m.outstandingEstimated || m.outstandingProjected) &&
+                " (estimasi)"}
             </span>
             <span className="text-[1.5em] leading-[1.333] font-extrabold tracking-[-0.3px] tabular">
               {rupiah(m.outstandingPrincipal)}

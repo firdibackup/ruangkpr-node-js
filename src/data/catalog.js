@@ -1,7 +1,7 @@
 // Bank product catalog fixture (doc 04 §11). Values are demo data with explicit dates — not live offers.
 // Money: integer Rupiah. Rates/ratios: basis points.
 
-const ALL_OCCUPATIONS = ['private_employee', 'civil_servant', 'military_police', 'entrepreneur', 'professional', 'freelancer']
+const ALL_OCCUPATIONS = ['civil_servant', 'private_employee', 'contract_employee', 'entrepreneur', 'freelancer']
 const ALL_PURPOSES = ['renovation', 'education', 'business', 'debt_consolidation', 'other']
 
 export const BANK_PRODUCTS = [
@@ -82,7 +82,7 @@ export const BANK_PRODUCTS = [
       minimumAge: 21,
       maximumAgeAtMaturity: 65,
       maximumTenorMonths: 360,
-      occupations: ['private_employee', 'civil_servant', 'military_police', 'professional'],
+      occupations: ['private_employee', 'civil_servant', 'Profesional'],
       propertyTypes: ['landed_house', 'apartment', 'shophouse'],
     },
   },
@@ -91,7 +91,7 @@ export const BANK_PRODUCTS = [
     version: 3,
     bank: { id: 'bnk_xyz', name: 'Bank XYZ', mark: 'XYZ' },
     name: 'Take Over Fixed 5 Tahun',
-    productTypes: ['takeover'],
+    productTypes: ['takeover', 'topup'],
     scheme: 'conventional',
     status: 'published',
     effectiveFrom: '2026-09-01',
@@ -109,7 +109,7 @@ export const BANK_PRODUCTS = [
     version: 2,
     bank: { id: 'bnk_def', name: 'Bank DEF', mark: 'DEF' },
     name: 'Take Over Fixed 3 Tahun',
-    productTypes: ['takeover'],
+    productTypes: ['takeover', 'topup'],
     scheme: 'conventional',
     status: 'published',
     effectiveFrom: '2026-08-01',
@@ -127,7 +127,7 @@ export const BANK_PRODUCTS = [
     version: 1,
     bank: { id: 'bnk_ghi', name: 'Bank GHI', mark: 'GHI' },
     name: 'Take Over Fixed 10 Tahun',
-    productTypes: ['takeover'],
+    productTypes: ['takeover', 'topup'],
     scheme: 'conventional',
     status: 'published',
     effectiveFrom: '2026-06-01',

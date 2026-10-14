@@ -26,8 +26,8 @@ const HEADERS = {
   2: ['Pekerjaan & penghasilan', 'KPR Primary · dasar hitung kemampuan cicilan'],
   3: ['Properti yang dibeli', 'KPR Primary · rumah baru atau rumah bekas'],
   4: ['Rencana pinjaman', 'KPR Primary · uang muka, plafon & tenor'],
-  5: ['Upload dokumen', 'KPR Primary'],
-  6: ['Bandingkan program bank', 'KPR Primary · 1 pengajuan = 1 program bank'],
+  5: ['Bandingkan program bank', 'KPR Primary · 1 pengajuan = 1 program bank'],
+  6: ['Upload dokumen', 'KPR Primary'],
   7: ['Review & submit', 'Periksa lagi sebelum dikirim ke bank.'],
 }
 const LAST = PRIMARY_STEPS.length
@@ -52,6 +52,8 @@ export function PrimaryWizard() {
   if (primary && primary.status !== 'draft') return <Navigate to="/my-kpr/application" replace />
   if (n > 1 && !primary) return <Navigate to="/" replace />
   if (primary && n > primary.currentStep) return <Navigate to={`/apply/primary/${primary.currentStep}`} replace />
+  // Documents and Review come after a program is picked (also catches drafts saved under the old order).
+  if (primary && n >= 6 && !primary.selection) return <Navigate to="/apply/primary/5" replace />
 
   const setApp = (next) => setData((s) => ({ ...s, applications: s.applications.map((a) => (a.id === next.id ? next : a)) }))
   const fromReview = location.state?.from === 'review'
@@ -65,7 +67,7 @@ export function PrimaryWizard() {
 
   return (
     <>
-      <PageHeader title={productId ? 'Detail program' : title} subtitle={productId ? 'Simulasi cicilan' : subtitle} back={productId ? '/apply/primary/6' : back} />
+      <PageHeader title={productId ? 'Detail program' : title} subtitle={productId ? 'Simulasi cicilan' : subtitle} back={productId ? '/apply/primary/5' : back} />
       <WizardProgress label={`Bagian ${shown.phase} dari 3 · ${shown.label}`} steps={PHASE_LABELS} current={shown.phase} reached={furthest.position} percent={furthest.percent} />
       {milestone && <PrimaryMilestone milestone={milestone} app={primary} go={go} />}
       {!milestone && n <= 4 && (
@@ -80,9 +82,9 @@ export function PrimaryWizard() {
           go={go}
         />
       )}
-      {!milestone && n === 5 && <DocumentsStep app={primary} onChange={setApp} fromReview={fromReview} go={go} uploadRules={snap.config.upload} />}
-      {n === 6 && !productId && <PrimaryCompareStep app={primary} go={go} fromReview={fromReview} />}
-      {n === 6 && productId && <PrimaryProgramDetail app={primary} productId={productId} onSaved={setApp} go={go} />}
+      {!milestone && n === 5 && !productId && <PrimaryCompareStep app={primary} go={go} fromReview={fromReview} />}
+      {n === 5 && productId && <PrimaryProgramDetail app={primary} productId={productId} onSaved={setApp} go={go} fromReview={fromReview} />}
+      {n === 6 && <DocumentsStep app={primary} onChange={setApp} fromReview={fromReview} go={go} uploadRules={snap.config.upload} />}
       {n === 7 && <ReviewStep app={primary} go={go} />}
     </>
   )
@@ -123,7 +125,7 @@ function OtherDraftNotice({ app, onDeleted }) {
   )
 }
 
-export function DocumentsStep({ app, onChange, fromReview, go, uploadRules, nextPath = '/apply/primary/6', backPath = '/apply/primary/4' }) {
+export function DocumentsStep({ app, onChange, fromReview, go, uploadRules }) {
   const [uploading, setUploading] = useState(0)
   const [demoPending, setDemoPending] = useState(false)
   const docs = app.requiredDocuments
@@ -161,8 +163,8 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules, next
     if (!complete || saving) return
     setSaving(true)
     try {
-      onChange(await api.applications.saveStep(app.id, { step: 5, values: {} }))
-      go(fromReview ? '/apply/primary/7' : nextPath)
+      onChange(await api.applications.saveStep(app.id, { step: 6, values: {} }))
+      go('/apply/primary/7')
     } catch (e) {
       toast.error(e.message)
       setSaving(false)
@@ -185,7 +187,7 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules, next
           </div>
         </Panel>
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Button variant="neutral" onClick={() => go(fromReview ? '/apply/primary/7' : backPath)}>
+          <Button variant="neutral" onClick={() => go(fromReview ? '/apply/primary/7' : '/apply/primary/5')}>
             Kembali
           </Button>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
@@ -308,19 +310,7 @@ function ReviewStep({ app, go }) {
             ]}
           />
         </ReviewSection>
-        <ReviewSection icon={FileTextIcon} title="Dokumen" ok={docsOk} onEdit={() => edit(5)}>
-          <div className="flex flex-wrap gap-2">
-            {app.requiredDocuments.map((d) => {
-              const ok = ['uploaded', 'verified'].includes(app.documents[d.type]?.status)
-              return (
-                <span key={d.type} className={cn('rounded-full px-3 py-1.5 text-[13px] font-bold', ok ? 'bg-success-bg text-success' : d.required ? 'bg-danger-bg text-danger-strong' : 'bg-muted text-ink-3')}>
-                  {ok ? `✓ ${d.label}` : d.required ? `✕ ${d.label}` : `${d.label} · opsional`}
-                </span>
-              )
-            })}
-          </div>
-        </ReviewSection>
-        <ReviewSection icon={LandmarkIcon} title="Program Dipilih" ok={!!s} onEdit={() => go('/apply/primary/6', { state: { from: 'review' } })}>
+        <ReviewSection icon={LandmarkIcon} title="Program Dipilih" ok={!!s} onEdit={() => edit(5)}>
           <SummaryRows
             size="sm"
             rows={
@@ -337,6 +327,18 @@ function ReviewStep({ app, go }) {
             }
           />
         </ReviewSection>
+        <ReviewSection icon={FileTextIcon} title="Dokumen" ok={docsOk} onEdit={() => edit(6)}>
+          <div className="flex flex-wrap gap-2">
+            {app.requiredDocuments.map((d) => {
+              const ok = ['uploaded', 'verified'].includes(app.documents[d.type]?.status)
+              return (
+                <span key={d.type} className={cn('rounded-full px-3 py-1.5 text-[13px] font-bold', ok ? 'bg-success-bg text-success' : d.required ? 'bg-danger-bg text-danger-strong' : 'bg-muted text-ink-3')}>
+                  {ok ? `✓ ${d.label}` : d.required ? `✕ ${d.label}` : `${d.label} · opsional`}
+                </span>
+              )
+            })}
+          </div>
+        </ReviewSection>
       </div>
 
       <Panel>
@@ -344,7 +346,7 @@ function ReviewStep({ app, go }) {
         <CheckboxField label="Data yang saya berikan benar dan dapat dipertanggungjawabkan." checked={consents.dataAccuracy} onChange={(v) => setConsents((c) => ({ ...c, dataAccuracy: v }))} />
         <CheckboxField label={`Saya setuju data saya dikirim ke ${s?.bankName ?? 'bank yang dipilih'} untuk pengajuan ini.`} checked={consents.sendToBank} onChange={(v) => setConsents((c) => ({ ...c, sendToBank: v }))} />
         {error && (
-          <Notice tone="bad" role="alert" title="Pengajuan belum terkirim" action={error.code === 'BANK_PRODUCT_EXPIRED' ? <Link to="/apply/primary/6" className="text-[13px] font-bold text-primary underline">Bandingkan ulang program</Link> : null}>
+          <Notice tone="bad" role="alert" title="Pengajuan belum terkirim" action={error.code === 'BANK_PRODUCT_EXPIRED' ? <Link to="/apply/primary/5" className="text-[13px] font-bold text-primary underline">Bandingkan ulang program</Link> : null}>
             {error.message}
           </Notice>
         )}

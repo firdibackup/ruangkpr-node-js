@@ -137,30 +137,21 @@ export function TextAreaField({ label, name, value, onChange, onBlur, error, hin
   )
 }
 
-const OTHER = '__other'
-
-// `other` adds a "Lainnya" option that swaps in a free-text input (its placeholder); the typed text becomes the value.
-export function SelectField({ label, name, value, onChange, onBlur, error, hint, optional, required, span, placeholder = 'Pilih…', options, highlight, other }) {
+export function SelectField({ label, name, value, onChange, onBlur, error, hint, optional, required, span, placeholder = 'Pilih…', options, highlight }) {
   const id = useId()
-  const [picked, setPicked] = useState(false)
-  const custom = !!other && (value ? !options.some((o) => o.value === value) : picked)
-  const invalid = error ? 'true' : undefined
   return (
     <FieldShell id={id} label={label} hint={hint} error={error} optional={optional} required={required} span={span}>
       <div className="relative">
         <select
           id={id}
-          name={custom ? undefined : name}
-          value={custom ? OTHER : value ?? ''}
-          onChange={(e) => {
-            setPicked(e.target.value === OTHER)
-            onChange(e.target.value === OTHER ? '' : e.target.value)
-          }}
-          onBlur={custom ? undefined : onBlur}
+          name={name}
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           aria-required={required || undefined}
-          aria-invalid={custom ? undefined : invalid}
+          aria-invalid={error ? 'true' : undefined}
           aria-describedby={describedBy(id, hint, error)}
-          className={cn('h-[54px] w-full cursor-pointer appearance-none rounded-lg border bg-field pr-11 pl-[18px] text-[15px] font-medium outline-none focus:border-primary focus:ring-3 focus:ring-ring/15', custom ? 'border-input' : tone(error, highlight), !value && !custom && 'text-[#6b7587]')}
+          className={cn('h-[54px] w-full cursor-pointer appearance-none rounded-lg border bg-field pr-11 pl-[18px] text-[15px] font-medium outline-none focus:border-primary focus:ring-3 focus:ring-ring/15', tone(error, highlight), !value && 'text-[#6b7587]')}
         >
           <option value="">{placeholder}</option>
           {options.map((o) => (
@@ -168,49 +159,39 @@ export function SelectField({ label, name, value, onChange, onBlur, error, hint,
               {o.label}
             </option>
           ))}
-          {other && <option value={OTHER}>Lainnya</option>}
         </select>
         <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-4 size-[18px] -translate-y-1/2 text-muted-foreground" aria-hidden />
       </div>
-      {custom && (
-        <div className={cn(shell, tone(error, highlight))}>
-          <input
-            name={name}
-            value={value ?? ''}
-            onChange={(e) => onChange(e.target.value)}
-            onBlur={onBlur}
-            placeholder={other}
-            maxLength={50}
-            autoFocus={picked}
-            aria-label={`${label} lainnya`}
-            aria-required={required || undefined}
-            aria-invalid={invalid}
-            aria-describedby={describedBy(id, hint, error)}
-            className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-[#8a93a3]"
-          />
-        </div>
-      )}
     </FieldShell>
   )
 }
 
+const OTHER = '__other'
+
 // Radio options rendered as cards (artifact "radio" pattern) with Radix keyboard semantics.
-export function RadioCards({ label, name, value, onChange, onBlur, error, hint, required, span, options, layout = 'row', variant = 'card' }) {
+// `other` adds a last card (its label) that swaps in a free-text input; the typed text becomes the value.
+export function RadioCards({ label, name, value, onChange, onBlur, error, hint, required, span, options, layout = 'row', variant = 'card', other }) {
   const id = useId()
+  const [picked, setPicked] = useState(false)
+  const custom = !!other && (value ? !options.some((o) => o.value === value) : picked)
+  const invalid = error ? 'true' : undefined
   return (
     <FieldShell id={id} label={label} hint={hint} error={error} required={required} span={span} labelFor={false}>
       <RadioGroupPrimitive.Root
-        value={value ?? ''}
-        onValueChange={onChange}
-        onBlur={onBlur}
-        name={name}
+        value={custom ? OTHER : value ?? ''}
+        onValueChange={(v) => {
+          setPicked(v === OTHER)
+          onChange(v === OTHER ? '' : v)
+        }}
+        onBlur={custom ? undefined : onBlur}
+        name={custom ? undefined : name}
         aria-labelledby={label ? `${id}-label` : undefined}
         required={required}
         aria-describedby={describedBy(id, hint, error)}
-        aria-invalid={error ? 'true' : undefined}
+        aria-invalid={custom ? undefined : invalid}
         className={cn('flex gap-2.5', layout === 'column' ? 'flex-col' : 'flex-wrap')}
       >
-        {options.map((o) => (
+        {(other ? [...options, { value: OTHER, label: other }] : options).map((o) => (
           <RadioGroupPrimitive.Item
             key={o.value}
             value={o.value}
@@ -221,7 +202,7 @@ export function RadioCards({ label, name, value, onChange, onBlur, error, hint, 
                 : 'min-h-[54px] items-start gap-3 rounded-lg border px-4 py-3.5 text-[15px] font-semibold data-[state=checked]:border-primary data-[state=checked]:bg-secondary data-[state=checked]:text-primary',
               // basis sets width in a row but height in a column, so only rows share the line
               variant !== 'pill' && layout !== 'column' && 'flex-1 basis-[150px]',
-              error ? 'border-brand-red' : 'border-input bg-card',
+              error && !custom ? 'border-brand-red' : 'border-input bg-card',
             )}
           >
             {variant !== 'pill' && (
@@ -236,6 +217,28 @@ export function RadioCards({ label, name, value, onChange, onBlur, error, hint, 
           </RadioGroupPrimitive.Item>
         ))}
       </RadioGroupPrimitive.Root>
+      {custom && (
+        <div className={cn(shell, tone(error))}>
+          {/* Typing keeps the box open even when the text is cleared back to empty. */}
+          <input
+            name={name}
+            value={value ?? ''}
+            onChange={(e) => {
+              setPicked(true)
+              onChange(e.target.value)
+            }}
+            onBlur={onBlur}
+            placeholder="Tulis di sini"
+            maxLength={50}
+            autoFocus={picked}
+            aria-label={`${label} lainnya`}
+            aria-required={required || undefined}
+            aria-invalid={invalid}
+            aria-describedby={describedBy(id, hint, error)}
+            className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-[#8a93a3]"
+          />
+        </div>
+      )}
     </FieldShell>
   )
 }

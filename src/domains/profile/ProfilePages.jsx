@@ -310,7 +310,7 @@ export function JobFields({ form, required = [] }) {
   const req = (k) => required.includes(k)
   return (
     <>
-      <SelectField label="Jenis pekerjaan" required={req('occupation')} options={OCCUPATIONS} other="Tulis jenis pekerjaan" span {...form.bind('occupation')} />
+      <RadioCards label="Jenis pekerjaan" required={req('occupation')} layout="column" options={OCCUPATIONS} other="Lainnya — tulis pekerjaanmu" span {...form.bind('occupation')} />
       <TextField label="Nama perusahaan / usaha" required={req('companyName')} {...form.bind('companyName')} />
       <TextField label="Jabatan / bidang usaha" required={req('jobTitle')} {...form.bind('jobTitle')} />
       <NumberField label="Lama bekerja" required={req('workYears')} suffix="tahun" {...form.bind('workYears')} />

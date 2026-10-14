@@ -112,12 +112,11 @@ export const maskEmail = (email) => {
 
 // ---- enum labels ----
 export const OCCUPATIONS = [
-  { value: 'private_employee', label: 'Karyawan Swasta' },
-  { value: 'civil_servant', label: 'PNS / BUMN' },
-  { value: 'military_police', label: 'TNI / Polri' },
-  { value: 'entrepreneur', label: 'Wiraswasta' },
-  { value: 'professional', label: 'Profesional' },
-  { value: 'freelancer', label: 'Freelancer' },
+  { value: 'civil_servant', label: 'PNS / BUMN / TNI / Polri' },
+  { value: 'private_employee', label: 'Karyawan tetap swasta' },
+  { value: 'contract_employee', label: 'Karyawan kontrak' },
+  { value: 'entrepreneur', label: 'Wiraswasta / pengusaha' },
+  { value: 'freelancer', label: 'Freelance / tak tetap' },
 ]
 export const MARITAL = [
   { value: 'single', label: 'Belum Menikah' },

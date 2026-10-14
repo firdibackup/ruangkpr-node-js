@@ -121,7 +121,7 @@ export function PrimaryCompareStep({ app, go, fromReview }) {
                 <span className={cn('text-xs', x.stale ? 'font-semibold text-warning-text' : 'text-muted-foreground')}>
                   {x.stale ? `Data produk terakhir diverifikasi ${dateShort(x.lastVerifiedAt)}. Angka bisa berbeda.` : `Data produk per ${dateShort(x.lastVerifiedAt)} · floating estimasi ${percentBps(x.floatingRateBps)}`}
                 </span>
-                <Button variant="secondary" size="sm" className="mt-auto justify-between" onClick={() => go(`/apply/primary/6/${x.productId}`, { state: fromReview ? { from: 'review' } : undefined })}>
+                <Button variant="secondary" size="sm" className="mt-auto justify-between" onClick={() => go(`/apply/primary/5/${x.productId}`, { state: fromReview ? { from: 'review' } : undefined })}>
                   Lihat Detail
                   <ArrowRightIcon aria-hidden />
                 </Button>
@@ -132,11 +132,11 @@ export function PrimaryCompareStep({ app, go, fromReview }) {
       )}
       <Disclaimer>Rekomendasi berbasis aturan dari data produk terbaru, bukan jaminan persetujuan. Bunga floating setelah masa fixed adalah estimasi; angka final mengikuti penawaran bank.</Disclaimer>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="neutral" onClick={() => go(fromReview ? '/apply/primary/7' : '/apply/primary/5')}>
+        <Button variant="neutral" onClick={() => go(fromReview ? '/apply/primary/7' : '/apply/primary/4')}>
           Kembali
         </Button>
         {app.selection && (
-          <Button onClick={() => go('/apply/primary/7')}>
+          <Button onClick={() => go(fromReview ? '/apply/primary/7' : '/apply/primary/6')}>
             Lanjut dengan {app.selection.bankName}
             <ArrowRightIcon aria-hidden />
           </Button>
@@ -146,7 +146,7 @@ export function PrimaryCompareStep({ app, go, fromReview }) {
   )
 }
 
-export function PrimaryProgramDetail({ app, productId, onSaved, go }) {
+export function PrimaryProgramDetail({ app, productId, onSaved, go, fromReview }) {
   const { data, error, reload } = useResource(() => api.bankProducts.compare({ applicationId: app.id }), [app.id])
   const item = data?.items.find((x) => x.productId === productId)
   if (error && !data) return <ErrorPanel onRetry={reload} />
@@ -157,7 +157,7 @@ export function PrimaryProgramDetail({ app, productId, onSaved, go }) {
         icon={SearchXIcon}
         title="Program tidak ditemukan"
         action={
-          <Button size="md" onClick={() => go('/apply/primary/6')}>
+          <Button size="md" onClick={() => go('/apply/primary/5')}>
             Kembali ke Daftar Program
           </Button>
         }
@@ -166,10 +166,10 @@ export function PrimaryProgramDetail({ app, productId, onSaved, go }) {
       </EmptyState>
     )
   }
-  return <ProgramSimulator key={item.productId} app={app} item={item} capacity={data.capacity} onSaved={onSaved} go={go} />
+  return <ProgramSimulator key={item.productId} app={app} item={item} capacity={data.capacity} onSaved={onSaved} go={go} fromReview={fromReview} />
 }
 
-function ProgramSimulator({ app, item, capacity, onSaved, go }) {
+function ProgramSimulator({ app, item, capacity, onSaved, go, fromReview }) {
   const { price } = app.data.property
   const dp = app.data.loan.downPayment ?? 0
   const maxLoan = price - dp
@@ -192,7 +192,7 @@ function ProgramSimulator({ app, item, capacity, onSaved, go }) {
       const saved = await api.applications.selectProgram(app.id, { bankProductId: item.productId, loanAmount: plafon, tenorMonths: years * 12 })
       onSaved(saved)
       toast('Program tersimpan.')
-      go('/apply/primary/7')
+      go(fromReview ? '/apply/primary/7' : '/apply/primary/6')
     } catch (e) {
       setApiError(e.message)
       setPending(false)
@@ -271,7 +271,7 @@ function ProgramSimulator({ app, item, capacity, onSaved, go }) {
           {pending && <Spinner />}
           Pilih Program &amp; Lanjutkan
         </Button>
-        <Button variant="neutral" size="sm" onClick={() => go('/apply/primary/6')}>
+        <Button variant="neutral" size="sm" onClick={() => go('/apply/primary/5')}>
           Kembali ke daftar program
         </Button>
       </div>

@@ -60,7 +60,9 @@ export function evaluatePrimaryProduct({ product, input, asOf }) {
   const e = product.eligibility
   const excluded = []
   if (input.monthlyIncome < e.minimumIncome) excluded.push('Penghasilan di bawah minimum program')
-  if (input.occupation && !e.occupations.includes(input.occupation)) excluded.push('Jenis pekerjaan belum didukung program')
+  // Jobs typed under "Lainnya" (user) and "Tambah manual" (admin) match ignoring case and spaces around.
+  const job = String(input.occupation ?? '').trim().toLowerCase()
+  if (job && !e.occupations.some((o) => o.toLowerCase() === job)) excluded.push('Jenis pekerjaan belum didukung program')
   if (input.propertyType && !e.propertyTypes.includes(input.propertyType)) excluded.push('Jenis properti belum didukung program')
   if (input.loanAmount / input.propertyPrice > e.maximumLtvBps / 10_000) excluded.push('Uang muka di bawah batas minimum program')
   if (input.tenorMonths > e.maximumTenorMonths) excluded.push('Tenor melebihi batas program')
@@ -244,7 +246,8 @@ export function evaluateTakeoverProduct({ product, baseline, input, asOf, plafon
   const reasons = []
   let eligibility = eligibilityFromDti(dtiRatio, product.eligibility.maximumDtiBps)
   if (eligibility !== 'estimated_eligible') reasons.push(`Rasio cicilan di atas batas ${product.eligibility.maximumDtiBps / 100}% ${product.bank.name}`)
-  const purposeOk = !topup || product.eligibility.purposes.includes(input.purpose)
+  // No purposes recorded (catalog rows filled outside the admin form) = no top-up purpose accepted, as the form shows it.
+  const purposeOk = !topup || (product.eligibility.purposes ?? []).includes(input.purpose)
   if (!purposeOk) {
     eligibility = 'not_eligible'
     reasons.unshift(`Tujuan dana belum sesuai kebijakan ${product.bank.name}`)
@@ -336,7 +339,7 @@ export function defaultTakeoverSort(input) {
 export function compareTakeoverPrograms({ products, baseline, input, asOf, sort }) {
   const activeSort = sort ?? defaultTakeoverSort(input)
   const items = products
-    .filter((p) => p.productTypes.includes('takeover') && isAvailable(p, asOf))
+    .filter((p) => p.productTypes.includes(input.mode === 'topup' ? 'topup' : 'takeover') && isAvailable(p, asOf))
     .map((product) => evaluateTakeoverProduct({ product, baseline, input, asOf }))
     .sort(TAKEOVER_SORTS[activeSort].compare)
   const fresh = items.filter((x) => !x.stale)

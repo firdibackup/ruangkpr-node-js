@@ -34,6 +34,11 @@ describe('primary compare', () => {
     expect(r.items).toHaveLength(0)
     expect(r.excluded.every((x) => x.reasons.includes('Penghasilan di bawah minimum program'))).toBe(true)
   })
+  it('a job typed under "Lainnya" matches a job the admin typed, ignoring case', () => {
+    const r = comparePrimaryPrograms({ products: BANK_PRODUCTS, input: { ...primaryInput, occupation: ' profesional ' }, asOf })
+    expect(r.items.map((x) => x.bank.name)).toEqual(['Bank DEF']) // DEF accepts "Profesional"; ABC does not
+    expect(r.excluded.find((x) => x.bank.name === 'Bank ABC').reasons).toContain('Jenis pekerjaan belum didukung program')
+  })
   it('stale product data never gets the recommendation label', () => {
     const stale = BANK_PRODUCTS.map((p) => (p.id === 'bpr_abc_primary_fix5_v4' ? { ...p, lastVerifiedAt: '2026-07-01' } : p))
     const r = comparePrimaryPrograms({ products: stale, input: primaryInput, asOf, sort: 'cicilan' })
@@ -123,5 +128,18 @@ describe('take over / top-up', () => {
     const def = r.items.find((x) => x.bank.id === 'bnk_def')
     expect(compareTakeoverPrograms({ products: BANK_PRODUCTS, baseline, input: { ...topupInput, purpose: 'business' }, asOf }).items.find((x) => x.bank.id === 'bnk_def').eligibility).toBe('not_eligible')
     expect(def.purposeOk).toBe(true)
+  })
+  it('top-up compares only products marked Take Over + Top-up', () => {
+    const takeoverOnly = BANK_PRODUCTS.map((p) => (p.bank.id === 'bnk_xyz' && p.productTypes.includes('topup') ? { ...p, productTypes: ['takeover'] } : p))
+    const ids = (mode) => compareTakeoverPrograms({ products: takeoverOnly, baseline, input: { ...input, mode, requestedTopup: 100_000_000, purpose: 'renovation' }, asOf }).items.map((x) => x.bank.id)
+    expect(ids('takeover')).toContain('bnk_xyz')
+    expect(ids('topup')).not.toContain('bnk_xyz')
+  })
+  it('a Take Over product with no top-up purposes recorded accepts none instead of crashing', () => {
+    const product = BANK_PRODUCTS.find((p) => p.bank.id === 'bnk_xyz' && p.productTypes.includes('takeover'))
+    const { purposes: _none, ...eligibility } = product.eligibility
+    const r = evaluateTakeoverProduct({ product: { ...product, eligibility }, baseline, input: { ...input, mode: 'topup', requestedTopup: 100_000_000, purpose: 'renovation', tenorMonths: 240 }, asOf })
+    expect(r.purposeOk).toBe(false)
+    expect(r.eligibility).toBe('not_eligible')
   })
 })

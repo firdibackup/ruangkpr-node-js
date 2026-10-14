@@ -518,10 +518,11 @@ function EmploymentStep({ app, setApp, next, fromReview }) {
       />
       <Group icon={BriefcaseIcon} title="Pekerjaan & penghasilan">
         <FormGrid>
-          <SelectField
+          <RadioCards
             label="Jenis pekerjaan"
+            layout="column"
             options={OCCUPATIONS}
-            other="Tulis jenis pekerjaan"
+            other="Lainnya — tulis pekerjaanmu"
             span
             {...form.bind("occupation")}
           />
@@ -616,7 +617,13 @@ function OldLoanStep({ app, clock, setApp, next }) {
     ...form.bind(key),
     onChange: (x) =>
       form.setValues((p) =>
-        withImpliedRate(p, { ...p, [key]: x }, "rate", "rateType"),
+        withImpliedRate(
+          p,
+          { ...p, [key]: x },
+          "rate",
+          "rateType",
+          oldLoanFormValues(app.data.oldLoan).rate,
+        ),
       ),
   });
   const rateIsAuto = v.rate !== "" && v.rate === impliedRate(v, v.rateType);

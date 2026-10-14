@@ -307,6 +307,19 @@ test('bank figures that do not fit the cicilan get a warning in the setup', asyn
   await expect(warning).toHaveCount(0)
 })
 
+test('Edit Data KPR: a new cicilan fills bunga again, even when the saved bunga was typed', async ({ page }) => {
+  await useScenario(page, 'mortgage_active_normal', '/monitoring/setup/1?edit=mykpr')
+  const rate = page.getByLabel('Bunga saat ini')
+  await rate.fill('5,60') // not what pinjaman, cicilan and tenor imply (5,50)
+  await page.getByRole('button', { name: 'Simpan Perubahan' }).click()
+  await expect(page).toHaveURL(/my-kpr\/overview/)
+  await page.goto('/monitoring/setup/1?edit=mykpr')
+  await expect(rate).toHaveValue('5,60')
+  await page.getByLabel('Cicilan bulanan saat ini').fill('4500000')
+  await expect(rate).toHaveValue('6,58')
+  await expect(page.getByText('Dihitung otomatis dari pinjaman awal')).toBeVisible()
+})
+
 test('warning & partial states: H-90 warning is first, partial rate shows no fake table', async ({ page }) => {
   await useScenario(page, 'mortgage_active_h90', '/')
   await expect(page.getByText('Peringatan bunga · H-90')).toBeVisible()

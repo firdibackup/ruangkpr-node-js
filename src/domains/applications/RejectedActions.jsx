@@ -16,7 +16,7 @@ export function RejectedActions({ app }) {
       if (kind === 'clone') {
         const next = await api.applications.cloneToBank(app.id)
         toast('Data & dokumen valid disalin ke pengajuan baru. Pilih bank lain.')
-        navigate(next.productType === 'primary' ? '/apply/primary/6' : '/optimize/baseline')
+        navigate(next.productType === 'primary' ? '/apply/primary/5' : '/optimize/baseline')
       } else {
         const same = await api.applications.retrySameBank(app.id)
         toast('Perbaiki data yang ditandai, lalu ajukan ulang.')

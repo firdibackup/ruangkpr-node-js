@@ -83,6 +83,16 @@ describe('mortgage setup validation', () => {
     expect(step(auto, { rateStatus: 'floating' }).currentRate).toBe('') // payment may have changed: not guessed
     expect(step({ ...auto, currentRate: '6,25' }, { currentPayment: '4500000' }).currentRate).toBe('6,25') // typed: kept
   })
+
+  it('Edit Data KPR: the saved bunga follows a new cicilan until typed; kept when nothing can be implied', () => {
+    const saved = { ...loan, currentRate: '5,60' } // as saved: rarely the exact implied 5,50
+    const step = (prev, patch) => withImpliedRate(prev, { ...prev, ...patch }, 'currentRate', 'rateStatus', '5,60')
+    const moved = step(saved, { currentPayment: '4500000' })
+    expect(moved.currentRate).toBe(impliedRate(moved, 'fixed'))
+    expect(moved.currentRate).not.toBe('5,60')
+    expect(step({ ...saved, rateStatus: 'floating' }, { currentPayment: '4500000' }).currentRate).toBe('5,60') // floating: not guessed, not wiped
+    expect(step({ ...saved, currentRate: '6,25' }, { currentPayment: '4500000' }).currentRate).toBe('6,25') // typed in the edit: kept
+  })
 })
 
 describe('mortgage derivations', () => {

@@ -14,9 +14,9 @@ export const SCENARIOS = [
   { id: 'guest', label: 'Belum daftar (registrasi)' },
   { id: 'fresh', label: 'Home fresh — belum ada KPR' },
   { id: 'application_primary_draft_step_3', label: 'Draft KPR Primary · step 3 (properti)' },
-  { id: 'upload_failure', label: 'Draft · step 5 (upload gagal sekali)' },
-  { id: 'no_bank_matches', label: 'Draft · step 6 tanpa program cocok' },
-  { id: 'stale_catalog', label: 'Draft · step 6 data produk usang' },
+  { id: 'upload_failure', label: 'Draft · step 6 (upload gagal sekali)' },
+  { id: 'no_bank_matches', label: 'Draft · step 5 tanpa program cocok' },
+  { id: 'stale_catalog', label: 'Draft · step 5 data produk usang' },
   { id: 'application_in_process', label: 'Pengajuan diproses bank' },
   { id: 'application_additional_docs', label: 'Pengajuan · bank minta dokumen' },
   { id: 'application_rejected_dti', label: 'Pengajuan ditolak (DTI)' },
@@ -564,13 +564,13 @@ export function createSeed(scenario = 'guest') {
         applications: [primaryApplication({ status: 'draft', currentStep: 3, data: { ...PRIMARY_DATA, property: { purchaseType: 'new_from_developer' }, loan: {} } })],
       })
     case 'upload_failure':
-      return base(scenario, { flags: { uploadFailOnce: true, failedUploads: [] }, applications: [primaryApplication({ status: 'draft', currentStep: 5 })] })
+      return base(scenario, { flags: { uploadFailOnce: true, failedUploads: [] }, applications: [primaryApplication({ status: 'draft', currentStep: 6, selection: selectionFor('bpr_abc_primary_fix5_v4', 400_000_000, 240) })] })
     case 'no_bank_matches':
       return base(scenario, {
-        applications: [primaryApplication({ status: 'draft', currentStep: 6, documents: PRIMARY_DOCS(), data: { ...PRIMARY_DATA, employment: { ...PRIMARY_DATA.employment, monthlyIncome: 3_000_000, vehicleDebt: 0, cardDebt: 0 } } })],
+        applications: [primaryApplication({ status: 'draft', currentStep: 5, data: { ...PRIMARY_DATA, employment: { ...PRIMARY_DATA.employment, monthlyIncome: 3_000_000, vehicleDebt: 0, cardDebt: 0 } } })],
       })
     case 'stale_catalog':
-      return base(scenario, { flags: { staleProducts: { bpr_abc_primary_fix5_v4: '2026-07-15' } }, applications: [primaryApplication({ status: 'draft', currentStep: 6, documents: PRIMARY_DOCS() })] })
+      return base(scenario, { flags: { staleProducts: { bpr_abc_primary_fix5_v4: '2026-07-15' } }, applications: [primaryApplication({ status: 'draft', currentStep: 5 })] })
     case 'application_in_process':
       return base(scenario, {
         applications: [submittedPrimary('bank_processing')],

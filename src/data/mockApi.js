@@ -760,7 +760,8 @@ function productIssues(db, c, full) {
   if (!c.bank || !banksOf(db).some((b) => b.id === c.bank.id)) e.bankId = 'Pilih bank.'
   if (!full) return e
   const types = c.productTypes ?? []
-  if (!types.length || types.some((t) => !['primary', 'takeover'].includes(t))) e.productTypes = 'Pilih minimal satu jenis produk.'
+  if (!types.length || types.some((t) => !['primary', 'takeover', 'topup'].includes(t))) e.productTypes = 'Pilih minimal satu jenis produk.'
+  const refinance = types.includes('takeover') || types.includes('topup')
   if (!['conventional', 'sharia'].includes(c.scheme)) e.scheme = 'Pilih skema.'
   const fixed = c.ratePeriods?.find((p) => p.type === 'fixed')
   const floating = c.ratePeriods?.find((p) => p.type === 'floating')
@@ -773,7 +774,7 @@ function productIssues(db, c, full) {
   if (!int(floating?.rateBps, 1, 3000)) e.floatingRateBps = 'Isi estimasi bunga floating 0,01–30%.'
   if (!int(fees.provisionBps, 0, 1000)) e.provisionBps = 'Provisi 0–10%.'
   if (!int(fees.admin, 0, Number.MAX_SAFE_INTEGER)) e.admin = 'Isi biaya administrasi (boleh 0).'
-  if (types.includes('takeover')) for (const k of ['appraisal', 'notary', 'insurance']) if (!int(fees[k], 0, Number.MAX_SAFE_INTEGER)) e[k] = 'Isi biaya (boleh 0).'
+  if (refinance) for (const k of ['appraisal', 'notary', 'insurance']) if (!int(fees[k], 0, Number.MAX_SAFE_INTEGER)) e[k] = 'Isi biaya (boleh 0).'
   if (!int(el.maximumDtiBps, 1, 10000)) e.maximumDtiBps = 'DTI maksimal 0,01–100%.'
   if (!int(el.maximumLtvBps, 1, 10000)) e.maximumLtvBps = 'LTV maksimal 0,01–100%.'
   if (types.includes('primary')) {
@@ -781,8 +782,10 @@ function productIssues(db, c, full) {
     if (!int(el.minimumAge, 17, 70)) e.minimumAge = 'Usia minimum 17–70 tahun.'
     if (!int(el.maximumAgeAtMaturity, 40, 85)) e.maximumAgeAtMaturity = 'Usia maksimal saat lunas 40–85 tahun.'
     if (!el.occupations?.length) e.occupations = 'Pilih minimal satu jenis pekerjaan.'
+    else if (el.occupations.some((o) => typeof o !== 'string' || !o.trim() || o.length > 50)) e.occupations = 'Jenis pekerjaan manual harus diisi, maksimal 50 karakter.'
     if (!el.propertyTypes?.length) e.propertyTypes = 'Pilih minimal satu jenis properti.'
   }
+  if (types.includes('topup') && !el.purposes?.length) e.purposes = 'Pilih minimal satu tujuan top-up.'
   if (!date(c.effectiveFrom)) e.effectiveFrom = 'Pilih tanggal mulai berlaku.'
   if (!date(c.effectiveUntil)) e.effectiveUntil = 'Pilih tanggal akhir berlaku.'
   else if (date(c.effectiveFrom) && c.effectiveUntil < c.effectiveFrom) e.effectiveUntil = 'Tanggal akhir harus setelah tanggal mulai.'
@@ -1333,7 +1336,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         }
         if (app.selection && before !== pricingInputs(app)) {
           app.selection = null
-          if (app.productType === 'primary') app.currentStep = Math.min(app.currentStep, 6)
+          if (app.productType === 'primary') app.currentStep = Math.min(app.currentStep, 5)
         }
         syncProfile(db, values)
         app.currentStep = Math.min(app.stepCount, Math.max(app.currentStep, step + 1))
@@ -1401,7 +1404,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           totalPayment: sim.totalPayment,
           lastVerifiedAt: product.lastVerifiedAt,
         })
-        app.currentStep = Math.max(app.currentStep, app.productType === 'primary' ? 7 : 5)
+        app.currentStep = Math.max(app.currentStep, app.productType === 'primary' ? 6 : 5)
         touch(db, app)
         return decorate(app)
       }),
@@ -1485,7 +1488,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         const app = newApplication(db, { productType: old.productType, mode: old.optimizationMode, source: old.source, mortgageId: old.mortgageId, data: structuredClone(old.data) })
         app.documents = freshDocuments(old.documents)
         app.excludedProductIds = [...(old.excludedProductIds ?? []), old.selection?.bankProductId].filter(Boolean)
-        app.currentStep = old.productType === 'primary' ? 6 : 5
+        app.currentStep = 5 // Primary: compare; Take Over: Tujuan, then baseline
         pushActivity(db, { type: 'application_cloned', category: 'application', title: 'Data disalin ke pengajuan baru', body: `Pengajuan ke ${old.selection?.bankName ?? 'bank sebelumnya'} tetap tersimpan sebagai riwayat.` })
         return decorate(app)
       }),
@@ -1686,7 +1689,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           const reference = fixedLeft != null ? sim.baseline.payments[fixedLeft] : sim.baseline.currentPayment
           const cheaper = sim.items.filter((x) => reference - x.payment > 0 && x.netSaving > 0 && x.eligibility !== 'not_eligible' && !x.stale)
           const best = [...cheaper].sort((a, b) => a.payment - b.payment)[0]
-          const ltvs = productsOf(db).filter((p) => p.productTypes.includes('takeover')).map((p) => p.eligibility.maximumLtvBps)
+          const ltvs = productsOf(db).filter((p) => p.productTypes.includes('topup')).map((p) => p.eligibility.maximumLtvBps)
           const maxLtvBps = ltvs.length ? Math.max(...ltvs) : null // empty catalog: no figure, never -Infinity
           const value = m.property?.estimatedValue
           opportunity = {

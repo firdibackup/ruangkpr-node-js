@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { expectNoSecondary, pdf, register, useScenario } from './helpers'
 
-test('primary: register (name, password, consent) → email code → 7 steps → submit → tracker (resume at step 5)', async ({ page }) => {
+test('primary: register (name, password, consent) → email code → 7 steps → submit → tracker (resume at step 6)', async ({ page }) => {
   await useScenario(page, 'guest', '/register')
   // Looks disabled (aria-disabled) but stays clickable so users learn what is missing; no API call happens.
   await page.getByRole('button', { name: 'Daftar', exact: true }).click({ force: true })
@@ -40,12 +40,13 @@ test('primary: register (name, password, consent) → email code → 7 steps →
   await expect(page).toHaveURL(/apply\/primary\/2/)
   await expect(page.getByText('30% selesai.')).toBeAttached()
   // "Lainnya" swaps in a free-text job; picking a listed job hides it again.
-  const job = page.getByLabel('Jenis Pekerjaan', { exact: true })
-  await job.selectOption('Lainnya')
+  await page.getByRole('radio', { name: 'Lainnya — tulis pekerjaanmu' }).click()
   await expect(page.getByLabel('Jenis Pekerjaan lainnya')).toBeFocused()
   await page.getByLabel('Jenis Pekerjaan lainnya').fill('Guru Honorer')
-  await expect(job).toHaveValue('__other')
-  await job.selectOption('private_employee')
+  await page.getByLabel('Jenis Pekerjaan lainnya').fill('') // cleared text keeps the box open
+  await expect(page.getByLabel('Jenis Pekerjaan lainnya')).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'Lainnya — tulis pekerjaanmu' })).toBeChecked()
+  await page.getByRole('radio', { name: 'Karyawan tetap swasta' }).click()
   await expect(page.getByLabel('Jenis Pekerjaan lainnya')).toHaveCount(0)
   await page.getByLabel('Nama Perusahaan').fill('PT Nusantara Digital')
   await page.getByLabel('Jabatan').fill('Product Designer')
@@ -88,7 +89,14 @@ test('primary: register (name, password, consent) → email code → 7 steps →
   await expect(page.getByRole('heading', { name: 'Tahap 2 selesai' })).toBeVisible()
   await expect(page.getByText('Program cocok')).toBeVisible()
   await expect(page.getByText('80% selesai.')).toBeAttached()
+  // Pick the bank first, then upload documents (step 6), then Review.
   await page.getByRole('button', { name: /Lanjut ke Tahap 3/ }).click()
+  await expect(page).toHaveURL(/apply\/primary\/5$/)
+  await page.getByRole('button', { name: 'Lihat Detail' }).first().click()
+  await expect(page.getByRole('heading', { name: 'Cicilan vs kapasitas' })).toBeVisible()
+  await page.getByRole('button', { name: 'Pilih Program & Lanjutkan' }).click()
+
+  await expect(page).toHaveURL(/apply\/primary\/6/)
   await expect(page.getByRole('heading', { name: 'Dokumen pengajuan' })).toBeVisible()
   const inputs = page.locator('input[type=file]')
   for (let i = 0; i < 4; i++) {
@@ -96,14 +104,9 @@ test('primary: register (name, password, consent) → email code → 7 steps →
     await expect(page.getByText('✓ Terunggah')).toHaveCount(i + 1)
   }
   await page.reload() // resume: files and step persist
-  await expect(page).toHaveURL(/apply\/primary\/5/)
+  await expect(page).toHaveURL(/apply\/primary\/6/)
   await expect(page.getByRole('status').filter({ hasText: '4 dari 4 terunggah' })).toBeVisible()
   await page.getByRole('button', { name: 'Lanjutkan' }).click()
-
-  await expect(page).toHaveURL(/apply\/primary\/6$/)
-  await page.getByRole('button', { name: 'Lihat Detail' }).first().click()
-  await expect(page.getByRole('heading', { name: 'Cicilan vs kapasitas' })).toBeVisible()
-  await page.getByRole('button', { name: 'Pilih Program & Lanjutkan' }).click()
 
   await expect(page).toHaveURL(/apply\/primary\/7/)
   const submit = page.getByRole('button', { name: 'Submit Pengajuan' })
@@ -128,7 +131,7 @@ test('rejected: clone to another bank keeps history, fix & resubmit returns to s
   await useScenario(page, 'application_rejected_dti', '/')
   await expect(page.getByText('Pengajuan Ditolak')).toBeVisible()
   await page.getByRole('button', { name: 'Ajukan ke Bank Lain' }).click()
-  await expect(page).toHaveURL(/apply\/primary\/6$/)
+  await expect(page).toHaveURL(/apply\/primary\/5$/)
   await expect(page.getByText('✕ Ditolak sebelumnya')).toBeVisible()
 
   await useScenario(page, 'application_rejected_dti', '/my-kpr/application')

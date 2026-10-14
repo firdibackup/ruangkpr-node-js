@@ -61,9 +61,11 @@ export function paymentMismatch(v) {
 export const RATE_AUTO_HINT = 'Dihitung otomatis dari pinjaman awal, cicilan, dan tenor awal. Ubah jika berbeda dengan surat akad.'
 
 // A field impliedRate reads changed (prev → next): an empty or still auto-filled bunga follows; a typed one is kept.
-export function withImpliedRate(prev, next, rateKey, typeKey) {
-  const auto = prev[rateKey] === '' || prev[rateKey] === impliedRate(prev, prev[typeKey])
-  return auto ? { ...next, [rateKey]: impliedRate(next, next[typeKey]) } : next
+// The bunga the form opened with (`saved`, rarely the exact implied one) follows too, but stays when none can be implied.
+export function withImpliedRate(prev, next, rateKey, typeKey, saved = '') {
+  const rate = prev[rateKey]
+  if (rate === '' || rate === impliedRate(prev, prev[typeKey])) return { ...next, [rateKey]: impliedRate(next, next[typeKey]) }
+  return rate === saved ? { ...next, [rateKey]: impliedRate(next, next[typeKey]) || rate } : next
 }
 
 // Setup step 1: everything reminders and amortization need. rateStatus: 'fixed' | 'floating'.

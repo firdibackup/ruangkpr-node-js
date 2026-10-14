@@ -216,7 +216,7 @@ function LoanStep({ m, clock, onSaved, editing, backTo, navigate }) {
   // that button down as the field blurs on tap.
   const fixedUntil = form.bind('fixedUntil')
   // Pinjaman, cicilan, tenor and jenis bunga keep an auto-filled bunga in step; it stays editable.
-  const setRateSource = (patch) => form.setValues((p) => withImpliedRate(p, { ...p, ...patch }, 'currentRate', 'rateStatus'))
+  const setRateSource = (patch) => form.setValues((p) => withImpliedRate(p, { ...p, ...patch }, 'currentRate', 'rateStatus', bpsInput(m.currentRateBps)))
   const bindRateSource = (key) => ({ ...form.bind(key), onChange: (x) => setRateSource({ [key]: x }) })
   const rateIsAuto = v.currentRate !== '' && v.currentRate === impliedRate(v, v.rateStatus)
   const loan = loanPreview(v, clock)

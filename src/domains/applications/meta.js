@@ -5,8 +5,8 @@ export const PRIMARY_STEPS = [
   "Pekerjaan & Penghasilan",
   "Properti",
   "Pinjaman",
-  "Upload Dokumen",
   "Bandingkan Program Bank",
+  "Upload Dokumen",
   "Review & Submit",
 ];
 export const TAKEOVER_STEPS = [

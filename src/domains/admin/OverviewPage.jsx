@@ -13,7 +13,8 @@ import { AdminHeader, AuditList, Kpi, Meter, StatusChip } from './shared'
 const PIPELINE = ['submitted', 'docs_verification', 'additional_docs_requested', 'bank_processing', 'appraisal', 'approved', 'old_mortgage_settlement', 'akad']
 const OUTCOMES = ['disbursed', 'rejected']
 const days = (n) => (n === 0 ? 'Hari ini' : `${n} hari`)
-const productTypeLabel = (types) => types.map((t) => (t === 'primary' ? 'KPR Primary' : 'Take Over')).join(', ')
+const TYPE_LABEL = { primary: 'KPR Primary', takeover: 'Take Over', topup: 'Take Over + Top-up' }
+const productTypeLabel = (types) => types.map((t) => TYPE_LABEL[t]).join(', ')
 
 function MeterRow({ label, value, max, note }) {
   return (

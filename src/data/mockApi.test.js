@@ -489,6 +489,23 @@ describe('admin catalog', () => {
     expect(await compareIds()).not.toContain(p.product.id)
   })
 
+  it('a job typed by the admin cannot be blank', async () => {
+    await asAdmin()
+    const p = await api.admin.products.create({ values: { ...FULL, eligibility: { ...FULL.eligibility, occupations: ['private_employee', '  '] } } })
+    await expect(api.admin.products.publish(p.product.id, { reason: 'Promo kuartal 4', expectedVersion: p.product.rev })).rejects.toMatchObject({
+      fieldErrors: [expect.objectContaining({ field: 'occupations' })],
+    })
+  })
+
+  it('a Take Over + Top-up product needs at least one top-up purpose', async () => {
+    await asAdmin()
+    const values = { ...FULL, productTypes: ['takeover', 'topup'], fees: { ...FULL.fees, appraisal: 0, notary: 0, insurance: 0 }, eligibility: { maximumDtiBps: 4000, maximumLtvBps: 8000, maximumTenorMonths: 240, purposes: [] } }
+    const p = await api.admin.products.create({ values })
+    await expect(api.admin.products.publish(p.product.id, { reason: 'Promo kuartal 4', expectedVersion: p.product.rev })).rejects.toMatchObject({
+      fieldErrors: [expect.objectContaining({ field: 'purposes' })],
+    })
+  })
+
   it('editing a published product is a revision: matching keeps the live terms until it is published as a new version', async () => {
     mockControls.reset('upload_failure')
     await asAdmin()
@@ -611,6 +628,21 @@ describe('primary application', () => {
     await expectCode(api.applications.saveStep(app.id, { step: 2, values: { loan: { amount: 1 } } }), 'INVALID_STATE_TRANSITION')
   })
 
+  it('step order: Pinjaman (4) → Bandingkan Program (5) → Upload Dokumen (6) → Review (7)', async () => {
+    mockControls.reset('no_bank_matches') // Primary draft at step 5, a low income so no program fits yet
+    const [draft] = (await api.dashboard.getSnapshot()).applications
+    let app = await api.applications.saveStep(draft.id, { step: 2, values: { employment: { monthlyIncome: 15_000_000 } } })
+    expect(app.currentStep).toBe(5)
+    const [chosen] = (await api.bankProducts.compare({ applicationId: app.id })).items
+    app = await api.applications.selectProgram(app.id, { bankProductId: chosen.productId, loanAmount: 400_000_000, tenorMonths: 240 })
+    expect(app.currentStep).toBe(6)
+    app = await api.applications.saveStep(app.id, { step: 6, values: {} })
+    expect(app.currentStep).toBe(7)
+    // A new loan amount drops the program: back to Bandingkan Program.
+    app = await api.applications.saveStep(app.id, { step: 4, values: { loan: { amount: 350_000_000 } } })
+    expect(app).toMatchObject({ selection: null, currentStep: 5 })
+  })
+
   it('upload failure scenario fails once, retry succeeds without touching other data', async () => {
     mockControls.reset('upload_failure')
     const { applications } = await api.dashboard.getSnapshot()
@@ -628,7 +660,7 @@ describe('primary application', () => {
     const snap = await api.dashboard.getSnapshot()
     expect(snap.applications).toHaveLength(2)
     expect(snap.applications.find((a) => a.id === rejected.id)).toMatchObject({ status: 'rejected', superseded: true })
-    expect(clone).toMatchObject({ status: 'draft', currentStep: 6 })
+    expect(clone).toMatchObject({ status: 'draft', currentStep: 5 }) // reopens at Bandingkan Program Bank
     expect(clone.excludedProductIds).toContain(rejected.selection.bankProductId)
 
     mockControls.reset('application_rejected_dti')

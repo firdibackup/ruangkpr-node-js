@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AdminHeader } from './shared'
 
 const head = 'text-xs font-bold text-ink-3'
-const TYPE_LABEL = { primary: 'KPR Primary', takeover: 'Take Over' }
+const TYPE_LABEL = { primary: 'KPR Primary', takeover: 'Take Over', topup: 'Take Over + Top-up' }
 const PRODUCT_STATUS = { draft: ['Draft', 'mute'], published: ['Terbit', 'ok'], archived: ['Diarsipkan', 'mute'] }
 
 function ProductStatus({ status }) {
@@ -235,7 +235,8 @@ function toForm(c = {}) {
 
 function fromForm(f) {
   const primary = f.productTypes.includes('primary')
-  const takeover = f.productTypes.includes('takeover')
+  const takeover = f.productTypes.includes('takeover') || f.productTypes.includes('topup')
+  const topup = f.productTypes.includes('topup')
   return {
     bankId: f.bankId,
     name: f.name,
@@ -251,7 +252,7 @@ function fromForm(f) {
       maximumLtvBps: toBps(f.maximumLtvBps),
       maximumTenorMonths: toInt(f.maximumTenorMonths),
       ...(primary && { minimumIncome: toMoney(f.minimumIncome), minimumAge: toInt(f.minimumAge), maximumAgeAtMaturity: toInt(f.maximumAgeAtMaturity), occupations: f.occupations, propertyTypes: f.propertyTypes }),
-      ...(takeover && { purposes: f.purposes }),
+      ...(topup && { purposes: f.purposes }),
     },
     effectiveFrom: f.effectiveFrom || null,
     effectiveUntil: f.effectiveUntil || null,
@@ -260,15 +261,42 @@ function fromForm(f) {
 }
 
 // A row of checkboxes over a value list (types, occupations, property types, top-up purposes).
-function CheckGroup({ legend, options, value, onChange, error }) {
+// `custom` lets the admin type values outside the list; they show as ticked boxes and drop off when unticked.
+function CheckGroup({ legend, options, value, onChange, error, custom }) {
+  const [draft, setDraft] = useState('')
+  const all = custom ? [...options, ...value.filter((v) => !options.some((o) => o.value === v)).map((v) => ({ value: v, label: v }))] : options
+  // Text matching a listed label ticks that option instead of adding a duplicate.
+  const add = () => {
+    const text = draft.trim()
+    if (!text) return
+    const hit = all.find((o) => o.label.toLowerCase() === text.toLowerCase())?.value ?? text
+    if (!value.includes(hit)) onChange([...value, hit])
+    setDraft('')
+  }
   return (
     <fieldset className="flex flex-col gap-1 sm:col-span-2">
       <legend className="mb-2 text-sm font-semibold text-ink-2">{legend}</legend>
       <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
-        {options.map((o) => (
+        {all.map((o) => (
           <CheckboxField key={o.value} label={o.label} checked={value.includes(o.value)} onChange={(on) => onChange(on ? [...value, o.value] : value.filter((x) => x !== o.value))} />
         ))}
       </div>
+      {custom && (
+        // Enter adds the typed value instead of submitting the product form.
+        <div
+          className="mt-2 flex items-end gap-2"
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return
+            e.preventDefault()
+            add()
+          }}
+        >
+          <TextField label="Tambah manual" placeholder="Contoh: Dokter" maxLength={50} value={draft} onChange={setDraft} className="flex-1" />
+          <Button type="button" variant="outline" className="h-[54px]" onClick={add} disabled={!draft.trim()}>
+            Tambah
+          </Button>
+        </div>
+      )}
       {error && <FieldError>{error}</FieldError>}
     </fieldset>
   )
@@ -303,7 +331,8 @@ function ProductForm({ data, setData }) {
   const archived = p?.status === 'archived'
   const err = (k) => fieldErrors[k]
   const primary = f.productTypes.includes('primary')
-  const takeover = f.productTypes.includes('takeover')
+  const takeover = f.productTypes.includes('takeover') || f.productTypes.includes('topup')
+  const topup = f.productTypes.includes('topup')
   const issueCount = p ? Object.keys(data.issues).length : 0
 
   const applyDetail = (d) => {
@@ -406,11 +435,11 @@ function ProductForm({ data, setData }) {
                     <MoneyField label="Penghasilan minimum" value={f.minimumIncome} onChange={set('minimumIncome')} error={err('minimumIncome')} />
                     <NumberField label="Usia minimum" suffix="tahun" value={f.minimumAge} onChange={set('minimumAge')} error={err('minimumAge')} />
                     <NumberField label="Usia maksimal saat lunas" suffix="tahun" value={f.maximumAgeAtMaturity} onChange={set('maximumAgeAtMaturity')} error={err('maximumAgeAtMaturity')} />
-                    <CheckGroup legend="Pekerjaan yang diterima" options={OCCUPATIONS} value={f.occupations} onChange={set('occupations')} error={err('occupations')} />
+                    <CheckGroup legend="Pekerjaan yang diterima" custom options={OCCUPATIONS} value={f.occupations} onChange={set('occupations')} error={err('occupations')} />
                     <CheckGroup legend="Jenis properti" options={PROPERTY_TYPES} value={f.propertyTypes} onChange={set('propertyTypes')} error={err('propertyTypes')} />
                   </>
                 )}
-                {takeover && <CheckGroup legend="Tujuan top-up yang diterima" options={PURPOSES} value={f.purposes} onChange={set('purposes')} error={err('purposes')} />}
+                {topup && <CheckGroup legend="Tujuan top-up yang diterima" options={PURPOSES} value={f.purposes} onChange={set('purposes')} error={err('purposes')} />}
               </FormGrid>
             </Panel>
             <Panel>
