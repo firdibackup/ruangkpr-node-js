@@ -964,12 +964,42 @@ describe('take over simulation', () => {
     const finance = { vehicleDebt: 1_000_000, cardDebt: 0, otherDebt: 0 }
     app = await api.applications.saveStep(app.id, { step: 1, values: { employment: { monthlyIncome: 15_000_000 } } })
     app = await api.applications.saveStep(app.id, { step: 2, values: { oldLoan, property, finance } })
+    await api.applications.uploadDocument(app.id, { documentType: 'certificate', file: file('shm.pdf', 200_000, 'application/pdf') })
     await api.applications.cancel(app.id)
 
     const next = await api.applications.create({ productType: 'takeover', mode: 'takeover' })
     expect(next.id).not.toBe(app.id)
     expect(next.data).toMatchObject({ oldLoan, property, finance, employment: { monthlyIncome: 15_000_000 } }) // gaji via the profile
-    expect(next).toMatchObject({ currentStep: 1, documents: {} })
+    expect(next).toMatchObject({ currentStep: 1, documents: { certificate: { status: 'uploaded', fileName: 'shm.pdf' } } })
+  })
+
+  it('a cancelled Primary keeps its property, loan and documents; another product takes only the documents it asks for', async () => {
+    mockControls.reset('fresh')
+    let app = await api.applications.create({ productType: 'primary' })
+    const property = { purchaseType: 'new_from_developer', developerName: 'PT Griya', price: 900_000_000 }
+    app = await api.applications.saveStep(app.id, { step: 3, values: { property, loan: { downPayment: 180_000_000 } } })
+    for (const t of ['ktp', 'property_document']) await api.applications.uploadDocument(app.id, { documentType: t, file: file(`${t}.pdf`, 200_000, 'application/pdf') })
+    await api.applications.cancel(app.id)
+
+    const takeover = await api.applications.create({ productType: 'takeover', mode: 'takeover' })
+    expect(Object.keys(takeover.documents)).toEqual(['ktp']) // a Take Over asks for no Primary property document
+    await api.applications.cancel(takeover.id)
+
+    const next = await api.applications.create({ productType: 'primary' })
+    expect(next.data).toMatchObject({ property, loan: { downPayment: 180_000_000 } })
+    expect(next.documents).toMatchObject({ ktp: { status: 'uploaded' }, property_document: { status: 'uploaded', fileName: 'property_document.pdf' } })
+  })
+
+  it('cancel can forget what was kept, and names the stored files nothing points to any more', async () => {
+    mockControls.reset('fresh')
+    const app = await api.applications.create({ productType: 'primary' })
+    await api.applications.attachDocument(app.id, { documentType: 'ktp', file: { name: 'ktp.pdf', size: 1, type: 'application/pdf' }, path: `u1/${app.id}/ktp/a.pdf` })
+    expect((await api.applications.cancel(app.id)).unusedFiles).toEqual([]) // kept for the next draft
+
+    const next = await api.applications.create({ productType: 'primary' })
+    expect(next.documents.ktp.path).toBe(`u1/${app.id}/ktp/a.pdf`)
+    expect((await api.applications.cancel(next.id, { keepData: false })).unusedFiles).toEqual([`u1/${app.id}/ktp/a.pdf`])
+    expect(await api.applications.create({ productType: 'primary' })).toMatchObject({ documents: {}, data: { loan: {} } })
   })
 
   it('a draft created from a monitored KPR is prefilled and opens on Tujuan with only the missing forms left', async () => {

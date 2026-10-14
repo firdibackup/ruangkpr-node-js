@@ -24,7 +24,7 @@ import {
   UserRoundIcon,
   WalletIcon,
 } from "lucide-react";
-import { api } from "@/data/api";
+import { api, isMock } from "@/data/api";
 import { uploadHint } from "@/data/documentRules";
 import { calculateTopupScenario } from "@/calculations/finance";
 import { useForm } from "@/lib/hooks";
@@ -1508,7 +1508,7 @@ function TakeoverDocsStep({ app, config, setApp, next, fromReview }) {
           Dokumen KPR lama dan properti diperlukan untuk Take Over, berbeda dari
           KPR baru. {uploadHint(config.upload)}. Setiap file tersimpan otomatis.
         </p>
-        {import.meta.env.DEV && !complete && (
+        {import.meta.env.DEV && isMock && !complete && (
           <button
             type="button"
             onClick={uploadAll}

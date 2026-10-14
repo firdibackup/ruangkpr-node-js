@@ -147,7 +147,8 @@ test('a deleted Take Over draft keeps what was typed: starting again opens fille
 
   await page.goto('/')
   await page.getByRole('button', { name: 'Batal & mulai produk lain' }).click()
-  await expect(page.getByText('Data yang sudah kamu isi tetap tersimpan')).toBeVisible()
+  await expect(page.getByText('Data dan dokumen yang sudah kamu isi tetap tersimpan')).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: 'Hapus juga data & dokumen yang tersimpan' })).not.toBeChecked()
   await page.getByRole('button', { name: 'Ya, Hapus' }).click()
   await expect(page.getByText('Draft dihapus.')).toBeVisible()
 

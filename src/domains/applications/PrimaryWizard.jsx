@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { BriefcaseIcon, FileTextIcon, HandCoinsIcon, HouseIcon, LandmarkIcon, PencilIcon, UserIcon } from 'lucide-react'
-import { api } from '@/data/api'
+import { api, isMock } from '@/data/api'
 import { uploadHint } from '@/data/documentRules'
 import { useResource } from '@/lib/hooks'
 import { dateLong, labelOf, percentBps, percentRatio, rupiah, tenorLabel, GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES } from '@/lib/format'
@@ -10,11 +10,12 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/AppShell'
 import { CheckboxField } from '@/components/shared/fields'
-import { ConfirmDialog, UnsavedChangesGuard } from '@/components/shared/dialogs'
+import { UnsavedChangesGuard } from '@/components/shared/dialogs'
 import { WizardProgress } from '@/components/shared/progress'
 import { UploadRow } from '@/components/shared/UploadRow'
 import { Chip, Disclaimer, ErrorPanel, IconBox, Notice, Panel, PageSkeleton, ProgressBar, Spinner, SummaryRows } from '@/components/shared/ui'
 import { activeApplication } from '@/domains/home/selectHomeState'
+import { CancelApplicationDialog } from './CancelApplicationDialog'
 import { PRIMARY_PHASES, PRIMARY_STEPS, primaryProgress, productName, resumePath } from './meta'
 import { PrimaryDetailsStep } from './PrimaryDetailsStep'
 import { PrimaryCompareStep, PrimaryProgramDetail } from './PrimaryCompare'
@@ -107,13 +108,13 @@ function OtherDraftNotice({ app, onDeleted }) {
           )}
         </div>
       </Panel>
-      <ConfirmDialog
+      <CancelApplicationDialog
+        app={app}
         open={confirm}
         onOpenChange={setConfirm}
         title="Hapus draft pengajuan?"
-        body={`Draft ${productName(app)} dan dokumennya akan dihapus permanen.`}
-        onConfirm={async () => {
-          await api.applications.cancel(app.id)
+        body={`Draft ${productName(app)} akan dihapus.`}
+        onDone={() => {
           toast('Draft dihapus.')
           onDeleted()
         }}
@@ -204,7 +205,7 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules, next
         </span>
         <ProgressBar value={(done / Math.max(1, required.length)) * 100} label="Dokumen wajib terunggah" barClassName="bg-success-strong" />
         <p className="text-[13px] leading-5 text-ink-3">{uploadHint(uploadRules)} per file. File tersimpan otomatis begitu dipilih.</p>
-        {import.meta.env.DEV && !complete && (
+        {import.meta.env.DEV && isMock && !complete && (
           <button type="button" onClick={fillDemo} disabled={demoPending} className="w-fit text-[13px] font-bold text-primary underline">
             {demoPending ? 'Mengisi…' : 'Isi contoh'}
           </button>

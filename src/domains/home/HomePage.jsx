@@ -45,10 +45,10 @@ import {
   SummaryRows,
 } from "@/components/shared/ui";
 import { PendingDocs, StageNoteCard } from "@/domains/applications/ApplicationTracker";
+import { CancelApplicationDialog } from "@/domains/applications/CancelApplicationDialog";
 import { RejectedActions } from "@/domains/applications/RejectedActions";
 import {
   draftProgress,
-  keptDataNote,
   productName,
   resumePath,
   trackerSteps,
@@ -569,14 +569,13 @@ function DraftHero({ app, onDeleted }) {
           Batal &amp; mulai produk lain
         </button>
       </div>
-      <ConfirmDialog
+      <CancelApplicationDialog
+        app={app}
         open={confirm}
         onOpenChange={setConfirm}
         title="Hapus draft pengajuan?"
-        body={`Draft ${productName(app)} beserta dokumen yang sudah diunggah akan dihapus permanen.`}
-        note={keptDataNote(app)}
-        onConfirm={async () => {
-          await api.applications.cancel(app.id);
+        body={`Draft ${productName(app)} akan dihapus.`}
+        onDone={() => {
           toast("Draft dihapus.");
           onDeleted();
         }}

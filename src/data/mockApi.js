@@ -390,9 +390,14 @@ function newApplication(db, { productType, mode = null, source = 'cold', mortgag
     updatedAt: nowIso(db),
     submittedAt: null,
   }
+  // Documents a cancelled application left behind (see cancel), the ones this product asks for.
+  const types = requiredDocuments(app).map((d) => d.type)
+  app.documents = freshDocuments(Object.fromEntries(Object.entries(db.kept?.documents ?? {}).filter(([t]) => types.includes(t))))
   db.applications.unshift(app)
   return decorate(app)
 }
+
+const docPaths = (documents) => Object.values(documents ?? {}).map((d) => d.path).filter(Boolean)
 
 // From the akad's final terms when the team recorded them (doc 04 §9.1), else from the chosen program.
 function mortgageFromApplication(db, app, base = {}, owner = db) {
@@ -1241,7 +1246,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
       ),
       deleteAccount: call('auth.deleteAccount', (db) => {
         if (db.applications.some((a) => IN_PROCESS.includes(a.status))) fail('INVALID_STATE_TRANSITION', 'Masih ada pengajuan yang sedang diproses bank. Batalkan atau tunggu sampai selesai sebelum menghapus akun.', 400)
-        // In place: `call` saves this same object afterwards. Clear first so keys outside the seed (takeoverKept) go too.
+        // In place: `call` saves this same object afterwards. Clear first so keys outside the seed (kept) go too.
         // Only the signed-in account goes: other accounts in this browser, their passwords and the id sequence stay.
         const { accounts, seq, passwords } = db
         const { [db.user.contact]: _gone, ...kept } = passwords ?? {}
@@ -1306,11 +1311,11 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           app.currentStep = 5
           return app
         }
-        // A cancelled Take Over left its old loan, property and finance behind (see cancel): start from them.
-        const kept = structuredClone(db.takeoverKept ?? {})
+        // A cancelled application left what was typed behind (see cancel): start from it.
+        const kept = structuredClone(db.kept?.[productType] ?? {})
         const data =
           productType === 'primary'
-            ? { personal: prefilledPersonal(db), employment: prefilledEmployment(db), property: { purchaseType }, loan: {} }
+            ? { personal: prefilledPersonal(db), employment: prefilledEmployment(db), property: kept.property ?? { purchaseType }, loan: kept.loan ?? {} }
             : { personal: prefilledPersonal(db), employment: prefilledEmployment(db), oldLoan: kept.oldLoan ?? {}, goal: { mode: mode ?? null }, property: kept.property ?? {}, finance: kept.finance ?? {} }
         return newApplication(db, { productType, mode, data })
       }),
@@ -1432,17 +1437,29 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         })
         return app
       }),
-      // Mock hard delete per current product decision. Production must confirm retention/compliance first.
-      // Take Over keeps what the user typed for the next draft; personal and job data already live on the profile.
-      cancel: call('applications.cancel', (db, id) => {
+      // The application goes; what the user typed and uploaded stays for the next draft (personal and job data already
+      // live on the profile), unless they ask to forget it. `unusedFiles`: stored files nothing points to any more.
+      cancel: call('applications.cancel', (db, id, { keepData = true } = {}) => {
         const app = findApp(db, id)
         if (!CANCELLABLE.includes(app.status)) fail('INVALID_STATE_TRANSITION', 'Pengajuan pada tahap ini tidak bisa dibatalkan.', 400)
-        const keeps = app.productType === 'takeover'
-        if (keeps) db.takeoverKept = structuredClone({ oldLoan: app.data.oldLoan, property: app.data.property, finance: app.data.finance })
+        const files = [...docPaths(app.documents), ...docPaths(db.kept?.documents)]
+        if (keepData) {
+          const d = app.data
+          // This application's documents win for every type it asks for, so one the team turned back or the user
+          // removed is not brought back; other types (the other product's) stay as they were.
+          const documents = { ...db.kept?.documents }
+          for (const { type } of requiredDocuments(app)) delete documents[type]
+          db.kept = structuredClone({
+            ...db.kept,
+            [app.productType]: app.productType === 'primary' ? { property: d.property, loan: d.loan } : { oldLoan: d.oldLoan, property: d.property, finance: d.finance },
+            documents: freshDocuments({ ...documents, ...app.documents }),
+          })
+        } else db.kept = null
         db.applications = db.applications.filter((a) => a.id !== id)
         if (db.simulation?.source?.id === id) db.simulation = null
-        if (app.status !== 'draft') pushActivity(db, { type: 'application_cancelled', category: 'application', title: 'Pengajuan dibatalkan', body: keeps ? 'Pengajuan dan dokumen terkait sudah dihapus. Data yang kamu isi tetap tersimpan untuk pengajuan berikutnya.' : 'Data pengajuan dan dokumen terkait sudah dihapus.' })
-        return { deleted: true, wasDraft: app.status === 'draft' }
+        if (app.status !== 'draft') pushActivity(db, { type: 'application_cancelled', category: 'application', title: 'Pengajuan dibatalkan', body: keepData ? 'Pengajuan sudah ditarik. Data dan dokumen yang kamu isi tetap tersimpan untuk pengajuan berikutnya.' : 'Pengajuan, data, dan dokumen terkait sudah dihapus.' })
+        const used = new Set([...docPaths(db.kept?.documents), ...db.applications.flatMap((a) => docPaths(a.documents))])
+        return { deleted: true, wasDraft: app.status === 'draft', unusedFiles: [...new Set(files)].filter((p) => !used.has(p)) }
       }),
       retrySameBank: call('applications.retrySameBank', (db, id) => {
         const app = findApp(db, id)

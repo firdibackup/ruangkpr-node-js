@@ -24,7 +24,7 @@ import { dateLong, dateShort, percentBps, rupiah, tenorLabel } from "@/lib/forma
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/AppShell";
-import { ConfirmDialog, FormDialog } from "@/components/shared/dialogs";
+import { FormDialog } from "@/components/shared/dialogs";
 import { StatusStepper, Timeline } from "@/components/shared/progress";
 import { UploadRow } from "@/components/shared/UploadRow";
 import {
@@ -38,10 +38,10 @@ import {
 } from "@/components/shared/ui";
 import { activeApplication } from "@/domains/home/selectHomeState";
 import { deriveMortgage } from "@/domains/mortgages/derive";
+import { CancelApplicationDialog } from "./CancelApplicationDialog";
 import { RejectedActions } from "./RejectedActions";
 import {
   STATUS_LABEL,
-  keptDataNote,
   productName,
   resumePath,
   stepsOf,
@@ -245,14 +245,13 @@ function DraftChecklist({ app, onDeleted }) {
           Hapus Draft
         </Button>
       </div>
-      <ConfirmDialog
+      <CancelApplicationDialog
+        app={app}
         open={confirm}
         onOpenChange={setConfirm}
         title="Hapus draft pengajuan?"
-        body="Draft dan dokumen yang diunggah akan dihapus permanen."
-        note={keptDataNote(app)}
-        onConfirm={async () => {
-          await api.applications.cancel(app.id);
+        body="Draft pengajuan ini akan dihapus."
+        onDone={() => {
           toast("Draft dihapus.");
           navigate("/", { replace: true });
           onDeleted();
@@ -623,16 +622,15 @@ function Tracker({ app, snap, onChange, reload }) {
           )}
       </div>
 
-      <ConfirmDialog
+      <CancelApplicationDialog
+        app={app}
         open={cancel}
         onOpenChange={setCancel}
         title="Yakin batalkan pengajuan ini?"
-        body={`Pengajuan akan ditarik dari ${s?.bankName}. Pengajuan dan dokumen terkait dihapus permanen (keputusan produk saat ini; kebijakan retensi final menunggu review kepatuhan).`}
-        note={keptDataNote(app)}
+        body={`Pengajuan akan ditarik dari ${s?.bankName}.`}
         confirmLabel="Ya, Batalkan"
-        onConfirm={async () => {
-          await api.applications.cancel(app.id);
-          toast("Pengajuan dibatalkan dan dihapus.");
+        onDone={() => {
+          toast("Pengajuan dibatalkan.");
           navigate("/", { replace: true });
         }}
       />

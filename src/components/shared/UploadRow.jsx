@@ -14,7 +14,8 @@ const VIEW = {
 }
 
 // Document checklist row (artifact C23): pending → uploading → uploaded / error, retry per item.
-// Only metadata leaves this component; file bytes are never persisted. `rules`: the snapshot's `config.upload`.
+// The picked File goes to `onUpload` whole: the real backend uploads its bytes, the demo keeps only name/size/type.
+// `rules`: the snapshot's `config.upload`.
 export function UploadRow({ doc, state, onUpload, readOnly = false, compact = false, rules = DEFAULT_UPLOAD }) {
   const input = useRef(null)
   const [local, setLocal] = useState(null) // { status: 'uploading'|'error', pct, message }
@@ -32,7 +33,7 @@ export function UploadRow({ doc, state, onUpload, readOnly = false, compact = fa
     if (problem) return setLocal({ status: 'error', message: problem.message })
     setLocal({ status: 'uploading', pct: 5 })
     try {
-      await onUpload({ name: file.name, size: file.size, type: file.type }, (pct) => setLocal((l) => (l?.status === 'uploading' ? { ...l, pct } : l)))
+      await onUpload(file, (pct) => setLocal((l) => (l?.status === 'uploading' ? { ...l, pct } : l)))
       setLocal(null)
     } catch (err) {
       setLocal({ status: 'error', message: err?.message ?? 'Upload gagal. Periksa koneksi lalu coba lagi.' })

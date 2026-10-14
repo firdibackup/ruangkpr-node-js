@@ -174,7 +174,7 @@ export function MarkPaidDialog({ onOpenChange, m, payment = m.currentPayment, du
   const [dueDate, setDueDate] = useState(initialDue ?? dueOptions[0] ?? '')
   const [amount, setAmount] = useState(String(payment))
   const [paidAt, setPaidAt] = useState(clock)
-  const [proof, setProof] = useState(null) // file metadata only
+  const [proof, setProof] = useState(null) // the picked File
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
   const submit = async (e) => {

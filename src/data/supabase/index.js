@@ -17,11 +17,6 @@ async function uploadRules() {
   return config?.doc?.upload ?? DEFAULT_UPLOAD
 }
 
-const ownFiles = (app) =>
-  Object.values(app?.documents ?? {})
-    .map((d) => d.path)
-    .filter((path) => ownsFolder(path, app.id))
-
 export function createSupabaseApi() {
   const base = createMockApi({ latencyMs: 0, store: createSupabaseStore() })
 
@@ -53,10 +48,10 @@ export function createSupabaseApi() {
       await removeFiles(DOCS_BUCKET, [before.documents[documentType]?.path].filter((p) => ownsFolder(p, id)))
       return app
     },
-    async cancel(id) {
-      const before = await base.applications.get(id)
-      const result = await base.applications.cancel(id)
-      await removeFiles(DOCS_BUCKET, ownFiles(before))
+    // Files kept for the next draft stay in Storage; only the ones nothing points to any more go.
+    async cancel(id, input) {
+      const result = await base.applications.cancel(id, input)
+      await removeFiles(DOCS_BUCKET, result.unusedFiles)
       return result
     },
   }

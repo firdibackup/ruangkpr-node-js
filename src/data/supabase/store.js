@@ -11,10 +11,10 @@ import { must, toApiError } from './errors'
 // column lives in `personal`.
 const PROFILE_OWN = ['fullName', 'nik', 'phone', 'email', 'consents']
 
-export function profileRow({ profile = {}, finance = {}, dashboardLayout, toursSeen, takeoverKept, simulation, own = false }) {
+export function profileRow({ profile = {}, finance = {}, dashboardLayout, toursSeen, kept, simulation, own = false }) {
   const personal = Object.fromEntries(Object.entries(profile).filter(([k]) => !PROFILE_OWN.includes(k)))
   const row = { full_name: profile.fullName ?? '', phone: profile.phone || null, nik: profile.nik || null, personal, finance: finance ?? {} }
-  return own ? { ...row, dashboard_layout: Array.isArray(dashboardLayout) ? dashboardLayout : null, tours_seen: toursSeen ?? [], takeover_kept: takeoverKept ?? null, simulation: simulation ?? null } : row
+  return own ? { ...row, dashboard_layout: Array.isArray(dashboardLayout) ? dashboardLayout : null, tours_seen: toursSeen ?? [], kept: kept ?? null, simulation: simulation ?? null } : row
 }
 
 const profileOf = (row, consents = []) => ({ ...(row.personal ?? {}), fullName: row.full_name, nik: row.nik ?? undefined, phone: row.phone ?? undefined, email: row.email, consents })
@@ -142,7 +142,7 @@ export function createSupabaseStore(client = supabase) {
       simulation: profile?.simulation ?? null,
       ...(Array.isArray(profile?.dashboard_layout) && { dashboardLayout: profile.dashboard_layout }),
       toursSeen: profile?.tours_seen ?? [],
-      ...(profile?.takeover_kept && { takeoverKept: profile.takeover_kept }),
+      ...(profile?.kept && { kept: profile.kept }),
       banks: docs(banks),
       products: docs(products),
       articles: docs(articles),

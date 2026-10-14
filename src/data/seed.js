@@ -422,7 +422,7 @@ const normalMortgage = (opts = {}) => fixedMortgage({ startDate: '2022-04-22', f
 // One account's data. The signed-in account sits at the top level of db, so B2C operations keep reading
 // db.profile, db.applications, …; every other account in this browser waits in db.accounts until its contact
 // verifies again (admin dashboard plan §7).
-export const ACCOUNT_KEYS = ['user', 'profile', 'finance', 'applications', 'mortgages', 'simulation', 'activities', 'dashboardLayout', 'toursSeen', 'takeoverKept']
+export const ACCOUNT_KEYS = ['user', 'profile', 'finance', 'applications', 'mortgages', 'simulation', 'activities', 'dashboardLayout', 'toursSeen', 'kept']
 export const pickAccount = (db) => Object.fromEntries(ACCOUNT_KEYS.filter((k) => k in db).map((k) => [k, db[k]]))
 export const newAccount = (user = null) => ({ user, profile: {}, finance: {}, applications: [], mortgages: [], simulation: null, activities: [] })
 

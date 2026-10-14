@@ -77,11 +77,6 @@ export const productName = (app) =>
     : app.optimizationMode === "topup"
       ? "Take Over + Top-up"
       : "Take Over";
-// Cancelling a Take Over keeps its typed data for the next draft (applications.cancel); the delete dialogs say so.
-export const keptDataNote = (app) =>
-  app.productType === "takeover"
-    ? "Data yang sudah kamu isi tetap tersimpan, jadi pengajuan Take Over berikutnya langsung terisi."
-    : undefined;
 export const stepsOf = (app) =>
   app.productType === "primary" ? PRIMARY_STEPS : TAKEOVER_STEPS;
 
