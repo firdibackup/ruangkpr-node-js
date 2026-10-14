@@ -18,8 +18,9 @@ import {
 } from "lucide-react";
 import { api, isMock } from "@/data/api";
 import { mockControls } from "@/data/mockApi";
+import { DOC_LABELS } from "@/data/documentRules";
 import { useResource } from "@/lib/hooks";
-import { dateShort, percentBps, rupiah, tenorLabel } from "@/lib/format";
+import { dateLong, dateShort, percentBps, rupiah, tenorLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -31,6 +32,7 @@ import {
   ErrorPanel,
   IconBox,
   Panel,
+  PanelTitle,
   PageSkeleton,
   SummaryRows,
 } from "@/components/shared/ui";
@@ -54,6 +56,65 @@ const CANCELLABLE = [
   "bank_processing",
   "appraisal",
 ];
+
+// The team's note for the current stage (spec 2026-10-13 §4.2). Appraisal always shows: the agreed schedule, or that
+// the team will confirm it on WhatsApp.
+export function StageNoteCard({ app }) {
+  const note = app.stageNotes?.[app.status];
+  const appraisal = app.status === "appraisal";
+  if (!note && !appraisal) return null;
+  const s = note?.schedule;
+  return (
+    <Panel>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <PanelTitle>Info dari tim RuangKPR</PanelTitle>
+        {appraisal && !s ? (
+          <Chip tone="warn" icon={ClockIcon}>
+            Menunggu konfirmasi
+          </Chip>
+        ) : (
+          <Chip tone="info">{STATUS_LABEL[app.status]}</Chip>
+        )}
+      </div>
+      {appraisal && !s && (
+        <p className="text-sm leading-[22px] text-ink-2">
+          Jadwal appraisal akan dikonfirmasi tim lewat WhatsApp.
+        </p>
+      )}
+      {s && (
+        <SummaryRows
+          size="sm"
+          rows={[
+            { k: "Tanggal", v: dateLong(s.date) },
+            { k: "Jam", v: s.time },
+            { k: "Lokasi", v: s.location },
+          ]}
+        />
+      )}
+      {note?.message && (
+        <p className="text-sm leading-[22px] text-ink-2">{note.message}</p>
+      )}
+      {note && (
+        <span className="text-xs text-muted-foreground">
+          Diperbarui {dateShort(note.updatedAt)}
+        </span>
+      )}
+    </Panel>
+  );
+}
+
+// Each document the team asked again, with its reason.
+export function PendingDocs({ app }) {
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {(app.pendingActions ?? []).map((p) => (
+        <li key={p.id} className="text-sm leading-[21px] text-ink-2">
+          <span className="font-bold">{DOC_LABELS[p.documentType] ?? p.documentType}</span> — {p.message}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function ApplicationTracker() {
   const {
@@ -252,7 +313,7 @@ function heroFor(app, snap) {
         icon: RulerIcon,
         tag: "Appraisal",
         title: "Appraisal properti dijadwalkan",
-        body: `Penilai dari ${bn} akan menghubungi kamu untuk survei properti. Nilai appraisal bisa berbeda dari estimasi kamu.`,
+        body: "Tim RuangKPR akan mengonfirmasi jadwal survei properti dengan kamu lewat WhatsApp. Nilai appraisal bisa berbeda dari estimasi kamu.",
       };
     case "approved":
       return {
@@ -327,7 +388,7 @@ function Tracker({ app, snap, onChange, reload }) {
       { onProgress },
     );
     onChange(next);
-    toast("Dokumen terbaru terkirim ke bank.");
+    toast("Dokumen terbaru terkirim ke tim RuangKPR.");
   };
 
   return (
@@ -377,21 +438,18 @@ function Tracker({ app, snap, onChange, reload }) {
             )}
           </section>
         )}
+        {!rejected && <StageNoteCard app={app} />}
 
         {pending.length > 0 && (
           <section className="flex flex-col gap-3 rounded-card border border-[#f2d27a] bg-[#fff6dd] p-6">
             <span className="flex items-center gap-2 text-[13px] font-extrabold text-warning">
               <TriangleAlertIcon className="size-4" aria-hidden />
-              Permintaan Bank · {dateShort(pending[0].requestedAt)}
+              Permintaan tim RuangKPR · {dateShort(pending[0].requestedAt)}
             </span>
-            {pending.map((p) => (
-              <p
-                key={p.id}
-                className="text-sm leading-[21px] font-semibold text-ink-2"
-              >
-                {p.message} Upload ulang langsung di daftar dokumen di bawah.
-              </p>
-            ))}
+            <PendingDocs app={app} />
+            <p className="text-sm text-ink-2">
+              Upload ulang langsung di daftar dokumen di bawah.
+            </p>
           </section>
         )}
 

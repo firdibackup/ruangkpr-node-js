@@ -157,6 +157,19 @@ describe('amortization', () => {
     expect(s.rows[12].payment).toBeGreaterThan(s.rows[11].payment)
     expectReconciled(s, 120_000_000)
   })
+  it('a yearly row names the rate its new period starts at, also when floating is lower than fixed', () => {
+    const s = generateAmortizationSchedule({
+      principal: 120_000_000,
+      termMonths: 24,
+      startDate: '2026-11-05',
+      dueDay: 5,
+      ratePeriods: [
+        { startMonth: 0, endMonth: 5, annualRateBps: 1050, rateType: 'fixed', estimated: false },
+        { startMonth: 6, endMonth: 23, annualRateBps: 800, rateType: 'floating', estimated: true },
+      ],
+    })
+    expect(s.yearly.map((y) => [y.year, y.transitionRateBps ?? null])).toEqual([['2026', null], ['2027', 800], ['2028', null]])
+  })
   it('first row matches the documented example (F01 inputs)', () => {
     const s = generateAmortizationSchedule({ principal: 415_000_000, termMonths: 183, ratePeriods: fullFixed(183, 550), startDate: '2026-10-22' })
     expect(s.rows[0]).toMatchObject({ dueDate: '2026-10-22', payment: 3_355_115, principal: 1_453_032, interest: 1_902_083, closingBalance: 413_546_968 })

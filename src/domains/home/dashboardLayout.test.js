@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CATEGORIES, COLS, DEFAULT_LAYOUT, MAX_H, UNLOCKED_LAYOUT, WIDGET, WIDGETS, addWidget, moveWidget, normalizeLayout, readingOrder, removeWidget, resizeWidget, sameLayout } from './dashboardLayout'
+import { CATEGORIES, COLS, DEFAULT_LAYOUT, MAX_H, NO_OPPORTUNITY_LAYOUT, UNLOCKED_LAYOUT, WIDGET, WIDGETS, addWidget, moveWidget, normalizeLayout, readingOrder, removeWidget, resizeWidget, sameLayout } from './dashboardLayout'
 import { WIDGET_VIEWS } from './widgets'
 
 const at = (layout, id) => layout.find((l) => l.i === id)
@@ -39,6 +39,13 @@ describe('normalizeLayout', () => {
     expect(ids(UNLOCKED_LAYOUT)).toEqual(['opportunity', 'nextPayment', 'health', 'amortization', 'myKpr', 'agenda'])
     expect(sameLayout(normalizeLayout(UNLOCKED_LAYOUT), UNLOCKED_LAYOUT)).toBe(true)
     expect(at(UNLOCKED_LAYOUT, 'opportunity').h).toBe(WIDGET.opportunity.h - 1) // unlocked, its content ends a row early
+  })
+
+  it('without Peluang, keeps the same widgets and puts Amortisasi under KPR Saya, on a compact board', () => {
+    expect(ids(NO_OPPORTUNITY_LAYOUT)).toEqual(['myKpr', 'nextPayment', 'health', 'agenda', 'amortization'])
+    expect(ids(NO_OPPORTUNITY_LAYOUT).sort()).toEqual(ids(removeWidget(UNLOCKED_LAYOUT, 'opportunity')).sort())
+    expect(at(NO_OPPORTUNITY_LAYOUT, 'amortization')).toMatchObject({ x: 0, y: at(NO_OPPORTUNITY_LAYOUT, 'myKpr').h })
+    expect(sameLayout(normalizeLayout(NO_OPPORTUNITY_LAYOUT), NO_OPPORTUNITY_LAYOUT)).toBe(true)
   })
 })
 

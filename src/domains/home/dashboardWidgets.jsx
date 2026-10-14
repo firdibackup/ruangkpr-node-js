@@ -11,8 +11,6 @@ import {
   WalletIcon,
 } from "lucide-react";
 import { PiLockSimpleFill, PiSparkleFill } from "react-icons/pi";
-import { api } from "@/data/api";
-import { useResource } from "@/lib/hooks";
 import {
   CITIES,
   dateLong,
@@ -22,6 +20,7 @@ import {
   monthName,
   monthYear,
   percentBps,
+  percentProgress,
   rupiah,
   rupiahShort,
   tenorLabel,
@@ -42,6 +41,7 @@ import {
   SummaryRows,
 } from "@/components/shared/ui";
 import { progressGap, rateTypeLabel } from "@/domains/mortgages/setupMeta";
+import { opportunityPotential } from "./widgets/widgetData";
 
 // Bodies of the Home board widgets. Each root fills its cell and adapts through container queries:
 // width via @md:/@2xl:, height via [@container(min-height|max-height:…)]. Only a sized grid cell answers
@@ -52,7 +52,7 @@ export const HEALTH_SENTENCE = {
   dti: "Rasio cicilan kamu agak tinggi.",
   ltv: "Porsi pinjaman terhadap nilai rumah masih tinggi.",
   rate: "Masa fixed segera berakhir.",
-  progress: "Pokok yang sudah lunas masih sedikit.",
+  progress: "Pokok yang lunas masih sedikit, wajar di awal masa KPR.",
 };
 // What KPR Health is, behind its ⓘ on Home and on the Health page.
 export const HEALTH_ABOUT =
@@ -132,16 +132,13 @@ export function LockedPreview({ preview, title, children, action }) {
 function OpportunityWidget({
   m,
   d,
+  explore,
   onAskIncome,
   onAskProperty,
   onOpenPrograms,
   opening,
 }) {
   const navigate = useNavigate();
-  const { data: explore, loading } = useResource(
-    () => api.explore.get(),
-    [m.id, m.version],
-  );
   // Health unlocks with penghasilan; Peluang also needs the property value.
   const healthLocked = !(d.income > 0);
   const locked = healthLocked || d.partialProperty;
@@ -151,7 +148,8 @@ function OpportunityWidget({
   ]
     .filter(Boolean)
     .join(" dan ");
-  const opp = explore?.opportunity;
+  const opp = explore.data?.opportunity;
+  const has = opportunityPotential(opp);
   const card = (
     <section
       className="grid h-full grid-cols-1 content-start gap-4 rounded-card border border-[#cfdcf3] bg-[#f3f7fe] p-6 shadow-card @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] @2xl:gap-x-7"
@@ -169,9 +167,11 @@ function OpportunityWidget({
             id="opp-title"
             className="text-[1.25em] leading-[1.35] font-extrabold text-pretty"
           >
-            {!locked && opp?.cheaperProgramCount
+            {!locked && has.takeover
               ? "Ada ruang untuk cicilan lebih ringan."
-              : "Pantau peluang untuk KPR kamu."}
+              : !locked && has.topup
+                ? "Ada potensi dana cair dari rumah kamu."
+                : "Pantau peluang untuk KPR kamu."}
           </h2>
           <p
             className={cn(
@@ -189,69 +189,53 @@ function OpportunityWidget({
         <div className="flex flex-col gap-2 @2xl:row-span-2">
           <OpportunityTile
             label="POTENSI TAKE OVER"
-            hasOpportunity
             value="−Rp1,2 jt"
             unit="/ bulan"
             note="Dibanding cicilan sekarang · break-even 14 bulan"
           />
           <OpportunityTile
             label="POTENSI REFINANCING"
-            hasOpportunity
             value="Rp162,4 jt"
             unit="dana kotor maksimum"
             note="Nilai properti est. Rp850 jt × LTV 80% (sisa pokok Rp517,6 jt)"
           />
         </div>
-      ) : loading && !explore ? (
+      ) : explore.loading && !explore.data ? (
         <div className="flex flex-col gap-2 @2xl:row-span-2" aria-busy="true">
           <Skeleton className="h-24 rounded-xl" />
           <Skeleton className="h-24 rounded-xl" />
         </div>
-      ) : (
+      ) : has.takeover || has.topup ? (
         <div className="flex flex-col gap-2 @2xl:row-span-2">
-          <OpportunityTile
-            onClick={() => onOpenPrograms("takeover")}
-            pending={opening === "takeover"}
-            disabled={!!opening}
-            label="POTENSI TAKE OVER"
-            hasOpportunity={!!opp?.cheaperProgramCount}
-            value={
-              opp?.cheaperProgramCount
-                ? `−${rupiahShort(opp.bestMonthlySaving)}`
-                : "Belum ada"
-            }
-            unit={opp?.cheaperProgramCount ? "/ bulan" : ""}
-            tone={opp?.cheaperProgramCount ? "ok" : "mute"}
-            note={
-              opp?.cheaperProgramCount
-                ? `${opp.comparedTo === "floating_estimate" ? "Dibanding estimasi cicilan floating" : "Dibanding cicilan sekarang"} · ${opp.bestBankName} ${percentBps(opp.bestFixedRateBps)} fixed ${opp.bestFixedMonths / 12} th${opp.bestBreakEvenMonth ? ` · break-even ${opp.bestBreakEvenMonth} bulan` : ""}`
-                : "Belum ada program yang lebih hemat setelah biaya pindah, berdasarkan katalog terbaru."
-            }
-          />
-          <OpportunityTile
-            onClick={() =>
-              opp?.maxGrossTopup != null
-                ? onOpenPrograms("topup")
-                : navigate("/my-kpr/property?edit=1")
-            }
-            pending={opening === "topup"}
-            disabled={!!opening}
-            label="POTENSI REFINANCING"
-            hasOpportunity={opp?.maxGrossTopup != null}
-            value={
-              opp?.maxGrossTopup != null
-                ? rupiahShort(opp.maxGrossTopup)
-                : "Belum dapat dihitung"
-            }
-            unit={opp?.maxGrossTopup != null ? "dana kotor maksimum" : ""}
-            tone={opp?.maxGrossTopup != null ? "default" : "warn"}
-            note={
-              opp?.maxGrossTopup != null
-                ? `Nilai properti est. ${rupiahShort(m.property.estimatedValue)} × LTV ${opp.maxLtvBps / 100}% (sisa pokok ${rupiahShort(m.outstandingPrincipal)})`
-                : "Lengkapi nilai properti untuk melihat potensi dana cair."
-            }
-          />
+          {has.takeover && (
+            <OpportunityTile
+              onClick={() => onOpenPrograms("takeover")}
+              pending={opening === "takeover"}
+              disabled={!!opening}
+              label="POTENSI TAKE OVER"
+              value={`−${rupiahShort(opp.bestMonthlySaving)}`}
+              unit="/ bulan"
+              note={`${opp.comparedTo === "floating_estimate" ? "Dibanding estimasi cicilan floating" : "Dibanding cicilan sekarang"} · ${opp.bestBankName} ${percentBps(opp.bestFixedRateBps)} fixed ${opp.bestFixedMonths / 12} th${opp.bestBreakEvenMonth ? ` · break-even ${opp.bestBreakEvenMonth} bulan` : ""}`}
+            />
+          )}
+          {has.topup && (
+            <OpportunityTile
+              onClick={() => onOpenPrograms("topup")}
+              pending={opening === "topup"}
+              disabled={!!opening}
+              label="POTENSI REFINANCING"
+              value={rupiahShort(opp.maxGrossTopup)}
+              unit="dana kotor maksimum"
+              note={`Nilai properti est. ${rupiahShort(m.property.estimatedValue)} × LTV ${opp.maxLtvBps / 100}% (sisa pokok ${rupiahShort(m.outstandingPrincipal)})`}
+            />
+          )}
         </div>
+      ) : (
+        // Seen only while arranging or in the gallery: Home drops the card while there is no potential.
+        <p className="rounded-xl border border-opp-mute-border bg-opp-mute px-4 py-3.5 text-sm leading-[21px] text-ink-3 @2xl:row-span-2">
+          Belum ada potensi Take Over atau Refinancing saat ini. Kartu ini
+          tampil di Home saat ada potensi.
+        </p>
       )}
       <div className="flex flex-col gap-3 @2xl:self-end">
         <Button
@@ -289,30 +273,17 @@ function OpportunityTile({
   value,
   unit,
   note,
-  tone,
-  hasOpportunity,
 }) {
-  // A real opportunity gets the green spotlight; an empty one stays muted so the two read differently at a glance.
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       aria-busy={pending}
-      className={cn(
-        "flex flex-col gap-1.5 rounded-xl border px-4 py-3.5 text-left transition duration-200 disabled:opacity-70",
-        hasOpportunity
-          ? "opp-gradient border-white/30 text-white shadow-opp hover:-translate-y-0.5 hover:shadow-opp-hover active:-translate-y-0.5 active:shadow-opp-hover"
-          : "border-opp-mute-border bg-opp-mute hover:shadow-card",
-      )}
+      className="opp-gradient flex flex-col gap-1.5 rounded-xl border border-white/30 px-4 py-3.5 text-left text-white shadow-opp transition duration-200 hover:-translate-y-0.5 hover:shadow-opp-hover active:-translate-y-0.5 active:shadow-opp-hover disabled:opacity-70"
     >
       <span className="flex w-full items-center justify-between gap-2">
-        <span
-          className={cn(
-            "text-xs font-extrabold tracking-[0.4px]",
-            hasOpportunity ? "text-white/90" : "text-primary",
-          )}
-        >
+        <span className="text-xs font-extrabold tracking-[0.4px] text-white/90">
           {label}
         </span>
         {pending ? (
@@ -322,34 +293,12 @@ function OpportunityTile({
         )}
       </span>
       <span className="flex flex-wrap items-baseline gap-1.5">
-        <span
-          className={cn(
-            "text-[1.375em] font-extrabold tracking-[-0.3px]",
-            !hasOpportunity && tone === "warn" && "text-warning-text",
-            !hasOpportunity && tone === "mute" && "text-ink-3",
-          )}
-        >
+        <span className="text-[1.375em] font-extrabold tracking-[-0.3px]">
           {value}
         </span>
-        {unit && (
-          <span
-            className={cn(
-              "text-[13px]",
-              hasOpportunity ? "text-white/85" : "text-ink-3",
-            )}
-          >
-            {unit}
-          </span>
-        )}
+        <span className="text-[13px] text-white/85">{unit}</span>
       </span>
-      <span
-        className={cn(
-          "text-[13px] leading-[19px]",
-          hasOpportunity ? "text-white/85" : "text-ink-3",
-        )}
-      >
-        {note}
-      </span>
+      <span className="text-[13px] leading-[19px] text-white/85">{note}</span>
     </button>
   );
 }
@@ -416,7 +365,7 @@ function HealthWidget({ d, onAskIncome }) {
   );
 }
 
-function NextPaymentWidget({ m, d, onMarkPaid }) {
+function NextPaymentWidget({ d, onMarkPaid }) {
   const pay = d.paymentAlert;
   return (
     <Panel
@@ -432,7 +381,7 @@ function NextPaymentWidget({ m, d, onMarkPaid }) {
         Pembayaran Berikutnya
       </span>
       <span className="text-[1.75em] font-extrabold tracking-[-0.4px] tabular">
-        {rupiah(m.currentPayment)}
+        {rupiah(d.payment)}
       </span>
       <span
         className={cn(
@@ -472,10 +421,8 @@ const EXTRA_ROWS = [
 ];
 
 function AmortizationWidget({ d }) {
-  const upcoming =
-    d.schedule?.rows
-      .filter((r) => r.dueDate >= d.nextDue)
-      .slice(0, 3 + EXTRA_ROWS.length) ?? [];
+  // The same dates as the full schedule and Sisa Tenor: a month marked early stays until its due date passes.
+  const upcoming = d.schedule?.rows.slice(0, 3 + EXTRA_ROWS.length) ?? [];
   return (
     <Panel className="gap-3.5">
       <div className="flex flex-col gap-1">
@@ -594,7 +541,7 @@ function MyKprWidget({ m, d }) {
         <div className="flex flex-wrap items-baseline justify-between gap-2.5">
           <div className="flex flex-col gap-0.5">
             <span className="text-[13px] text-ink-3">
-              Sisa pokok{m.outstandingEstimated && " (estimasi)"}
+              Sisa pokok{(m.outstandingEstimated || m.outstandingProjected) && " (estimasi)"}
             </span>
             <span className="text-[1.5em] leading-[1.333] font-extrabold tracking-[-0.3px] tabular">
               {rupiah(m.outstandingPrincipal)}
@@ -620,7 +567,7 @@ function MyKprWidget({ m, d }) {
           <>
             <ProgressBar value={d.paidRatio * 100} label="Pokok lunas" />
             <span className="text-[13px] font-bold text-primary">
-              {Math.round(d.paidRatio * 100)}% pokok lunas
+              {percentProgress(d.paidRatio)} pokok lunas
             </span>
           </>
         )}
@@ -632,7 +579,7 @@ function MyKprWidget({ m, d }) {
             k: "Bunga saat ini",
             v: (
               <span className="flex items-center gap-2">
-                {percentBps(m.currentRateBps)}
+                {percentBps(d.rateBps)}
                 <RateChip m={m} floating={floating} />
               </span>
             ),
@@ -755,7 +702,7 @@ function OutstandingWidget({ m }) {
   return (
     <StatWidget
       to="/my-kpr/overview"
-      label={`Sisa Pokok${m.outstandingEstimated ? " (estimasi)" : ""}`}
+      label={`Sisa Pokok${m.outstandingEstimated || m.outstandingProjected ? " (estimasi)" : ""}`}
       value={rupiah(m.outstandingPrincipal)}
     >
       {m.originalPrincipal > 0 && (
@@ -780,7 +727,7 @@ function RateWidget({ m, d }) {
       label="Bunga & Masa Fixed"
       value={
         <span className="flex flex-wrap items-center gap-2">
-          {percentBps(m.currentRateBps)}
+          {percentBps(d.rateBps)}
           <RateChip m={m} floating={floating} />
         </span>
       }
@@ -814,7 +761,7 @@ function ProgressWidget({ m, d }) {
     <StatWidget
       to="/my-kpr/overview"
       label="Progres Pelunasan"
-      value={`${Math.round(d.paidRatio * 100)}%`}
+      value={percentProgress(d.paidRatio)}
     >
       <ProgressBar value={d.paidRatio * 100} label="Pokok lunas" />
       <span className="text-[13px] text-muted-foreground">

@@ -300,9 +300,9 @@ export function FloatingImpactWidget({ m, d }) {
       </Panel>
     );
   }
-  const before = floating ? m.previousFixedPayment : fi.currentPayment;
-  const after = floating ? m.currentPayment : fi.estimatedNextPayment;
-  const delta = after - before;
+  const before = floating ? d.previousPayment : fi.currentPayment;
+  const after = floating ? d.payment : fi.estimatedNextPayment;
+  const delta = before == null ? null : after - before; // saved as floating: no fixed cicilan to compare
   const bars = [
     {
       label: floating ? "Fixed terakhir" : "Sekarang",

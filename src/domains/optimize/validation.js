@@ -145,7 +145,7 @@ export function takeoverDataFromMortgage(m, { personal, employment, goal }) {
       floatingRateBps: m.estimatedFloatingRateBps,
       remainingMonths: m.remainingTenorMonths,
       penaltyBps: null,
-      source: m.outstandingEstimated ? 'estimate' : 'official',
+      source: m.outstandingEstimated || m.outstandingProjected ? 'estimate' : 'official',
     },
     goal,
     property: { propertyType: pr.type, city: pr.city, address: pr.address, landArea: pr.landArea, buildingArea: pr.buildingArea, certificateType: pr.certificateType, certificateOwner: pr.certificateOwner, estimatedValue: pr.estimatedValue ?? null, disputed: pr.disputed === true },

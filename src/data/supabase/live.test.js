@@ -95,6 +95,46 @@ describe.skipIf(!LIVE)('live: real Supabase end to end', () => {
     else await service.from('app_config').delete().eq('id', 1)
   }, 60_000)
 
+  // GoTrue really sends its two emails (to Resend's test inbox); the admin API hands the test a fresh code instead.
+  it('email + password: register by code, reset by link, one answer for a wrong password, change password', async () => {
+    const email = `delivered+ruangkpr-${tag}@resend.dev`
+    const registration = { name: 'Live Signup', email, password: PASSWORD, confirm: PASSWORD, acceptTerms: true, acceptPrivacy: true }
+    await client().auth.signOut({ scope: 'local' })
+    await api.auth.signUp(registration)
+    expect((await api.auth.getSession()).status).toBe('pending')
+    const signup = await service.auth.admin.generateLink({ type: 'signup', email, password: PASSWORD })
+    if (signup.error) throw signup.error
+    uid.signup = signup.data.user.id
+    await expect(api.auth.verifySignup({ token: '000000' })).rejects.toMatchObject({ code: 'OTP_INVALID' })
+    await api.auth.verifySignup({ token: signup.data.properties.email_otp })
+    expect(await api.auth.getSession()).toMatchObject({ status: 'authenticated', role: 'user', user: { name: 'Live Signup', contact: email } })
+
+    await api.auth.logout()
+    await expect(api.auth.signInWithPassword({ email, password: 'Salah-12345' })).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' })
+    await expect(api.auth.signUp(registration)).rejects.toMatchObject({ code: 'EMAIL_TAKEN' })
+
+    // Reset: the email carries a link; opening it signs in with PASSWORD_RECOVERY, which verifying the token does too.
+    const renewed = `${PASSWORD}-baru`
+    await api.auth.requestPasswordReset({ email })
+    expect((await api.auth.getSession()).status).toBe('guest')
+    const recovery = await service.auth.admin.generateLink({ type: 'recovery', email })
+    if (recovery.error) throw recovery.error
+    const opened = await client().auth.verifyOtp({ email, token: recovery.data.properties.email_otp, type: 'recovery' })
+    if (opened.error) throw opened.error
+    expect((await api.auth.getSession()).status).toBe('recovery')
+    await api.auth.updatePassword({ password: renewed, confirm: renewed })
+    expect((await api.auth.getSession()).status).toBe('authenticated')
+    await api.auth.logout()
+    await expect(api.auth.signInWithPassword({ email, password: PASSWORD })).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' })
+    await api.auth.signInWithPassword({ email, password: renewed })
+
+    await expect(api.auth.changePassword({ currentPassword: PASSWORD, password: 'Rumah-2026', confirm: 'Rumah-2026' })).rejects.toMatchObject({ message: 'Password lama salah.' })
+    await api.auth.changePassword({ currentPassword: renewed, password: PASSWORD, confirm: PASSWORD })
+    await api.auth.logout()
+    await api.auth.signInWithPassword({ email, password: PASSWORD })
+    await api.auth.logout()
+  }, 60_000)
+
   it('a new user agrees to the terms before any data', async () => {
     await signInAs(people.user)
     expect(await api.auth.getSession()).toMatchObject({ status: 'onboarding', role: null })
@@ -177,16 +217,40 @@ describe.skipIf(!LIVE)('live: real Supabase end to end', () => {
     const queue = await api.admin.applications.list()
     expect(queue.items.map((x) => x.id)).toContain(ids.app)
     const url = await api.admin.applications.documentUrl(ids.app, 'ktp')
-    expect((await fetch(url)).status).toBe(200)
+    const file = await fetch(url)
+    expect(file.status).toBe(200)
+    expect(file.headers.get('content-disposition')).toMatch(/^attachment/)
     let detail = await api.admin.applications.get(ids.app)
     await expect(api.admin.applications.transition(ids.app, { toStatus: 'approved', reason: 'Lompat status', expectedVersion: detail.application.version })).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' })
     const finalTerms = { loanAmount: 480_000_000, tenorMonths: 240, fixedRateBps: 550, fixedMonths: 60, floatingRateBps: 1050, akadDate: today }
-    for (const toStatus of ['docs_verification', 'bank_processing', 'appraisal', 'approved', 'akad', 'disbursed']) {
-      detail = await api.admin.applications.transition(ids.app, { toStatus, reason: 'Uji integrasi', expectedVersion: detail.application.version, metadata: toStatus === 'akad' ? { finalTerms } : {} })
+    const step = async (toStatus, metadata = {}) => {
+      detail = await api.admin.applications.transition(ids.app, { toStatus, reason: 'Uji integrasi', expectedVersion: detail.application.version, metadata })
       expect(detail.application.status).toBe(toStatus)
     }
+    const review = async (documentType, verdict = { result: 'ok' }) => {
+      detail = await api.admin.applications.reviewDocument(ids.app, { documentType, expectedVersion: detail.application.version, ...verdict })
+    }
+    await step('docs_verification')
+    for (const t of ['ktp', 'income_proof', 'property_document']) await review(t)
+    await review('npwp', { result: 'rejected', reasonCode: 'blurry', note: 'angka tidak terbaca' })
+    await step('additional_docs_requested')
+
+    // The user's re-upload passes the database's re-upload rule.
+    await signInAs(people.user)
+    expect((await api.applications.uploadDocument(ids.app, { documentType: 'npwp', file: pdf('npwp-baru.pdf') })).status).toBe('docs_verification')
+
+    await signInAs(people.staff)
+    detail = await api.admin.applications.get(ids.app)
+    await review('npwp')
+    await step('bank_processing')
+    await step('appraisal')
+    detail = await api.admin.applications.saveStageNote(ids.app, { message: 'Siapkan IMB asli.', schedule: { date: shift(5), time: '10:00', location: 'Lokasi uji' }, expectedVersion: detail.application.version })
+    expect(detail.application.stageNotes.appraisal.schedule.location).toBe('Lokasi uji')
+    await step('approved')
+    await step('akad', { finalTerms })
+    await step('disbursed')
     const audit = await api.admin.audit.list()
-    expect(audit.items.filter((e) => e.action === 'application.transition')).toHaveLength(6)
+    expect(audit.items.filter((e) => e.action === 'application.transition' && e.resource.id === ids.app)).toHaveLength(7)
   }, 120_000)
 
   it('the user now monitors an active KPR, records a payment with proof, and deletes the account', async () => {
@@ -293,6 +357,10 @@ describe.skipIf(!LIVE)('live: real Supabase end to end', () => {
     const users = await api.admin.users.list()
     expect(users.map((u) => u.contact)).toContain(people.monitor)
     let detail = await api.admin.users.get(uid.monitor)
+    // The owner's own edits, recorded by the database triggers (migration user_changes), next to the admin's.
+    const own = detail.audit.filter((e) => e.actor.role === 'user')
+    expect(own.map((e) => e.action)).toEqual(expect.arrayContaining(['mortgage.activate', 'payment.mark', 'payment.unmark']))
+    expect(own.find((e) => e.action === 'payment.mark')).toMatchObject({ resource: { type: 'mortgage', id: ids.monitorMortgage }, after: { dueDate: shift(reminderOffset), amount: 4_500_000 } })
     detail = await api.admin.users.updateProfile(uid.monitor, { values: { birthPlace: 'Bekasi' }, reason: 'Uji integrasi live', expectedVersion: detail.user.version })
     const fin = await api.admin.users.updateFinance(uid.monitor, { values: { monthlyIncome: 26_000_000 }, reason: 'Uji integrasi live', expectedVersion: detail.user.version })
     expect(fin.recalculated).toEqual(['dti', 'health'])

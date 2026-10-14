@@ -32,6 +32,7 @@ import {
   GAP,
   GRID_MIN_WIDTH,
   MAX_H,
+  NO_OPPORTUNITY_LAYOUT,
   ROW_HEIGHT,
   UNLOCKED_LAYOUT,
   WIDGET,
@@ -45,7 +46,7 @@ import {
 } from "./dashboardLayout";
 import { WidgetGallery } from "./WidgetGallery";
 import { WidgetBody } from "./widgets/WidgetBody";
-import { widgetLock } from "./widgets/widgetData";
+import { opportunityPotential, widgetLock } from "./widgets/widgetData";
 
 const GRID = {
   cols: COLS,
@@ -88,6 +89,21 @@ export function WidgetBoard({
     : UNLOCKED_LAYOUT;
   const current = saved ?? fallback;
   const layout = (editing && draft) || current;
+  // Peluang leaves Home once its data says there is no potential; the default board then has its own arrangement.
+  // It stays in the layout, so arranging still shows it.
+  const { explore, m, d } = widgetProps;
+  const potential = opportunityPotential(explore.data?.opportunity);
+  const noPotential =
+    !editing &&
+    (explore.data || explore.error) &&
+    !widgetLock("opportunity", m, d) &&
+    !potential.takeover &&
+    !potential.topup;
+  const shown = !noPotential
+    ? layout
+    : saved
+      ? removeWidget(layout, "opportunity")
+      : NO_OPPORTUNITY_LAYOUT;
   const grid = width >= GRID_MIN_WIDTH;
   const dirty = editing && !sameLayout(layout, current);
 
@@ -180,7 +196,7 @@ export function WidgetBoard({
 
       <div ref={containerRef}>
         {mounted &&
-          (layout.length === 0 ? (
+          (shown.length === 0 ? (
             <EmptyState
               icon={LayoutDashboardIcon}
               title="Dashboard kamu masih kosong."
@@ -202,7 +218,7 @@ export function WidgetBoard({
           ) : grid ? (
             <GridLayout
               width={width}
-              layout={layout.map(withLimits)}
+              layout={shown.map(withLimits)}
               gridConfig={GRID}
               dragConfig={{ enabled: editing, handle: ".widget-handle" }}
               resizeConfig={{ enabled: editing, handles: ["nw", "se"] }}
@@ -215,7 +231,7 @@ export function WidgetBoard({
               }
             >
               {/* Reading order keeps the tab order in step with what the user sees. */}
-              {readingOrder(layout).map((l) => (
+              {readingOrder(shown).map((l) => (
                 <div
                   key={l.i}
                   data-tour={l.i}
@@ -230,7 +246,7 @@ export function WidgetBoard({
           ) : (
             // ponytail: phones follow the grid's reading order and can only hide/add; add ↑↓ moves here if phone-only users need to reorder.
             <div className="flex flex-col gap-5">
-              {readingOrder(layout).map((l) => (
+              {readingOrder(shown).map((l) => (
                 <div
                   key={l.i}
                   data-tour={l.i}

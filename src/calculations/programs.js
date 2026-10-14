@@ -172,14 +172,16 @@ export function takeoverBaseline({ outstanding, rateBps, rateType, fixedUntil, f
   const appliedPenaltyBps = penaltyEstimated ? OLD_BANK_POLICY.penaltyBps : penaltyBps
   const penalty = Math.round((outstanding * appliedPenaltyBps) / 10_000)
   const totalPayment = payments.reduce((s, p) => s + p, 0)
+  // Fixed already over at the first due date: what is paid now is the (estimated) floating installment.
+  const lapsed = rateType === 'fixed' && fixedMonths === 0 && remainingMonths > 0
   return {
     outstanding,
-    rateBps,
-    rateType,
+    rateBps: lapsed ? floatingRateBps : rateBps,
+    rateType: lapsed ? 'floating' : rateType,
     remainingMonths,
-    currentPayment,
+    currentPayment: lapsed ? payments[0] : currentPayment,
     payments,
-    fixedMonthsLeft: rateType === 'fixed' && fixedMonths < remainingMonths ? fixedMonths : null,
+    fixedMonthsLeft: !lapsed && rateType === 'fixed' && fixedMonths < remainingMonths ? fixedMonths : null,
     exit: {
       penaltyBps: appliedPenaltyBps,
       penalty,

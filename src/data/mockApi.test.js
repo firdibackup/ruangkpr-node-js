@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { addDays } from '@/calculations/dates'
 import { calculateMaxPrincipal } from '@/calculations/finance'
 import { selectHomeState } from '@/domains/home/selectHomeState'
 import { takeoverGaps } from '@/domains/optimize/validation'
 import { deriveMortgage } from '@/domains/mortgages/derive'
+import { remainingFromStart } from '@/domains/mortgages/validation'
 import { createMockApi, mockControls } from './mockApi'
-import { DEFAULT_REMINDERS, SCENARIOS, createSeed } from './seed'
+import { DEFAULT_REMINDERS, DEMO_PASSWORD, SCENARIOS, createSeed } from './seed'
 import { loadDb, saveDb } from './mockDb'
 
 const api = createMockApi({ latencyMs: 0 })
@@ -12,30 +14,90 @@ const file = (name, size = 200_000, type = 'image/jpeg') => ({ name, size, type 
 const expectCode = async (promise, code) => {
   await expect(promise).rejects.toMatchObject({ name: 'ApiError', code })
 }
+// The demo keeps its own clock; Supabase mode reads the real date.
+const setClock = (date) => {
+  const db = loadDb()
+  db.clock = date
+  saveDb(db)
+}
+const register = (name, email, password = DEMO_PASSWORD) => api.auth.signUp({ name, email, password, confirm: password, acceptTerms: true, acceptPrivacy: true })
+// An account this browser knows signs in with the demo password; any other email registers first.
 const signIn = async (name, email) => {
   await api.auth.logout()
-  await api.auth.sendEmailOtp({ email })
-  await api.auth.verifyEmailOtp({ token: '148260' })
+  try {
+    await api.auth.signInWithPassword({ email, password: DEMO_PASSWORD })
+  } catch (e) {
+    if (e.code !== 'INVALID_CREDENTIALS') throw e
+    await register(name, email)
+    await api.auth.verifySignup({ token: '148260' })
+  }
   if ((await api.auth.getSession()).status === 'onboarding') await api.auth.acceptConsents({ name, acceptTerms: true, acceptPrivacy: true })
 }
 
 describe('auth', () => {
-  it('email OTP fixtures (000000 invalid, 999999 expired, 148260 ok), then consent; nothing before consent', async () => {
+  it('registration: code fixtures (000000 invalid, 999999 expired, 148260 ok); the account exists, agreed, once verified', async () => {
     mockControls.reset('guest')
-    await expectCode(api.auth.sendEmailOtp({ email: 'x' }), 'VALIDATION_FAILED')
-    const r = await api.auth.sendEmailOtp({ email: ' Nadia@Example.com ' })
+    await expectCode(register('Nadia Putri', 'x'), 'VALIDATION_FAILED')
+    await expectCode(api.auth.signUp({ name: 'Nadia Putri', email: 'nadia@example.com', password: 'rumah2026', confirm: 'rumah2026', acceptTerms: true, acceptPrivacy: false }), 'VALIDATION_FAILED')
+    await expectCode(register('Admin', 'admin@ruangkpr.id'), 'EMAIL_TAKEN')
+    const r = await register('Nadia Putri', ' Nadia@Example.com ', 'rumah2026')
     expect(r.maskedDestination).toBe('na***@example.com')
-    await expectCode(api.auth.verifyEmailOtp({ token: '000000' }), 'OTP_INVALID')
-    await expectCode(api.auth.verifyEmailOtp({ token: '999999' }), 'OTP_EXPIRED')
-    await api.auth.verifyEmailOtp({ token: '148260' })
-    expect(await api.auth.getSession()).toMatchObject({ status: 'onboarding', role: null })
+    expect(await api.auth.getSession()).toMatchObject({ status: 'pending', verification: { maskedDestination: 'na***@example.com' } })
     await expectCode(api.dashboard.getSnapshot(), 'AUTH_REQUIRED')
-    await expectCode(api.auth.acceptConsents({ name: 'Na', acceptTerms: true, acceptPrivacy: false }), 'VALIDATION_FAILED')
-    await api.auth.acceptConsents({ name: 'Nadia Putri', acceptTerms: true, acceptPrivacy: true })
+    await expectCode(api.auth.signInWithPassword({ email: 'nadia@example.com', password: 'rumah2026' }), 'INVALID_CREDENTIALS') // not an account yet
+    await register('Nadia Putri', 'nadia@example.com', 'rumah2026')
+    await expectCode(api.auth.verifySignup({ token: '000000' }), 'OTP_INVALID')
+    await expectCode(api.auth.verifySignup({ token: '999999' }), 'OTP_EXPIRED')
+    await api.auth.verifySignup({ token: '148260' })
+    expect(await api.auth.getSession()).toMatchObject({ status: 'authenticated', role: 'user' })
     const snap = await api.dashboard.getSnapshot()
     expect(snap.user).toMatchObject({ name: 'Nadia Putri', contact: 'nadia@example.com', contactType: 'email' })
     expect(snap.profile.consents.map((c) => [c.type, c.version])).toEqual([['terms', '2026-09-01'], ['privacy', '2026-09-01']])
     expect(snap.applications).toHaveLength(0) // signing in never creates an application
+    await api.auth.logout()
+    await expectCode(api.auth.signInWithPassword({ email: 'nadia@example.com', password: DEMO_PASSWORD }), 'INVALID_CREDENTIALS')
+    await api.auth.signInWithPassword({ email: 'NADIA@example.com', password: 'rumah2026' })
+    expect((await api.auth.getSession()).status).toBe('authenticated')
+  })
+
+  it('login: the same answer for a wrong password and an unknown email; seeded and staff accounts use the demo password', async () => {
+    mockControls.reset('guest')
+    await expectCode(api.auth.signInWithPassword({ email: 'admin@ruangkpr.id', password: '' }), 'VALIDATION_FAILED')
+    const wrong = api.auth.signInWithPassword({ email: 'admin@ruangkpr.id', password: 'salah123' })
+    await expect(wrong).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS', message: 'Email atau password salah.' })
+    await expect(api.auth.signInWithPassword({ email: 'siapa@example.com', password: DEMO_PASSWORD })).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS', message: 'Email atau password salah.' })
+    await api.auth.signInWithPassword({ email: 'penulis@ruangkpr.id', password: DEMO_PASSWORD })
+    expect(await api.auth.getSession()).toMatchObject({ status: 'authenticated', role: 'content_writer' })
+  })
+
+  it('forgot password: one answer for any email; the link signs in to set a new password; the old one stops working', async () => {
+    mockControls.reset('guest')
+    await api.auth.requestPasswordReset({ email: 'siapa@example.com' })
+    expect((await api.auth.getSession()).status).toBe('guest')
+    await expectCode(api.auth.openResetLink(), 'OTP_INVALID') // no account, no link
+    const r = await api.auth.requestPasswordReset({ email: 'Sinta@RuangKPR.id' })
+    expect(r.maskedDestination).toBe('si***@ruangkpr.id')
+    await expectCode(api.auth.updatePassword({ password: 'rumah2026', confirm: 'rumah2026' }), 'INVALID_STATE_TRANSITION') // link not opened yet
+    await api.auth.openResetLink()
+    expect(await api.auth.getSession()).toMatchObject({ status: 'recovery', role: null, user: { contact: 'sinta@ruangkpr.id' } })
+    await expectCode(api.auth.openResetLink(), 'OTP_INVALID') // a link works once
+    await expectCode(api.auth.updatePassword({ password: 'pendek', confirm: 'pendek' }), 'VALIDATION_FAILED')
+    await api.auth.updatePassword({ password: 'rumah2026', confirm: 'rumah2026' })
+    expect(await api.auth.getSession()).toMatchObject({ status: 'authenticated', role: 'super_admin' })
+    await api.auth.logout()
+    await expectCode(api.auth.signInWithPassword({ email: 'sinta@ruangkpr.id', password: DEMO_PASSWORD }), 'INVALID_CREDENTIALS')
+    await api.auth.signInWithPassword({ email: 'sinta@ruangkpr.id', password: 'rumah2026' })
+  })
+
+  it('change password needs the current one; signing in again uses the new one', async () => {
+    mockControls.reset('fresh')
+    await expectCode(api.auth.changePassword({ currentPassword: 'salah123', password: 'rumah2026', confirm: 'rumah2026' }), 'VALIDATION_FAILED')
+    await api.auth.changePassword({ currentPassword: DEMO_PASSWORD, password: 'rumah2026', confirm: 'rumah2026' })
+    await api.auth.logout()
+    await expectCode(api.auth.signInWithPassword({ email: 'firdi.audi@email.com', password: DEMO_PASSWORD }), 'INVALID_CREDENTIALS')
+    await api.auth.signInWithPassword({ email: 'firdi.audi@email.com', password: 'rumah2026' })
+    await api.auth.logout()
+    await expectCode(api.auth.changePassword({ currentPassword: 'rumah2026', password: 'rumah2027', confirm: 'rumah2027' }), 'AUTH_REQUIRED')
   })
 
   it('Google opens the demo Google account; signing in again skips consent', async () => {
@@ -163,6 +225,27 @@ describe('accounts and admin access', () => {
     await expectCode(api.admin.users.get('usr_tidak_ada'), 'RESOURCE_NOT_FOUND')
   })
 
+  it('user detail carries each whole KPR and the published Health formula for the admin KPR page', async () => {
+    mockControls.reset('admin_ops')
+    const d = await api.admin.users.get('usr_sample_05')
+    expect(d.mortgages).toEqual([expect.objectContaining({ id: 'mtg_sample_05', remainingTenorMonths: expect.any(Number), payments: [], reminders: expect.any(Object) })])
+    expect(d.mortgages[0].rateHistory).toHaveLength(2)
+    expect(d.mortgages[0].property.address).toBe('Jl. Contoh No. 5, Kota Bekasi')
+    expect(d.health).toEqual({ version: expect.any(Number), params: expect.objectContaining({ dti: expect.any(Array) }) })
+  })
+
+  it("user detail history puts the user's own edits next to the admin's, newest first", async () => {
+    mockControls.reset('admin_ops')
+    const own = (await api.admin.users.get('usr_sample_05')).audit
+    expect(own.map((e) => e.action)).toEqual(['mortgage.update', 'profile', 'finance', 'profile', 'mortgage.update', 'profile'])
+    expect(own.every((e) => e.actor.id === 'usr_sample_05' && e.actor.name === 'Sari Wulandari' && e.actor.role === 'user')).toBe(true)
+    expect(own[0]).toMatchObject({ resource: { type: 'mortgage', id: 'mtg_sample_05' }, after: { 'property.estimatedValue': 850_000_000 } })
+    const d = await api.admin.users.updateFinance('usr_sample_05', { values: { monthlyIncome: 20_000_000 }, reason: 'Slip gaji terbaru', expectedVersion: 1 })
+    expect(d.audit).toHaveLength(7) // the whole history: the panels cut it, the history page does not
+    expect(d.audit.map((e) => e.action).slice(0, 2)).toEqual(['user.finance.update', 'mortgage.update'])
+    expect(d.audit[0].actor.role).toBeUndefined()
+  })
+
   it('profile edits need a reason and the current version; each one is audited with the NIK masked', async () => {
     mockControls.reset('admin_ops')
     const edit = (values, extra = {}) => api.admin.users.updateProfile('usr_sample_02', { values, reason: 'Koreksi sesuai KTP', expectedVersion: 1, ...extra })
@@ -201,6 +284,8 @@ describe('accounts and admin access', () => {
 
 describe('admin applications', () => {
   const move = (id, toStatus, expectedVersion, metadata = {}) => api.admin.applications.transition(id, { toStatus, reason: 'Dicek tim operasional', expectedVersion, metadata })
+  const review = (id, documentType, expectedVersion, verdict = { result: 'ok' }) => api.admin.applications.reviewDocument(id, { documentType, expectedVersion, ...verdict })
+  const fileOf = (d, type) => d.application.documents.find((x) => x.type === type).file
 
   it('follows the status matrix: legal moves only, for primary and take over', async () => {
     mockControls.reset('admin_ops')
@@ -215,18 +300,80 @@ describe('admin applications', () => {
     expect((await api.admin.applications.get('app_sample_02')).allowedTransitions).toEqual([]) // waits on the user
   })
 
-  it('a revision request flags the documents and reaches the user; re-uploading returns it to verification', async () => {
+  it('documents are reviewed one by one while verifying; a rejection stays a draft the user cannot see', async () => {
+    mockControls.reset('admin_ops')
+    await expectCode(review('app_sample_01', 'ktp', 3), 'INVALID_STATE_TRANSITION') // still submitted
+    let d = await move('app_sample_01', 'docs_verification', 3)
+    d = await review('app_sample_01', 'ktp', d.application.version)
+    expect(fileOf(d, 'ktp').status).toBe('verified')
+    await expectCode(review('app_sample_01', 'npwp', d.application.version, { result: 'rejected', reasonCode: 'other', note: ' ' }), 'VALIDATION_FAILED')
+    await expectCode(review('app_sample_01', 'npwp', d.application.version, { result: 'rejected', reasonCode: 'tidak_ada' }), 'VALIDATION_FAILED')
+    await expectCode(review('app_sample_01', 'additional', d.application.version), 'INVALID_STATE_TRANSITION') // no file
+    d = await review('app_sample_01', 'npwp', d.application.version, { result: 'rejected', reasonCode: 'blurry', note: ' angka NPWP tidak terbaca ' })
+    expect(fileOf(d, 'npwp')).toMatchObject({ status: 'uploaded', review: { reasonCode: 'blurry', note: 'angka NPWP tidak terbaca' } })
+    d = await review('app_sample_01', 'ktp', d.application.version, { result: 'rejected', reasonCode: 'expired' })
+    expect(fileOf(d, 'ktp')).toMatchObject({ status: 'uploaded', review: { reasonCode: 'expired', note: '' } })
+    d = await review('app_sample_01', 'ktp', d.application.version)
+    expect(fileOf(d, 'ktp').status).toBe('verified')
+    expect(fileOf(d, 'ktp').review).toBeUndefined()
+    expect((await api.admin.audit.list()).items[0]).toMatchObject({ action: 'application.document_review', before: { document: 'KTP', result: 'Kedaluwarsa' }, after: { document: 'KTP', result: 'Sesuai' } })
+    await signIn('Rina Hartati', 'rina.hartati@example.com')
+    expect((await api.dashboard.getSnapshot()).applications[0].pendingActions).toEqual([])
+    expect((await api.activities.list()).some((a) => a.type === 'additional_document_requested')).toBe(false)
+  })
+
+  it('stale review conflicts', async () => {
+    mockControls.reset('admin_ops')
+    const d = await move('app_sample_01', 'docs_verification', 3)
+    await review('app_sample_01', 'ktp', d.application.version)
+    await expectCode(review('app_sample_01', 'npwp', d.application.version), 'CONFLICT_VERSION')
+  })
+
+  it('sending turns every drafted rejection into one request the user sees per document; the bank waits for all verified', async () => {
     mockControls.reset('admin_ops')
     let d = await move('app_sample_01', 'docs_verification', 3)
-    await expectCode(move('app_sample_01', 'additional_docs_requested', d.application.version, { documentTypes: [], message: 'Foto KTP buram.' }), 'VALIDATION_FAILED')
-    d = await move('app_sample_01', 'additional_docs_requested', d.application.version, { documentTypes: ['ktp'], message: 'Foto KTP buram, unggah ulang.' })
-    expect(d.application.status).toBe('additional_docs_requested')
-    expect(d.application.documents.find((x) => x.type === 'ktp').file).toMatchObject({ status: 'needs_update', invalidReason: 'Foto KTP buram, unggah ulang.' })
+    await expectCode(move('app_sample_01', 'additional_docs_requested', d.application.version), 'VALIDATION_FAILED') // nothing rejected yet
+    for (const t of ['ktp', 'property_document']) d = await review('app_sample_01', t, d.application.version)
+    await expectCode(move('app_sample_01', 'bank_processing', d.application.version), 'INVALID_STATE_TRANSITION')
+    d = await review('app_sample_01', 'npwp', d.application.version, { result: 'rejected', reasonCode: 'blurry', note: 'angka NPWP tidak terbaca' })
+    d = await review('app_sample_01', 'income_proof', d.application.version, { result: 'rejected', reasonCode: 'expired' })
+    d = await move('app_sample_01', 'additional_docs_requested', d.application.version)
+    expect(fileOf(d, 'npwp')).toMatchObject({ status: 'needs_update', invalidReason: 'Buram / tidak terbaca: angka NPWP tidak terbaca' })
+    expect(fileOf(d, 'npwp').review).toBeUndefined()
+    expect(d.application.pendingActions.map((p) => [p.documentType, p.message])).toEqual([
+      ['npwp', 'Buram / tidak terbaca: angka NPWP tidak terbaca'],
+      ['income_proof', 'Kedaluwarsa'],
+    ])
+
     await signIn('Rina Hartati', 'rina.hartati@example.com')
+    expect((await api.activities.list()).filter((a) => a.type === 'additional_document_requested')).toEqual([
+      expect.objectContaining({ title: 'Dokumen perlu diunggah ulang', body: 'NPWP, Slip Gaji / Bukti Penghasilan perlu diperbarui.' }),
+    ])
     const [app] = (await api.dashboard.getSnapshot()).applications
-    expect(app.pendingActions).toEqual([expect.objectContaining({ documentType: 'ktp', message: 'Foto KTP buram, unggah ulang.' })])
-    expect((await api.activities.list())[0]).toMatchObject({ type: 'additional_document_requested' })
-    expect((await api.applications.uploadDocument(app.id, { documentType: 'ktp', file: file('ktp-baru.jpg') })).status).toBe('docs_verification')
+    expect((await api.applications.uploadDocument(app.id, { documentType: 'npwp', file: file('npwp-baru.pdf', 200_000, 'application/pdf') })).status).toBe('additional_docs_requested')
+    const back = await api.applications.uploadDocument(app.id, { documentType: 'income_proof', file: file('slip-baru.pdf', 200_000, 'application/pdf') })
+    expect(back.status).toBe('docs_verification')
+    expect(back.documents.npwp).toMatchObject({ status: 'uploaded', invalidReason: null })
+    expect((await api.activities.list())[0]).toMatchObject({ type: 'document_replaced', body: 'Menunggu verifikasi dari tim RuangKPR.' })
+
+    await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+    d = await api.admin.applications.get('app_sample_01')
+    for (const t of ['npwp', 'income_proof']) d = await review('app_sample_01', t, d.application.version)
+    d = await move('app_sample_01', 'bank_processing', d.application.version)
+    expect(d.application.status).toBe('bank_processing')
+  })
+
+  it('an unsent rejection on an optional document also holds the application back from the bank', async () => {
+    mockControls.reset('admin_ops')
+    const db = loadDb()
+    db.accounts.flatMap((a) => a.applications).find((x) => x.id === 'app_sample_01').documents.additional = { status: 'uploaded', fileName: 'kk.pdf', sizeBytes: 1000, contentType: 'application/pdf', uploadedAt: '2026-09-18', invalidReason: null }
+    saveDb(db)
+    let d = await move('app_sample_01', 'docs_verification', 3)
+    for (const t of ['ktp', 'npwp', 'income_proof', 'property_document']) d = await review('app_sample_01', t, d.application.version)
+    d = await review('app_sample_01', 'additional', d.application.version, { result: 'rejected', reasonCode: 'cropped' })
+    await expectCode(move('app_sample_01', 'bank_processing', d.application.version), 'INVALID_STATE_TRANSITION')
+    d = await review('app_sample_01', 'additional', d.application.version)
+    expect((await move('app_sample_01', 'bank_processing', d.application.version)).application.status).toBe('bank_processing')
   })
 
   it('a rejection needs a known reason code and a user-facing explanation, which the user then sees', async () => {
@@ -270,6 +417,31 @@ describe('admin applications', () => {
     expect(await ids({ bankName: 'Bank DEF' })).toEqual(['app_sample_03'])
     expect(await ids({ query: 'rina' })).toEqual(['app_sample_01'])
     expect((await api.admin.applications.list()).items).toHaveLength(8)
+  })
+
+  it('the team keeps one editable note per stage for the user; appraisal needs the agreed schedule', async () => {
+    mockControls.reset('admin_ops')
+    const id = 'app_01J8Z19RZ4VE4Q2AB7M5N8XKCF' // Firdi Audi, bank_processing
+    const save = (expectedVersion, note) => api.admin.applications.saveStageNote(id, { expectedVersion, ...note })
+    await expectCode(api.admin.applications.saveStageNote('app_sample_01', { message: 'Pesan untuk tahap diajukan.', expectedVersion: 3 }), 'INVALID_STATE_TRANSITION')
+    let d = await api.admin.applications.get(id)
+    await expectCode(save(d.application.version, { message: 'ok' }), 'VALIDATION_FAILED')
+    d = await save(d.application.version, { message: 'Bank minta 5 hari kerja untuk analisis.' })
+    expect(d.application.stageNotes.bank_processing).toMatchObject({ message: 'Bank minta 5 hari kerja untuk analisis.', schedule: null })
+    d = await move(id, 'appraisal', d.application.version)
+    expect(d.application.stageNotes.appraisal).toBeUndefined()
+    await expectCode(save(d.application.version, { message: '', schedule: { date: '2026-10-18', time: '25:00', location: 'Jl. Melati 12' } }), 'VALIDATION_FAILED')
+    d = await save(d.application.version, { message: 'Siapkan IMB/PBG asli.', schedule: { date: '2026-10-18', time: '10:00', location: 'Jl. Melati 12, Bekasi' } })
+    d = await save(d.application.version, { message: 'Siapkan IMB/PBG asli.', schedule: { date: '2026-10-19', time: '09:30', location: 'Jl. Melati 12, Bekasi' } })
+    await expectCode(save(1, { message: 'Versi lama.' }), 'CONFLICT_VERSION')
+    expect((await api.admin.audit.list()).items[0]).toMatchObject({ action: 'application.stage_note', after: { status: 'appraisal', schedule: { date: '2026-10-19', time: '09:30' } } })
+
+    await signIn('Firdi Audi', 'firdi.audi@email.com')
+    const app = (await api.dashboard.getSnapshot()).applications.find((x) => x.id === id)
+    expect(app.stageNotes.appraisal).toMatchObject({ message: 'Siapkan IMB/PBG asli.', schedule: { date: '2026-10-19', time: '09:30', location: 'Jl. Melati 12, Bekasi' } })
+    const activity = await api.activities.list()
+    expect(activity.filter((a) => a.type === 'application_stage_note').map((a) => a.title)).toEqual(['Info Appraisal diperbarui', 'Info baru dari tim · Appraisal', 'Info baru dari tim · Proses Bank'])
+    expect(JSON.stringify(activity)).not.toContain('Siapkan IMB')
   })
 })
 
@@ -464,6 +636,23 @@ describe('primary application', () => {
     expect(retried).toMatchObject({ id: rejected.id, status: 'draft', currentStep: 2 })
   })
 
+  it('a retry at the same bank starts clean: every document is checked again and the old stage notes are gone', async () => {
+    mockControls.reset('application_rejected_dti') // rejected after appraisal, all documents verified
+    const db = loadDb()
+    const old = db.applications[0]
+    old.stageNotes = { appraisal: { message: 'Siapkan IMB/PBG asli.', schedule: { date: '2026-09-26', time: '10:00', location: 'Jl. Melati 12, Bekasi' }, updatedAt: '2026-09-25T03:00:00.000Z' } }
+    old.documents.npwp = { ...old.documents.npwp, review: { reasonCode: 'blurry', note: '', at: '2026-09-23T03:00:00.000Z' }, invalidReason: 'Buram / tidak terbaca' }
+    saveDb(db)
+    const fresh = (app) => Object.values(app.documents).every((d) => d.status === 'uploaded' && !('review' in d) && !d.invalidReason)
+    const retried = await api.applications.retrySameBank(old.id)
+    expect(retried.stageNotes).toEqual({})
+    expect(fresh(retried)).toBe(true)
+    await api.applications.submit(old.id, { consents: { dataAccuracy: true, sendToBank: true } })
+    const [app] = (await api.dashboard.getSnapshot()).applications
+    expect(app).toMatchObject({ status: 'submitted', stageNotes: {} })
+    expect(fresh(app)).toBe(true)
+  })
+
   it('status can advance to disbursed and creates an active mortgage from final terms', async () => {
     mockControls.reset('application_in_process')
     const [app] = (await api.dashboard.getSnapshot()).applications
@@ -476,9 +665,155 @@ describe('primary application', () => {
   })
 })
 
+describe('one finance for the profile and KPR Health', () => {
+  it('income and other installments typed in an application reach KPR Health at once', async () => {
+    mockControls.reset('mortgage_active_normal')
+    const app = await api.applications.create({ productType: 'takeover', mode: 'takeover' })
+    // Take Over's Pekerjaan form: income in `employment`, the other installments in `finance`.
+    await api.applications.saveStep(app.id, { step: 1, values: { employment: { monthlyIncome: 25_000_000 }, finance: { vehicleDebt: 0, cardDebt: 0, otherDebt: 0 } } })
+    const { finance, mortgages: [m], clock } = await api.dashboard.getSnapshot()
+    const typed = { monthlyIncome: 25_000_000, vehicleDebt: 0, cardDebt: 0, otherDebt: 0 }
+    expect(finance).toMatchObject(typed)
+    expect(m.finance).toMatchObject(typed)
+    expect(deriveMortgage(m, clock).dti.dtiRatio).toBe(m.currentPayment / 25_000_000)
+  })
+
+  it('a KPR opened at disbursement takes the profile’s current finance, not the application’s older copy', async () => {
+    mockControls.reset('application_in_process')
+    const [app] = (await api.dashboard.getSnapshot()).applications
+    await api.profile.update({ finance: { monthlyIncome: 30_000_000 } })
+    for (let i = 0; i < 6; i++) mockControls.advanceApplication(app.id)
+    const { mortgages } = await api.dashboard.getSnapshot()
+    expect(mortgages.find((m) => m.status === 'active').finance).toMatchObject({ monthlyIncome: 30_000_000 })
+  })
+})
+
 describe('monitoring', () => {
   const step1 = { bankName: 'Bank ABC', scheme: 'conventional', originalPrincipal: 600_000_000, currentPayment: 4_127_324, originalTenorMonths: 240, startDate: '2021-12-22', dueDay: 22 }
   const fixedRate = { currentRateType: 'fixed', fixedUntil: '2026-12-22', currentRateBps: 550, remainingTenorMonths: 183, estimatedFloatingRateBps: 900, outstandingPrincipal: null, outstandingEstimated: null }
+
+  it('My KPR reads sisa pokok as of today: a passed due date moves it, a payment mark never does', async () => {
+    mockControls.reset('mortgage_active_normal')
+    const snap = await api.dashboard.getSnapshot()
+    const [m] = snap.mortgages
+    const seen = deriveMortgage(m, snap.clock) // the projection My KPR shows today
+    await api.mortgages.markPaid(m.id, { dueDate: seen.nextDue, amount: m.currentPayment, paidAt: snap.clock })
+    expect((await api.dashboard.getSnapshot()).mortgages[0]).toMatchObject({ outstandingPrincipal: m.outstandingPrincipal, remainingTenorMonths: m.remainingTenorMonths })
+    setClock(addDays(seen.nextDue, 1))
+    const later = await api.dashboard.getSnapshot()
+    expect(later.mortgages[0]).toMatchObject({ outstandingPrincipal: seen.schedule.rows[0].closingBalance, remainingTenorMonths: m.remainingTenorMonths - 1, outstandingProjected: true })
+    expect(deriveMortgage(later.mortgages[0], later.clock).estimatedEndDate).toBe(seen.estimatedEndDate)
+  })
+
+  // The seeded KPR a day after its next installment, with the balance My KPR projected for that day.
+  async function afterNextInstallment() {
+    mockControls.reset('mortgage_active_normal')
+    const { mortgages: [m], clock } = await api.dashboard.getSnapshot()
+    const seen = deriveMortgage(m, clock)
+    setClock(addDays(seen.nextDue, 1))
+    return { id: m.id, balance: seen.schedule.rows[0].closingBalance, tenor: m.remainingTenorMonths - 1 }
+  }
+
+  it('a property save, Explore, Take Over with its simulation, and the admin all read that same balance', async () => {
+    const { id, balance, tenor } = await afterNextInstallment()
+    expect((await api.mortgages.update(id, { property: { estimatedValue: 900_000_000 } })).outstandingPrincipal).toBe(balance)
+    expect((await api.dashboard.getSnapshot()).mortgages[0].outstandingPrincipal).toBe(balance) // the save did not reset it
+    const { opportunity } = await api.explore.get()
+    expect(opportunity.maxGrossTopup).toBe(Math.floor((900_000_000 * opportunity.maxLtvBps) / 10_000) - balance)
+    const sim = await api.simulations.run({ source: { type: 'mortgage', id }, input: { mode: 'takeover', goal: 'lower_payment', tenorMonths: 180 } })
+    expect(sim.baseline).toMatchObject({ outstanding: balance, remainingMonths: tenor })
+    const fromSim = await api.simulations.apply({ bankProductId: sim.items[0].productId, tenorMonths: 180 })
+    expect(fromSim.data.oldLoan).toMatchObject({ outstanding: balance, remainingMonths: tenor, source: 'estimate' })
+    await api.applications.cancel(fromSim.id)
+    const app = await api.applications.create({ productType: 'takeover', mode: 'takeover', mortgageId: id })
+    expect(app.data.oldLoan).toMatchObject({ outstanding: balance, remainingMonths: tenor, source: 'estimate' })
+    await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+    const user = (await api.admin.users.list()).find((u) => u.name === 'Firdi Audi')
+    expect((await api.admin.users.get(user.id)).mortgages[0].outstandingPrincipal).toBe(balance)
+  })
+
+  it('Edit Data KPR saves the figures on screen as today’s, so passed installments are not counted twice', async () => {
+    const { id, balance, tenor } = await afterNextInstallment()
+    const saved = await api.mortgages.saveSetupStep(id, { step: 1, values: { outstandingPrincipal: balance, remainingTenorMonths: tenor, outstandingEstimated: false } })
+    expect(saved).toMatchObject({ outstandingPrincipal: balance, remainingTenorMonths: tenor })
+    expect((await api.dashboard.getSnapshot()).mortgages[0]).toMatchObject({ outstandingPrincipal: balance, remainingTenorMonths: tenor })
+  })
+
+  it('an estimated sisa pokok saved again later is estimated for that day, once', async () => {
+    mockControls.reset('fresh')
+    const { id } = await api.mortgages.createSetup()
+    await api.mortgages.saveSetupStep(id, { step: 1, values: { ...step1, ...fixedRate } }) // 183 months left on 28 Sep
+    await api.mortgages.saveSetupStep(id, { step: 2, values: { reminders: structuredClone(DEFAULT_REMINDERS) } })
+    await api.mortgages.activate(id, { confirmDataCorrect: true })
+    setClock('2026-10-23')
+    // "Tidak tahu sisa pokok": the form counts 182 months left after 22 Oct and the API estimates the balance.
+    const saved = await api.mortgages.saveSetupStep(id, { step: 1, values: { ...step1, ...fixedRate, remainingTenorMonths: 182 } })
+    expect(saved).toMatchObject({ remainingTenorMonths: 182, outstandingPrincipal: calculateMaxPrincipal({ payment: 4_127_324, annualRateBps: 550, termMonths: 182 }) })
+  })
+
+  it('Edit Data KPR sending the moved balance back unchanged keeps it an estimate; a typed bank figure replaces it', async () => {
+    const { id, balance, tenor } = await afterNextInstallment()
+    const shown = { outstandingPrincipal: balance, remainingTenorMonths: tenor, outstandingEstimated: false }
+    await api.mortgages.saveSetupStep(id, { step: 1, values: { ...shown, estimatedFloatingRateBps: 1000 } }) // only the floating estimate changed
+    expect((await api.dashboard.getSnapshot()).mortgages[0]).toMatchObject({ outstandingPrincipal: balance, remainingTenorMonths: tenor, outstandingProjected: true })
+    await api.mortgages.saveSetupStep(id, { step: 1, values: { ...shown, outstandingPrincipal: balance - 1_000_000 } }) // typed from the bank
+    const typed = (await api.dashboard.getSnapshot()).mortgages[0]
+    expect(typed.outstandingPrincipal).toBe(balance - 1_000_000)
+    expect(typed.outstandingProjected).toBeUndefined()
+  })
+
+  it('an estimated sisa pokok saved on its due date is not counted twice the next day', async () => {
+    async function savedOn(clock) {
+      mockControls.reset('fresh')
+      setClock(clock)
+      const { id } = await api.mortgages.createSetup()
+      // "Tidak tahu sisa pokok": the form counts the months left on the day it is saved.
+      const remainingTenorMonths = remainingFromStart({ originalTenorMonths: '240', startDate: step1.startDate, dueDay: '22' }, clock)
+      await api.mortgages.saveSetupStep(id, { step: 1, values: { ...step1, ...fixedRate, remainingTenorMonths } })
+      setClock('2026-10-23')
+      return (await api.dashboard.getSnapshot()).mortgages[0]
+    }
+    const dayBefore = await savedOn('2026-10-21')
+    expect(await savedOn('2026-10-22')).toMatchObject({ outstandingPrincipal: dayBefore.outstandingPrincipal, remainingTenorMonths: dayBefore.remainingTenorMonths })
+  })
+
+  it('a new due day moves the marked payments to that day of the same month', async () => {
+    mockControls.reset('mortgage_active_normal') // due on the 22nd, 22 Sep marked
+    const { mortgages: [m] } = await api.dashboard.getSnapshot()
+    await api.mortgages.markPaid(m.id, { dueDate: '2026-10-22', amount: m.currentPayment, paidAt: '2026-09-28' })
+    await api.mortgages.saveSetupStep(m.id, { step: 1, values: { dueDay: 13 } })
+    const snap = await api.dashboard.getSnapshot()
+    expect(snap.mortgages[0].payments.map((p) => p.dueDate).sort()).toEqual(['2026-09-13', '2026-10-13'])
+    expect(deriveMortgage(snap.mortgages[0], snap.clock).nextDue).toBe('2026-11-13') // October is not asked again
+  })
+
+  it('the activity feed records a cancelled mark, with dates people read', async () => {
+    mockControls.reset('mortgage_active_normal')
+    const { mortgages: [m] } = await api.dashboard.getSnapshot()
+    const p = await api.mortgages.markPaid(m.id, { dueDate: '2026-10-22', amount: m.currentPayment, paidAt: '2026-09-28' })
+    await api.mortgages.removePayment(m.id, p.id)
+    const feed = await api.activities.list()
+    expect(feed.find((a) => a.type === 'payment_marked_paid').body).toContain('22 Oktober 2026')
+    expect(feed.find((a) => a.type === 'payment_unmarked')).toMatchObject({ title: 'Tanda pembayaran dibatalkan', body: expect.stringContaining('22 Oktober 2026') })
+  })
+
+  it('activation schedules the first reminder for the first installment, never the akad day', async () => {
+    mockControls.reset('fresh') // 28 Sep 2026
+    const { id } = await api.mortgages.createSetup()
+    await api.mortgages.saveSetupStep(id, { step: 1, values: { ...step1, ...fixedRate, startDate: '2026-09-28', dueDay: 28, remainingTenorMonths: 240 } })
+    await api.mortgages.saveSetupStep(id, { step: 2, values: { reminders: structuredClone(DEFAULT_REMINDERS) } })
+    await api.mortgages.activate(id, { confirmDataCorrect: true })
+    const reminder = (await api.activities.list()).find((a) => a.type === 'payment_reminder_scheduled')
+    expect(reminder.body).toContain('28 Oktober 2026')
+  })
+
+  it('with no program in the catalog Explore offers no refinancing figure, not Rp0 at LTV -Infinity', async () => {
+    mockControls.reset('mortgage_active_normal')
+    const db = loadDb()
+    Object.assign(db, { products: [], banks: [] }) // what Supabase loads from empty catalog tables
+    saveDb(db)
+    expect((await api.explore.get()).opportunity).toMatchObject({ maxGrossTopup: null, maxLtvBps: null })
+  })
 
   it('step 1 KPR data is all activation needs; sisa pokok is estimated when not known', async () => {
     mockControls.reset('fresh')

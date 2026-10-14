@@ -45,6 +45,21 @@ export const DOC_LABELS = {
   fund_plan: 'Rencana Penggunaan Dana',
 }
 
+// Why the team turns a document back (admin document review). `other` needs a note.
+export const DOC_REJECT_REASONS = [
+  { value: 'blurry', label: 'Buram / tidak terbaca' },
+  { value: 'cropped', label: 'Terpotong / tidak lengkap' },
+  { value: 'expired', label: 'Kedaluwarsa' },
+  { value: 'mismatch', label: 'Tidak sesuai data pengajuan' },
+  { value: 'wrong_document', label: 'Bukan dokumen yang diminta' },
+  { value: 'other', label: 'Lainnya' },
+]
+// What the user reads for one turned-back document: "Buram / tidak terbaca: angka NPWP tidak terbaca".
+export function rejectMessage({ reasonCode, note }) {
+  const label = DOC_REJECT_REASONS.find((r) => r.value === reasonCode)?.label ?? reasonCode
+  return note ? `${label}: ${note}` : label
+}
+
 const doc = (type, required, hint = '', group = null) => ({ type, label: DOC_LABELS[type], required, hint, group })
 
 export function requiredDocuments(app) {

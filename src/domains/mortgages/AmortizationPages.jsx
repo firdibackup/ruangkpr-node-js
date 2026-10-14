@@ -179,7 +179,7 @@ export function AmortizationSchedulePage() {
   const rows =
     view === 'bulanan'
       ? s.rows.filter((r) => r.dueDate.startsWith(year)).map((r) => ({ key: r.month, label: dateShort(r.dueDate), rate: `${percentBps(r.annualRateBps)}${r.estimatedRate ? '*' : ''}`, estimate: r.estimatedRate, cells: [r.openingBalance, r.payment, r.principal, r.interest, r.closingBalance], banner: r.periodChanged && r.rateType === 'floating' ? floatingLabel(r.annualRateBps) : r.periodChanged ? `Mulai periode bunga ${percentBps(r.annualRateBps)}` : '' }))
-      : s.yearly.map((y) => ({ key: y.year, label: y.year, rate: `${y.minRateBps === y.maxRateBps ? percentBps(y.minRateBps) : `${percentBps(y.minRateBps)}–${percentBps(y.maxRateBps)}`}${y.containsEstimate ? '*' : ''}`, estimate: y.containsEstimate, cells: [y.openingBalance, y.payment, y.principal, y.interest, y.closingBalance], banner: y.containsTransition ? floatingLabel(y.maxRateBps) : '' }))
+      : s.yearly.map((y) => ({ key: y.year, label: y.year, rate: `${y.minRateBps === y.maxRateBps ? percentBps(y.minRateBps) : `${percentBps(y.minRateBps)}–${percentBps(y.maxRateBps)}`}${y.containsEstimate ? '*' : ''}`, estimate: y.containsEstimate, cells: [y.openingBalance, y.payment, y.principal, y.interest, y.closingBalance], banner: y.containsTransition ? floatingLabel(y.transitionRateBps) : '' }))
 
   return (
     <>

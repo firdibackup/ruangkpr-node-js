@@ -47,7 +47,7 @@ export function widgetLock(id, m, d) {
       return d.mode === null ? lock('jenis bunga', 'menghitung sisa masa fixed', KPR_DATA) : null
     case 'floatingImpact':
       if (d.mode === null) return lock('jenis bunga', 'melihat dampak floating', KPR_DATA)
-      if (d.mode === 'floating') return m.previousFixedPayment > 0 ? null : lock('cicilan fixed terakhir', 'membandingkan cicilan sebelum dan sesudah floating', KPR_DATA)
+      if (d.mode === 'floating') return d.previousPayment > 0 ? null : lock('cicilan fixed terakhir', 'membandingkan cicilan sebelum dan sesudah floating', KPR_DATA)
       if (!m.estimatedFloatingRateBps) return lock('estimasi bunga floating', 'melihat dampak setelah masa fixed', KPR_DATA)
       return scheduleLock(m, d, 'melihat dampak setelah masa fixed')
     case 'progress': {
@@ -59,6 +59,10 @@ export function widgetLock(id, m, d) {
       return null
   }
 }
+
+// Peluang shows a potential only when it exists: Take Over when a program is cheaper after moving costs,
+// Refinancing when the property value leaves cash to draw. With neither, Home drops the card.
+export const opportunityPotential = (opp) => ({ takeover: opp?.cheaperProgramCount > 0, topup: opp?.maxGrossTopup > 0 })
 
 // Today's balance, then the balance at the end of each schedule year until it reaches zero.
 export const balanceProjection = (d) => [{ label: 'Kini', balance: d.schedule.rows[0].openingBalance }, ...d.schedule.yearly.map((y) => ({ label: y.year, balance: y.closingBalance }))]
@@ -147,6 +151,7 @@ const SAMPLE = {
   currentPayment: 4_127_324,
   outstandingPrincipal: 517_584_453,
   remainingTenorMonths: 183,
+  outstandingAsOf: '2026-09-28',
   currentRateBps: 550,
   currentRateType: 'fixed',
   fixedUntil: '2027-12-22',

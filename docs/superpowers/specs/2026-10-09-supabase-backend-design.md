@@ -57,7 +57,7 @@ Halaman UI ──► src/data/api.js ──┬─► mockApi.js          (VITE_D
 | `simulations` | `run`, `getCurrent` (kolom `profiles.simulation`), `save` (tetap `history_not_enabled`) | `apply` (RPC `apply_simulation`) |
 | `explore` | `get`, `article` | — |
 | `activities` | `list`, `markRead`, `markAllRead` | — |
-| `admin.*` | `*.list`, `*.get`, `audit.list`, `health.get`, `config.get`; `products.preview`, `health.preview` (JS murni) | Semua mutasi lewat RPC `admin_*` (lihat §4.2); `overview.get`, `reports.get`, `reports.exportCsv` lewat RPC agregat; dokumen dibuka dengan `createSignedUrl` |
+| `admin.*` | `*.list`, `*.get`, `audit.list`, `health.get`, `config.get`; `products.preview`, `health.preview` (JS murni) | Semua mutasi lewat RPC `admin_*` (lihat §4.2); `overview.get`, `reports.get`, `reports.exportCsv` lewat RPC agregat; dokumen diunduh dengan `createSignedUrl` |
 
 ## 2. Skema (schema `public`)
 Prinsip: kolom untuk yang perlu ditegakkan/di-query SQL (pemilik, status, tanggal cron, filter, laporan); `jsonb` (key camelCase) untuk payload formulir yang divalidasi dan diturunkan oleh JS. Uang `bigint` Rupiah, bunga `integer` bps, tanggal `date`, waktu `timestamptz`. Status `text` + `CHECK`. `version integer` dinaikkan trigger `bump_version` pada setiap UPDATE. Setiap tabel: `enable row level security` + `GRANT` eksplisit (wajib karena tabel baru tidak lagi otomatis terekspos ke Data API).
@@ -149,7 +149,7 @@ Keputusan data:
 | `clone_to_bank(app_id)` | Hanya `rejected` dan belum `superseded`; lama → `superseded`; draft baru menyalin `data`, baris dokumen `uploaded`/`verified` (menunjuk file yang sama, tanpa menyalin file), `excluded_product_ids` + produk lama. File hanya dihapus bila path-nya berada di folder pengajuan yang dihapus |
 | `apply_simulation(product_id, tenor_months, plafon, selection jsonb)` | Satu pengajuan aktif; produk berlaku; buat/isi draft Take Over atomik |
 | `activate_mortgage(mortgage_id, confirm)` | Draft milik sendiri; field wajib ada di `details`; reminder minimal satu jadwal dan satu kanal; activity aktivasi + reminder dijadwalkan + peringatan fixed ≤ 90 hari |
-| `admin_transition_application(id, to_status, reason, expected_version, metadata)` | super_admin; matriks `NEXT_STATUS` + `approved` → `akad`/`old_mortgage_settlement`; `additional_docs_requested` menandai dokumen `needs_update`; `rejected` butuh kode + alasan; `akad` menyimpan `final_terms` tervalidasi; `disbursed` membuat KPR aktif dari `final_terms` (Take Over: KPR lama → `replaced`); activity untuk user |
+| `admin_transition_application(id, to_status, reason, expected_version, metadata)` | super_admin; matriks `NEXT_STATUS` + `approved` → `akad`/`old_mortgage_settlement`; `additional_docs_requested` menandai dokumen `needs_update`; `bank_processing` hanya bila semua dokumen wajib `verified` (trigger `20261013120000_document_review`); `rejected` butuh kode + alasan; `akad` menyimpan `final_terms` tervalidasi; `disbursed` membuat KPR aktif dari `final_terms` (Take Over: KPR lama → `replaced`); activity untuk user |
 | `admin_add_note`, `admin_update_user_profile`, `admin_update_user_finance` | super_admin; `reason` wajib; `expected_version` |
 | `admin_upsert_bank`, `admin_save_product`, `admin_publish_product`, `admin_archive_product` | super_admin; revisi `pending_revision`; publish menaikkan `version` |
 | `admin_save_article`, `admin_publish_article`, `admin_archive_article` | super_admin atau content_writer |
@@ -168,7 +168,7 @@ Keputusan data:
 - Path: `{user_id}/{application_id}/{document_type}-{uuid}.{ext}` dan `{user_id}/{mortgage_id}/{due_date}-{uuid}.{ext}`. Nama selalu baru, tanpa upsert → policy INSERT, SELECT, DELETE saja.
 - Policy `application-documents`: pemilik INSERT bila `(storage.foldername(name))[1] = auth.uid()::text` dan pengajuan masih draft atau dokumen `needs_update`; pemilik SELECT/DELETE foldernya sendiri; super_admin SELECT semua. content_writer tanpa akses.
 - Upload: `uploadProblem` (aturan JS yang sama) → `XMLHttpRequest` ke `/storage/v1/object/{bucket}/{path}` (header `Authorization` + `apikey`) agar progress asli tanpa dependency → `rpc('attach_document')` → hapus file lama bila penggantian.
-- Admin membuka dokumen via `createSignedUrl(path, 300)`.
+- Admin mengunduh dokumen via `createSignedUrl(path, 300, { download: fileName })` (Content-Disposition: attachment).
 
 ## 5. Reminder
 ```
@@ -249,7 +249,7 @@ Keputusan user setelah Fase 1 jalan di VPS (test pgTAP 14/14 lulus di database a
 |---|---|---|
 | Mode default | Aplikasi memakai Supabase. Mock hanya untuk test otomatis (`VITE_DATA_SOURCE=mock` di Vitest/Playwright). Tombol Demo, kode demo, dan data dummy tidak pernah tampil di mode Supabase. | §1 "mock untuk demo", §8 rilis sekali di Fase 4 |
 | Letak logika | Logika `mockApi.js` (yang dijaga 181 unit test) dipakai apa adanya. `createMockApi` menerima *store*: `localStore` (localStorage, untuk test) atau `supabaseStore` (memuat akun dari Supabase per baris, menjalankan operasi yang sama, lalu menulis hanya baris yang berubah dengan cek `version`). | §4.1–4.2: sebagian besar RPC |
-| Penegakan di database | Trigger penjaga per tabel: kolom terpromosi (`status`, `superseded`) diturunkan dari `doc`; transisi status per peran (pemilik: `draft→submitted`, `rejected→draft`, `rejected` superseded, `additional_docs_requested→docs_verification` saat tidak ada dokumen tertunda; staf: matriks `NEXT_STATUS`); submit divalidasi terhadap katalog (produk published, bank aktif, berlaku hari ini, versi dan bunga sama, dokumen wajib lengkap, NIK 16 digit); data pengajuan terkunci setelah submit; draf tidak bisa disentuh staf; audit hanya bisa ditambah dan `actor` dipaksa = `auth.uid()`. | §4.2 RPC per operasi |
+| Penegakan di database | Trigger penjaga per tabel: kolom terpromosi (`status`, `superseded`) diturunkan dari `doc`; transisi status per peran (pemilik: `draft→submitted`, `rejected→draft`, `rejected` superseded, `additional_docs_requested→docs_verification` saat tidak ada dokumen tertunda, dan upload ulang hanya mengganti dokumen yang diminta — `20261013120000_document_review`; staf: matriks `NEXT_STATUS`, masuk `bank_processing` hanya bila semua dokumen wajib `verified` — `20261013120000_document_review`); submit divalidasi terhadap katalog (produk published, bank aktif, berlaku hari ini, versi dan bunga sama, dokumen wajib lengkap, NIK 16 digit) dan hanya membawa upload baru: semua dokumen `uploaded` tanpa `review`, `stageNotes` kosong — `20261014090000_submit_fresh_documents`; data pengajuan terkunci setelah submit; draf tidak bisa disentuh staf; audit hanya bisa ditambah dan `actor` dipaksa = `auth.uid()`. | §4.2 RPC per operasi |
 | Skema | Baris dokumen: `id text`, `user_id`, kolom terpromosi, `doc jsonb` (bentuk objek persis seperti mock), `version`. Tabel: `applications`, `mortgages`, `activities`, `banks`, `bank_products`, `articles`, `app_config`, `health_configs`, `audit_log`, `admin_notes`. `profiles` (Fase 1) tetap per kolom. | §2 kolom per field |
 | Katalog | Kosong. Admin mengisi bank/produk asli. | §2 seed katalog |
 | Artikel | Artikel edukasi di-seed sebagai published. | — |
@@ -275,3 +275,40 @@ Di self-hosted, pengaturan server login hanya bisa diubah lewat env VPS. Supaya 
 | VPS | `ENABLE_PHONE_*=false` + 2 baris hook + 2 baris OTP. Google OAuth tetap lewat env bila dipakai | SMTP_* + templates-server + 6 baris template |
 
 Batas (`ponytail:`): `pg_net` mengirim secara asinkron. Kegagalan dari Resend tercatat di `net._http_response`, tidak dilaporkan ke server login atau baris reminder (yang sudah ditandai `sent`). Upgrade: rekonsiliasi status dari `net._http_response` bila perlu.
+
+## Amandemen 3 (2026-10-12, revisi 2026-10-13): login email + password, kode untuk daftar, link untuk lupa password
+
+Keputusan user: login non-Google memakai email + password. Kode 6 digit ke email hanya dipakai saat daftar pertama kali (verifikasi email). Lupa password mengirim link yang membuka halaman app untuk membuat password baru (revisi user 2026-10-13: email reset berisi link, tidak ada kode). Google tetap ada.
+
+| Topik | Keputusan | Menggantikan |
+|---|---|---|
+| Halaman | `/login` (email + password, link Lupa password), `/register` (nama, email, password + ulangi, centang S&K + Privasi), `/verify` (kode daftar), `/forgot-password` (email → "Cek email kamu") → link email → `/reset-password` (password baru, atau "Link tidak bisa dipakai"), `/welcome` (hanya login Google pertama / versi S&K baru), ubah password di `/profile/password` dan `/admin/password` | `/register` "Masuk atau daftar" + kode OTP di setiap login |
+| Status sesi | `guest` → `pending` (menunggu kode daftar) / `recovery` (masuk lewat link reset, wajib membuat password baru) → `onboarding` → `authenticated`; `HOME_OF.guest = '/login'` | `pending` untuk kode login |
+| `api.auth` | `signInWithPassword`, `signUp`, `verifySignup`, `requestPasswordReset` (link ke `${origin}/reset-password`), `updatePassword`, `resendOtp`, `changePassword`, `providers` (+ `signInWithGoogle`, `acceptConsents`, `logout`, `deleteAccount`, `onChange`) | `sendEmailOtp`, `verifyEmailOtp` |
+| Persetujuan | Dicentang di form Daftar, dicatat lewat `accept_consents` begitu kode benar, jadi pendaftar email langsung ke Home | Selalu lewat `/welcome` |
+| Password | Minimal 8 karakter, berisi huruf dan angka (maks 72), dicek app dan GoTrue (`GOTRUE_PASSWORD_MIN_LENGTH`, `GOTRUE_PASSWORD_REQUIRED_CHARACTERS`). Ganti password: login ulang dengan password lama, lalu `updateUser` (`GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_REAUTHENTICATION=true` aman) | Tidak ada password |
+| Email | Tetap SMTP Resend + templates-server: template *confirmation* (kode daftar) dan *recovery* (link, bawaan GoTrue atau `recovery.html`). Wajib di VPS: `SITE_URL` + `ADDITIONAL_REDIRECT_URLS` ke alamat app (runbook langkah 5) | Template *magic link* untuk login |
+| Tombol Google | Tampil hanya bila `/auth/v1/settings` → `external.google` | Selalu tampil |
+
+Aturan yang menjaga keamanan:
+- **Email yang belum pernah diverifikasi lalu didaftarkan ulang:** GoTrue tidak mengganti password lamanya, tapi tetap mengirim kode baru. Setelah kode benar, app langsung menyimpan password yang baru diketik (`updateUser`), jadi yang dipakai adalah password pemilik inbox, bukan password pendaftar sebelumnya.
+- **Login dan lupa password tidak membocorkan email terdaftar:** keduanya memberi jawaban yang sama untuk email yang ada dan yang tidak ada. Halaman Daftar memang memberi tahu "Email ini sudah terdaftar" (GoTrue mengembalikan user tanpa identities), demi kejelasan bagi user.
+- **Email terdaftar tapi belum diverifikasi lalu login:** kode baru dikirim, dan `/verify` menyelesaikan akunnya. Persetujuan kemudian diminta di `/welcome`.
+- **Data sementara:** email, password, dan nama yang menunggu kode hanya ada di memori tab. Refresh berarti mulai lagi dari `/login`.
+- **Link reset:** PKCE, jadi link harus dibuka di browser tempat reset diminta, dan hanya sekali. supabase-js melaporkannya lewat event `PASSWORD_RECOVERY` (didengar `client.js` sejak client dibuat); sesi itu berstatus `recovery` sampai password baru tersimpan. Link gagal → `/reset-password` menawarkan link baru. Batas (`ponytail:`): template dengan `{{ .TokenHash }}` + `verifyOtp({ token_hash })` akan bisa dibuka dari perangkat mana pun.
+
+Mock: akun seed dan staf memakai `DEMO_PASSWORD = 'ruangkpr123'`.
+
+## Amandemen 4 (2026-10-13): riwayat perubahan oleh user sendiri
+
+Keputusan user: admin juga melihat perubahan yang dibuat user sendiri, dengan nilai lama → baru, untuk profil, keuangan, data KPR aktif, dan pembayaran.
+
+| Topik | Keputusan |
+|---|---|
+| Penyimpanan | Tabel `public.user_changes` (`user_id`, `doc` = `{ action, resource, before, after }`, `occurred_at`). Hanya super admin yang bisa membaca. Tidak ada yang bisa menulis dari app; yang menulis hanya trigger. `audit_log` tetap khusus aksi staf (beserta alasannya), jadi Audit Log dan Overview tidak berubah |
+| Siapa yang tercatat | Trigger `AFTER UPDATE` di `profiles` dan `mortgages` (`SECURITY DEFINER`) hanya mencatat bila `auth.uid()` adalah pemilik baris. Edit oleh admin dan job (cron) tidak masuk |
+| Yang dicatat | `profile`: nama, NIK (tersamar), data pribadi, pekerjaan. `finance`: penghasilan dan utang. `mortgage.activate`. `mortgage.update`: field inti KPR, `property.*`, `reminders.*` (daftar field eksplisit; salinan `finance` di KPR tidak, karena profil sudah mencatatnya). `payment.mark` / `payment.unmark`. Pengaturan KPR yang masih draft tidak dicatat |
+| App | `supabaseStore` memuat tabel ini untuk admin (`db.userChanges`); `admin.users.get` menggabungkannya dengan `audit_log` milik user itu (`actor.role: 'user'`), terbaru di atas. Panel "Riwayat perubahan" di profil dan "Riwayat perubahan KPR" menampilkan nilai lama → baru |
+| Mock | Tidak ada database, dan di demo user dan admin tidak pernah berbagi data. Skenario `admin_ops` menyiapkan dua contoh untuk Sari |
+
+Batas (`ponytail:`): setiap pemanggilan admin memuat seluruh `user_changes`. Upgrade: filter per user di query bila tabelnya membesar. Perubahan sebelum migration ini tidak tercatat. Password lain disimpan di `db.passwords`. Kode daftar tetap `148260` (`000000` salah, `999999` kedaluwarsa). Link reset: `openResetLink()` (tombol "Buka link reset (mode demo)") memakai `db.resetLink`. Versi skema mock naik ke 5.

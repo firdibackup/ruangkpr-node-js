@@ -1,22 +1,23 @@
 // Mock implementation of the API contract (doc 04). Async like a real backend, persists through mockDb,
 // throws ApiError for expected failures. Financial math comes from src/calculations — never inline here.
-import { addDays, addMonths, daysUntil, nextDueDate, parseIsoDate } from '@/calculations/dates'
+import { addDays, addMonths, daysUntil, parseIsoDate } from '@/calculations/dates'
 import { CalculationError, calculateMaxPrincipal } from '@/calculations/finance'
 import { comparePrimaryPrograms, compareTakeoverPrograms, evaluateTakeoverProduct, isAvailable, isStale, primaryAffordability, simulateLoan, takeoverBaseline } from '@/calculations/programs'
 import { normalizeLayout } from '@/domains/home/dashboardLayout'
 import { IN_PROCESS, activeApplication } from '@/domains/home/selectHomeState'
-import { FIXED_MILESTONES, HEALTH_V1, deriveMortgage, nextMilestone, rateMode } from '@/domains/mortgages/derive'
+import { FIXED_MILESTONES, HEALTH_V1, deriveMortgage, mortgageAsOf, nextMilestone, nextUnpaidDue, rateMode } from '@/domains/mortgages/derive'
 import { defaultTakeoverGoal, takeoverDataFromMortgage, takeoverGaps, validateEmploymentBasic } from '@/domains/optimize/validation'
 import { validatePersonal } from '@/domains/applications/validation'
+import { STAGE_NOTE_STATUSES, STATUS_LABEL } from '@/domains/applications/meta'
 import { filledOnly, validateReminders } from '@/domains/mortgages/validation'
-import { CONSENT_TYPES, CONSENT_VERSION, isEmail, validateWelcome } from '@/domains/session/validation'
-import { maskEmail, maskNik } from '@/lib/format'
+import { CONSENT_TYPES, CONSENT_VERSION, validateChangePassword, validateEmail, validateLogin, validateNewPassword, validateRegister, validateWelcome } from '@/domains/session/validation'
+import { dateLong, maskEmail, maskNik } from '@/lib/format'
 import { ApiError } from './apiError'
 import { ARTICLES } from './articles'
 import { BANK_PRODUCTS } from './catalog'
-import { DEFAULT_UPLOAD, DOC_LABELS, UPLOAD_FORMATS, requiredDocuments, uploadProblem } from './documentRules'
+import { DEFAULT_UPLOAD, DOC_LABELS, DOC_REJECT_REASONS, UPLOAD_FORMATS, rejectMessage, requiredDocuments, uploadProblem } from './documentRules'
 import { loadDb, resetDb, saveDb } from './mockDb'
-import { ACCOUNT_KEYS, DEFAULT_REMINDERS, GOOGLE_DEMO, SCENARIOS, createSeed, newAccount, pickAccount, staffAccount } from './seed'
+import { ACCOUNT_KEYS, DEFAULT_REMINDERS, DEMO_PASSWORD, GOOGLE_DEMO, SCENARIOS, createSeed, newAccount, pickAccount, staffAccount } from './seed'
 import { STAFF, canOpen } from './roles'
 import { TOURS } from './tours'
 
@@ -39,11 +40,34 @@ const CANCELLABLE = ['draft', 'submitted', 'docs_verification', 'additional_docs
 const STATUS_COPY = {
   docs_verification: ['Dokumen sedang diverifikasi', 'Tim kami memeriksa kelengkapan dokumen kamu.'],
   bank_processing: ['Pengajuan masuk proses bank', 'Bank sedang menganalisis pengajuan kamu.'],
-  appraisal: ['Appraisal properti dijadwalkan', 'Penilai dari bank akan menghubungi kamu.'],
+  appraisal: ['Appraisal properti dijadwalkan', 'Tim RuangKPR akan mengonfirmasi jadwal survei lewat WhatsApp.'],
   approved: ['Pengajuan disetujui', 'Angka final mengikuti offering letter dari bank.'],
   old_mortgage_settlement: ['Pelunasan KPR lama berjalan', 'Tetap bayar cicilan bank lama sampai ada konfirmasi pelunasan resmi.'],
   akad: ['Jadwal akad tersedia', 'Tanda tangani akad sesuai jadwal dari bank.'],
   disbursed: ['Pengajuan selesai', 'KPR baru kamu sudah aktif.'],
+}
+
+// The team's note for the user in the current stage (spec 2026-10-13 §1.2). Appraisal records the schedule agreed on
+// WhatsApp; the other stages a message.
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
+function stageNoteOf(status, { message, schedule }) {
+  const text = String(message ?? '').trim()
+  if (status === 'appraisal') {
+    const s = schedule ?? {}
+    const location = String(s.location ?? '').trim()
+    failOnFields(
+      {
+        ...(!parseIsoDate(s.date) && { date: 'Pilih tanggal appraisal.' }),
+        ...(!TIME.test(s.time ?? '') && { time: 'Isi jam appraisal.' }),
+        ...((location.length < 3 || location.length > 200) && { location: 'Isi lokasi appraisal (3–200 karakter).' }),
+        ...(text.length > 500 && { message: 'Catatan maksimal 500 karakter.' }),
+      },
+      'Lengkapi jadwal appraisal.',
+    )
+    return { message: text, schedule: { date: s.date, time: s.time, location } }
+  }
+  failOnFields(text.length < 5 || text.length > 500 ? { message: 'Tulis pesan untuk user (5–500 karakter).' } : {}, 'Lengkapi pesan untuk user.')
+  return { message: text, schedule: null }
 }
 
 // ---------- dev-only failure injection (doc 04 §22.4) ----------
@@ -132,6 +156,22 @@ function signInAs(db, contact, name = '') {
   db.session = { status: consented(db) ? 'authenticated' : 'onboarding', verification: null }
 }
 
+function agree(db, name) {
+  const at = nowIso(db)
+  db.user = { ...db.user, name }
+  db.profile = { ...db.profile, fullName: name, consents: CONSENT_TYPES.map((type) => ({ type, version: CONSENT_VERSION, acceptedAt: at })) }
+  db.session = { status: 'authenticated', verification: null }
+}
+
+// Every account this browser knows: the signed-in one, the ones waiting in db.accounts, and the staff seats. A password
+// lives in db.passwords (outside the accounts, so it survives switching); an account without one uses DEMO_PASSWORD.
+const normalize = (email) => String(email ?? '').trim().toLowerCase()
+const hasAccount = (db, email) => db.user?.contact === email || db.accounts.some((a) => a.user?.contact === email) || Boolean(staffAccount(email))
+const passwordOf = (db, email) => db.passwords?.[email] ?? DEMO_PASSWORD
+const setPassword = (db, email, password) => {
+  db.passwords = { ...db.passwords, [email]: password }
+}
+
 // Admin operations run as the signed-in staff member, so every user account in this browser waits in db.accounts.
 const userAccounts = (db) => db.accounts.filter((a) => !STAFF[a.user.role])
 
@@ -194,8 +234,16 @@ function userDetail(db, a) {
     profile: { ...profile, nikMasked: nik ? maskNik(nik) : null },
     finance: a.finance ?? {},
     applications: a.applications.map((app) => ({ id: app.id, productType: app.productType, optimizationMode: app.optimizationMode, status: app.status, bankName: app.selection?.bankName ?? null, productName: app.selection?.productName ?? null, submittedAt: app.submittedAt, updatedAt: app.updatedAt })),
-    mortgages: a.mortgages.map((m) => ({ id: m.id, status: m.status, bankName: m.bankName, productName: m.productName, outstandingPrincipal: m.outstandingPrincipal, currentPayment: m.currentPayment, currentRateType: m.currentRateType, currentRateBps: m.currentRateBps, fixedUntil: m.fixedUntil })),
-    audit: (db.auditLog ?? []).filter((e) => e.resource.type === 'user' && e.resource.id === a.user.id).slice(0, 10),
+    // Whole KPR doc as of today: the admin KPR page derives schedule, DTI, LTV and Health from it like My KPR does.
+    mortgages: a.mortgages.map((m) => mortgageAsOf(m, db.clock)),
+    health: (({ version, params }) => ({ version, params }))(activeHealth(db)),
+    // Admin edits (with a reason) and the user's own edits, newest first. The user's own come from database triggers
+    // (migration user_changes); the demo has no database, so its scenarios seed a few. The panels show the latest five,
+    // the history page all of it. ponytail: the whole history in one answer; page it once one user has thousands.
+    audit: [
+      ...(db.auditLog ?? []).filter((e) => e.resource.type === 'user' && e.resource.id === a.user.id),
+      ...(db.userChanges ?? []).filter((c) => c.userId === a.user.id).map((c) => ({ ...c, actor: { id: a.user.id, name: a.user.name, role: 'user' } })),
+    ].sort((x, y) => y.occurredAt.localeCompare(x.occurredAt)),
   }
 }
 
@@ -284,7 +332,15 @@ function prefilledEmployment(db) {
 // writer goes through, and is redone only when one of its inputs changed, so older estimates stay stable.
 // An official figure (outstandingEstimated === false) wins until the user clears it.
 const OUTSTANDING_INPUTS = ['currentPayment', 'currentRateBps', 'remainingTenorMonths']
-function applyMortgageRules(m, before) {
+function applyMortgageRules(m, before, values, clock) {
+  // Sisa pokok and tenor sent from a form are today's figures; mortgageAsOf moves them on from this date. Edit Data KPR
+  // sending back the moved balance it showed is no new bank figure: the saved one, its date and its label stay.
+  const shown = mortgageAsOf(before, clock)
+  if (shown.outstandingProjected && values.outstandingPrincipal === shown.outstandingPrincipal && values.remainingTenorMonths === shown.remainingTenorMonths) {
+    Object.assign(m, { outstandingPrincipal: before.outstandingPrincipal, remainingTenorMonths: before.remainingTenorMonths, outstandingEstimated: before.outstandingEstimated })
+  } else if ('outstandingPrincipal' in values || 'remainingTenorMonths' in values) m.outstandingAsOf = clock
+  // A new due day keeps each marked payment in its month.
+  if (before.dueDay && m.dueDay !== before.dueDay && m.payments) m.payments = m.payments.map((p) => ({ ...p, dueDate: addMonths(p.dueDate, 0, m.dueDay) }))
   if (m.currentRateType !== 'fixed') {
     m.fixedUntil = null
     m.estimatedFloatingRateBps = null
@@ -300,10 +356,13 @@ function syncProfile(db, values) {
   const { personal, employment } = values
   if (personal) db.profile = { ...db.profile, ...personal }
   if (employment) {
-    const { occupation, companyName, jobTitle, workYears, workMonths, ...money } = employment
+    const { occupation, companyName, jobTitle, workYears, workMonths } = employment
     db.profile = { ...db.profile, ...Object.fromEntries(Object.entries({ occupation, companyName, jobTitle, workYears, workMonths }).filter(([, v]) => v !== undefined)) }
-    db.finance = { ...db.finance, ...Object.fromEntries(Object.entries(money).filter(([, v]) => v !== undefined)) }
   }
+  // Income from Pekerjaan, plus the other installments Take Over keeps in its own `finance` section: the profile and
+  // the monitored KPR (what KPR Health reads) take them together, as with a profile edit.
+  const money = Object.fromEntries(Object.entries(pickFields({ ...employment, ...values.finance }, FINANCE_FIELDS)).filter(([, v]) => v !== undefined))
+  if (Object.keys(money).length) applyFinance(db, money)
 }
 
 function newApplication(db, { productType, mode = null, source = 'cold', mortgageId = null, data }) {
@@ -381,15 +440,19 @@ function mortgageFromApplication(db, app, base = {}, owner = db) {
       disputed: false,
       valueLater: false,
     },
-    finance: base.finance ?? {
-      monthlyIncome: e.monthlyIncome ?? owner.finance?.monthlyIncome ?? null,
-      jointIncome: e.jointIncome ?? false,
-      partnerIncome: e.partnerIncome ?? null,
-      vehicleDebt: e.vehicleDebt ?? f.vehicleDebt ?? 0,
-      cardDebt: e.cardDebt ?? f.cardDebt ?? 0,
-      otherDebt: e.otherDebt ?? f.otherDebt ?? 0,
-      routineExpenses: null,
-      emergencyFund: null,
+    // KPR Health reads this copy: it starts from the profile's current finance, which may be newer than the application.
+    finance: {
+      ...(base.finance ?? {
+        monthlyIncome: e.monthlyIncome ?? null,
+        jointIncome: e.jointIncome ?? false,
+        partnerIncome: e.partnerIncome ?? null,
+        vehicleDebt: e.vehicleDebt ?? f.vehicleDebt ?? 0,
+        cardDebt: e.cardDebt ?? f.cardDebt ?? 0,
+        otherDebt: e.otherDebt ?? f.otherDebt ?? 0,
+        routineExpenses: null,
+        emergencyFund: null,
+      }),
+      ...pickFields(owner.finance, FINANCE_FIELDS),
     },
     reminders: base.reminders ?? structuredClone(configOf(db).reminders),
     payments: [],
@@ -452,21 +515,58 @@ function finalTermsOf(ft = {}) {
   return { loanAmount: ft.loanAmount, tenorMonths: ft.tenorMonths, fixedRateBps: ft.fixedRateBps, fixedMonths: ft.fixedMonths, floatingRateBps: ft.floatingRateBps, akadDate: ft.akadDate, payment }
 }
 
+// Admin document review (spec 2026-10-13 §1.1): "ok" verifies at once; a rejection waits on the document as a draft
+// the user does not see until the team sends the revision request (transition to additional_docs_requested).
+function applyReview(app, { documentType, result, reasonCode, note }, at) {
+  if (app.status !== 'docs_verification') fail('INVALID_STATE_TRANSITION', 'Dokumen hanya bisa diperiksa saat verifikasi dokumen.', 409)
+  const current = app.documents[documentType]
+  if (!current || !['uploaded', 'verified'].includes(current.status)) fail('INVALID_STATE_TRANSITION', 'Dokumen ini belum diunggah.', 409)
+  const { review: _draft, ...doc } = current
+  if (result === 'ok') {
+    app.documents[documentType] = { ...doc, status: 'verified' }
+    return
+  }
+  if (result !== 'rejected') fail('VALIDATION_FAILED', 'Pilih Sesuai atau Tolak.', 400)
+  const text = String(note ?? '').trim()
+  failOnFields(
+    {
+      ...(!DOC_REJECT_REASONS.some((r) => r.value === reasonCode) && { reasonCode: 'Pilih alasan penolakan.' }),
+      ...(reasonCode === 'other' && !text && { note: 'Tulis catatan untuk alasan Lainnya.' }),
+      ...(text.length > 300 && { note: 'Catatan maksimal 300 karakter.' }),
+    },
+    'Lengkapi alasan penolakan.',
+  )
+  app.documents[documentType] = { ...doc, status: 'uploaded', review: { reasonCode, note: text, at } }
+}
+
+// A new attempt after a rejection keeps the files the user has, all waiting for the team's check again; a document the
+// team asked to replace has to be uploaded anew. The database only accepts a submit made of such fresh uploads.
+const freshDocuments = (documents) =>
+  Object.fromEntries(
+    Object.entries(documents ?? {})
+      .filter(([, d]) => d.status === 'verified' || d.status === 'uploaded')
+      .map(([t, { review: _draft, ...d }]) => [t, { ...d, status: 'uploaded', invalidReason: null }]),
+  )
+
 // One status move with every side effect the user sees: documents, pending actions, rejection, activity, and the
 // active KPR on disbursement. The caller checks the reason/version and writes the audit event.
 function transitionApplication(db, owner, app, { toStatus, metadata = {} }) {
   if (!allowedTransitions(app).includes(toStatus)) fail('INVALID_STATE_TRANSITION', 'Pengajuan pada tahap ini tidak bisa dipindah ke status tersebut.', 409)
-  if (toStatus === 'bank_processing' && app.pendingActions.length) fail('INVALID_STATE_TRANSITION', 'Masih ada dokumen yang menunggu diunggah ulang user.', 409)
+  if (toStatus === 'bank_processing') {
+    if (app.pendingActions.length) fail('INVALID_STATE_TRANSITION', 'Masih ada dokumen yang menunggu diunggah ulang user.', 409)
+    if (requiredDocuments(app).some((d) => d.required && app.documents[d.type]?.status !== 'verified')) fail('INVALID_STATE_TRANSITION', 'Semua dokumen wajib harus Sesuai sebelum diteruskan ke bank.', 409)
+    if (Object.values(app.documents).some((d) => d.review)) fail('INVALID_STATE_TRANSITION', 'Masih ada dokumen ditolak yang belum dikirim ke user.', 409)
+  }
   const at = nowIso(db)
   if (toStatus === 'additional_docs_requested') {
-    const types = [...new Set(metadata.documentTypes ?? [])].filter((t) => DOC_LABELS[t])
-    const message = String(metadata.message ?? '').trim()
-    failOnFields({ ...(!types.length && { documentTypes: 'Pilih minimal satu dokumen.' }), ...(message.length < 5 && { message: 'Tulis pesan untuk user (minimal 5 karakter).' }) }, 'Lengkapi permintaan revisi dokumen.')
-    for (const t of types) {
-      app.documents[t] = { ...app.documents[t], status: 'needs_update', invalidReason: message }
+    const rejected = Object.entries(app.documents).filter(([, d]) => d.review)
+    if (!rejected.length) fail('VALIDATION_FAILED', 'Tolak minimal satu dokumen dulu.', 400)
+    for (const [t, { review, ...doc }] of rejected) {
+      const message = rejectMessage(review)
+      app.documents[t] = { ...doc, status: 'needs_update', invalidReason: message }
       app.pendingActions.push({ id: nextId(db, 'pa'), type: 'document_update', documentType: t, message, requestedAt: at })
     }
-    pushActivity(db, { type: 'additional_document_requested', category: 'application', title: 'Dokumen perlu diperbarui', body: message, action: { label: 'Upload sekarang', route: '/my-kpr/application' } }, owner)
+    pushActivity(db, { type: 'additional_document_requested', category: 'application', title: 'Dokumen perlu diunggah ulang', body: `${rejected.map(([t]) => DOC_LABELS[t]).join(', ')} perlu diperbarui.`, action: { label: 'Upload sekarang', route: '/my-kpr/application' } }, owner)
   } else if (toStatus === 'rejected') {
     const code = REJECTION_CODES[metadata.code]
     const displayReason = String(metadata.displayReason ?? '').trim()
@@ -504,10 +604,10 @@ function simulationSource(db, source) {
       excludedProductIds: app.excludedProductIds ?? [],
     }
   }
-  const m = findMortgage(db, source.id)
+  const m = mortgageAsOf(findMortgage(db, source.id), db.clock)
   const f = m.finance ?? {}
   return {
-    oldBank: { name: m.bankName, productName: m.productName, estimated: m.outstandingEstimated },
+    oldBank: { name: m.bankName, productName: m.productName, estimated: m.outstandingEstimated || m.outstandingProjected },
     loan: { outstanding: m.outstandingPrincipal, rateBps: m.currentRateBps, rateType: m.currentRateType, fixedUntil: m.fixedUntil, floatingRateBps: m.estimatedFloatingRateBps, remainingMonths: m.remainingTenorMonths, currentPayment: m.currentPayment, penaltyBps: null, dueDay: m.dueDay },
     propertyValue: m.property?.estimatedValue ?? null,
     disputed: m.property?.disputed === true,
@@ -610,6 +710,7 @@ function applicationDetail(db, owner, app) {
       submittedAt: app.submittedAt,
       selection: app.selection,
       finalTerms: app.finalTerms ?? null,
+      stageNotes: app.stageNotes ?? {},
       rejection: app.rejection,
       pendingActions: app.pendingActions,
       statusHistory: app.statusHistory,
@@ -958,11 +1059,11 @@ const scoreOf = ({ score, label, tone, partial }) => ({ score, label, tone, part
 // when none is left, returns the application to verification. `extra` carries the Storage path in Supabase mode.
 export function recordDocument(db, app, documentType, file, extra = {}) {
   const replacing = app.documents[documentType]?.status === 'needs_update'
-  if (app.status !== 'draft' && !replacing) fail('INVALID_STATE_TRANSITION', 'Dokumen hanya bisa diganti jika diminta bank.', 400)
+  if (app.status !== 'draft' && !replacing) fail('INVALID_STATE_TRANSITION', 'Dokumen hanya bisa diganti jika diminta tim RuangKPR.', 400)
   app.documents[documentType] = { status: 'uploaded', fileName: file.name, sizeBytes: file.size, contentType: file.type, uploadedAt: nowIso(db), invalidReason: null, ...extra }
   if (replacing) {
     app.pendingActions = app.pendingActions.filter((a) => a.documentType !== documentType)
-    pushActivity(db, { type: 'document_replaced', category: 'application', title: `${DOC_LABELS[documentType]} terbaru terkirim`, body: 'Menunggu verifikasi dari bank.', action: { label: 'Lihat status', route: '/my-kpr/application' } })
+    pushActivity(db, { type: 'document_replaced', category: 'application', title: `${DOC_LABELS[documentType]} terbaru terkirim`, body: 'Menunggu verifikasi dari tim RuangKPR.', action: { label: 'Lihat status', route: '/my-kpr/application' } })
     if (!app.pendingActions.length && app.status === 'additional_docs_requested') {
       app.status = 'docs_verification'
       app.statusHistory.push({ status: 'docs_verification', at: nowIso(db) })
@@ -1022,21 +1123,34 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         },
         { auth: false },
       ),
-      sendEmailOtp: call(
-        'auth.sendEmailOtp',
-        (db, { email } = {}) => {
-          const value = String(email ?? '').trim().toLowerCase()
-          if (!isEmail(value)) fail('VALIDATION_FAILED', 'Masukkan email yang valid.', 400, { fieldErrors: [{ field: 'email', message: 'Masukkan email yang valid.' }] })
-          db.session = {
-            status: 'pending',
-            verification: { id: nextId(db, 'ver'), contact: value, maskedDestination: maskEmail(value), resendAvailableAt: Date.now() + OTP_COOLDOWN_MS, attemptsRemaining: 5 },
-          }
-          return { maskedDestination: db.session.verification.maskedDestination, resendAvailableAt: db.session.verification.resendAvailableAt }
+      // Mock Google is always on (Supabase asks the auth server).
+      providers: async () => ({ google: true }),
+      signInWithPassword: call(
+        'auth.signInWithPassword',
+        (db, values = {}) => {
+          const email = normalize(values.email)
+          failOnFields(validateLogin({ ...values, email }), 'Periksa kembali data kamu.')
+          if (!hasAccount(db, email) || passwordOf(db, email) !== values.password) fail('INVALID_CREDENTIALS', 'Email atau password salah.', 400)
+          signInAs(db, email)
+          return { user: db.user }
         },
         { auth: false },
       ),
-      verifyEmailOtp: call(
-        'auth.verifyEmailOtp',
+      // The account exists once its email is verified, already agreed to the terms on the form.
+      signUp: call(
+        'auth.signUp',
+        (db, values = {}) => {
+          const email = normalize(values.email)
+          failOnFields(validateRegister({ ...values, email }), 'Periksa kembali data kamu.')
+          if (hasAccount(db, email)) fail('EMAIL_TAKEN', 'Email ini sudah terdaftar. Masuk atau pakai Lupa password.', 409)
+          const verification = { contact: email, name: values.name.trim(), password: values.password, maskedDestination: maskEmail(email), resendAvailableAt: Date.now() + OTP_COOLDOWN_MS, attemptsRemaining: 5 }
+          db.session = { status: 'pending', verification }
+          return { maskedDestination: verification.maskedDestination, resendAvailableAt: verification.resendAvailableAt }
+        },
+        { auth: false },
+      ),
+      verifySignup: call(
+        'auth.verifySignup',
         (db, { token } = {}) => {
           const v = db.session.verification
           if (db.session.status !== 'pending' || !v) fail('INVALID_STATE_TRANSITION', 'Minta kode dulu.', 400)
@@ -1047,21 +1161,59 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
             saveDb(db)
             fail('OTP_INVALID', token === OTP_WRONG ? 'Kode salah. Coba lagi.' : 'Kode salah atau kedaluwarsa. Coba lagi.', 401)
           }
-          signInAs(db, v.contact)
+          setPassword(db, v.contact, v.password)
+          signInAs(db, v.contact, v.name)
+          agree(db, v.name)
           return { user: db.user }
         },
         { auth: false },
       ),
+      // Same answer whether or not the email has an account; only an account gets a link (db.resetLink).
+      requestPasswordReset: call(
+        'auth.requestPasswordReset',
+        (db, { email } = {}) => {
+          const value = normalize(email)
+          failOnFields(validateEmail({ email: value }), 'Masukkan email yang valid.')
+          db.resetLink = hasAccount(db, value) ? value : null
+          return { maskedDestination: maskEmail(value), resendAvailableAt: Date.now() + OTP_COOLDOWN_MS }
+        },
+        { auth: false },
+      ),
+      // Mock only: what opening the emailed link does. The account is signed in, waiting for its new password.
+      openResetLink: call(
+        'auth.openResetLink',
+        (db) => {
+          if (!db.resetLink) fail('OTP_INVALID', 'Link reset tidak valid atau kedaluwarsa. Minta link baru.', 401)
+          signInAs(db, db.resetLink)
+          db.resetLink = null
+          db.session = { status: 'recovery', verification: null }
+          return { user: db.user }
+        },
+        { auth: false },
+      ),
+      updatePassword: call(
+        'auth.updatePassword',
+        (db, values = {}) => {
+          if (db.session.status !== 'recovery') fail('INVALID_STATE_TRANSITION', 'Buka link reset password dari email dulu.', 400)
+          failOnFields(validateNewPassword(values), 'Periksa kembali password baru kamu.')
+          setPassword(db, db.user.contact, values.password)
+          db.session = { status: consented(db) ? 'authenticated' : 'onboarding', verification: null }
+          return { user: db.user }
+        },
+        { auth: false },
+      ),
+      changePassword: call('auth.changePassword', (db, values = {}) => {
+        failOnFields(validateChangePassword(values), 'Periksa kembali password kamu.')
+        if (passwordOf(db, db.user.contact) !== values.currentPassword) fail('VALIDATION_FAILED', 'Password lama salah.', 400, { fieldErrors: [{ field: 'currentPassword', message: 'Password lama salah.' }] })
+        setPassword(db, db.user.contact, values.password)
+        return { changed: true }
+      }),
       acceptConsents: call(
         'auth.acceptConsents',
         (db, values = {}) => {
           if (db.session.status !== 'onboarding') fail('INVALID_STATE_TRANSITION', 'Persetujuan sudah tercatat.', 400)
           failOnFields(validateWelcome(values), 'Periksa kembali data kamu.')
-          const at = nowIso(db)
-          const name = values.name.trim()
-          db.user = { ...db.user, name }
-          db.profile = { ...db.profile, fullName: name, consents: CONSENT_TYPES.map((type) => ({ type, version: CONSENT_VERSION, acceptedAt: at })) }
-          db.session = { status: 'authenticated', verification: null }
+          agree(db, values.name.trim())
           return { user: db.user }
         },
         { auth: false },
@@ -1090,10 +1242,11 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
       deleteAccount: call('auth.deleteAccount', (db) => {
         if (db.applications.some((a) => IN_PROCESS.includes(a.status))) fail('INVALID_STATE_TRANSITION', 'Masih ada pengajuan yang sedang diproses bank. Batalkan atau tunggu sampai selesai sebelum menghapus akun.', 400)
         // In place: `call` saves this same object afterwards. Clear first so keys outside the seed (takeoverKept) go too.
-        // Only the signed-in account goes: other accounts in this browser and the id sequence stay.
-        const { accounts, seq } = db
+        // Only the signed-in account goes: other accounts in this browser, their passwords and the id sequence stay.
+        const { accounts, seq, passwords } = db
+        const { [db.user.contact]: _gone, ...kept } = passwords ?? {}
         Object.keys(db).forEach((k) => delete db[k])
-        Object.assign(db, createSeed('guest'), { accounts, seq })
+        Object.assign(db, createSeed('guest'), { accounts, seq, passwords: kept })
         return { deleted: true }
       }),
     },
@@ -1105,7 +1258,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         profile: db.profile,
         finance: db.finance,
         applications: db.applications.map(decorate),
-        mortgages: db.mortgages,
+        mortgages: db.mortgages.map((m) => mortgageAsOf(m, db.clock)),
         simulation: db.simulation,
         unreadActivities: db.activities.filter((a) => !a.readAt).length,
         dashboardLayout: savedLayout(db),
@@ -1149,7 +1302,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         if (productType === 'takeover' && mortgageId) {
           // Take Over from a monitored KPR with skipped data: prefilled, so it opens the missing forms and then Tujuan.
           const m = findMortgage(db, mortgageId)
-          const app = newApplication(db, { productType, mode, source: 'mortgage', mortgageId: m.id, data: takeoverDataFromMortgage(m, { personal: prefilledPersonal(db), employment: prefilledEmployment(db), goal: { mode: mode ?? null } }) })
+          const app = newApplication(db, { productType, mode, source: 'mortgage', mortgageId: m.id, data: takeoverDataFromMortgage(mortgageAsOf(m, db.clock), { personal: prefilledPersonal(db), employment: prefilledEmployment(db), goal: { mode: mode ?? null } }) })
           app.currentStep = 5
           return app
         }
@@ -1203,7 +1356,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         const db = await store.load({ admin: false })
         if (db.session.status !== 'authenticated') fail('AUTH_REQUIRED', 'Sesi berakhir. Silakan masuk lagi.', 401)
         const app = findApp(db, id)
-        if (app.status !== 'draft' && app.documents[documentType]?.status !== 'needs_update') fail('INVALID_STATE_TRANSITION', 'Dokumen hanya bisa diganti jika diminta bank.', 400)
+        if (app.status !== 'draft' && app.documents[documentType]?.status !== 'needs_update') fail('INVALID_STATE_TRANSITION', 'Dokumen hanya bisa diganti jika diminta tim RuangKPR.', 400)
         if (db.flags?.uploadFailOnce && !db.flags.failedUploads.includes(documentType)) {
           db.flags.failedUploads.push(documentType)
           await store.save(db)
@@ -1301,6 +1454,9 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         app.consents = null
         app.snapshot = null
         app.submittedAt = null
+        // A new attempt: the team checks every document again and the old stage notes no longer apply.
+        app.documents = freshDocuments(app.documents)
+        app.stageNotes = {}
         app.statusHistory.push({ status: 'draft', at: nowIso(db) })
         touch(db, app)
         return decorate(app)
@@ -1309,9 +1465,8 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         const old = findApp(db, id)
         if (old.status !== 'rejected' || old.superseded) fail('INVALID_STATE_TRANSITION', 'Pengajuan ini tidak bisa disalin.', 400)
         old.superseded = true
-        const docs = Object.fromEntries(Object.entries(old.documents).filter(([, d]) => d.status === 'verified' || d.status === 'uploaded').map(([k, d]) => [k, { ...d, status: 'uploaded' }]))
         const app = newApplication(db, { productType: old.productType, mode: old.optimizationMode, source: old.source, mortgageId: old.mortgageId, data: structuredClone(old.data) })
-        app.documents = docs
+        app.documents = freshDocuments(old.documents)
         app.excludedProductIds = [...(old.excludedProductIds ?? []), old.selection?.bankProductId].filter(Boolean)
         app.currentStep = old.productType === 'primary' ? 6 : 5
         pushActivity(db, { type: 'application_cloned', category: 'application', title: 'Data disalin ke pengajuan baru', body: `Pengajuan ke ${old.selection?.bankName ?? 'bank sebelumnya'} tetap tersimpan sebagai riwayat.` })
@@ -1347,10 +1502,10 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         }
         const before = { ...m }
         Object.assign(m, values)
-        applyMortgageRules(m, before)
+        applyMortgageRules(m, before, values, db.clock)
         if (m.status === 'draft') m.setupStep = Math.min(2, Math.max(m.setupStep, step + 1))
         touch(db, m)
-        return m
+        return mortgageAsOf(m, db.clock)
       }),
       activate: call('mortgages.activate', (db, id, { confirmDataCorrect }) => {
         const m = findMortgage(db, id)
@@ -1367,13 +1522,13 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         m.setupStep = 2
         m.activatedAt = nowIso(db)
         touch(db, m)
-        const due = nextDueDate({ today: db.clock, dueDay: m.dueDay })
+        const due = nextUnpaidDue(m, db.clock) // the first installment, never the akad day
         const channels = ['inApp', 'email'].filter((c) => m.reminders.channels[c]).length
         const fixedLeft = m.currentRateType === 'fixed' && m.fixedUntil > db.clock ? m.reminders.fixedExpiry.filter((h) => daysUntil({ fromDate: db.clock, targetDate: m.fixedUntil }) >= h) : []
         pushActivity(db, { type: 'mortgage_monitoring_activated', category: 'mortgage', title: 'Pemantauan KPR diaktifkan', body: `${m.bankName}${m.productName ? ` · ${m.productName}` : ''}` })
         if (m.reminders.payment.length) {
           const h = Math.max(...m.reminders.payment)
-          pushActivity(db, { type: 'payment_reminder_scheduled', category: 'reminder', title: 'Reminder pembayaran dijadwalkan', body: `Kami akan mengingatkan pembayaran H-${h} sebelum jatuh tempo ${due}.`, action: { label: 'Lihat pembayaran', route: '/my-kpr/payment' } })
+          pushActivity(db, { type: 'payment_reminder_scheduled', category: 'reminder', title: 'Reminder pembayaran dijadwalkan', body: `Kami akan mengingatkan pembayaran H-${h} sebelum jatuh tempo ${dateLong(due)}.`, action: { label: 'Lihat pembayaran', route: '/my-kpr/payment' } })
         }
         const days = m.currentRateType === 'fixed' && m.fixedUntil ? daysUntil({ fromDate: db.clock, targetDate: m.fixedUntil }) : null
         if (days !== null && days > 0 && days <= 90) {
@@ -1393,12 +1548,12 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         if (values.reminders) m.reminders = values.reminders
         const { property: _p, finance: _f, reminders: _r, ...core } = values
         Object.assign(m, core)
-        applyMortgageRules(m, before)
+        applyMortgageRules(m, before, core, db.clock)
         touch(db, m)
         if (!values.reminders || Object.keys(values).length > 1) {
           pushActivity(db, { type: 'mortgage_data_updated', category: 'mortgage', title: 'Data KPR diperbarui', body: 'Proyeksi pembayaran dan KPR Health dihitung ulang.' })
         }
-        return m
+        return mortgageAsOf(m, db.clock)
       }),
       // "Tetap di bank sekarang": hides the Home fixed-rate warning until the next milestone (H-60/30/14/7).
       dismissRateWarning: call('mortgages.dismissRateWarning', (db, id) => {
@@ -1425,13 +1580,15 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         if (m.payments.some((p) => p.dueDate === dueDate && p.status === 'paid')) fail('DUPLICATE_PAYMENT_RECORD', 'Pembayaran bulan ini sudah ditandai.', 409)
         const payment = { id: nextId(db, 'pay'), dueDate, amount, status: 'paid', paidAt, source: 'manual_user_recorded', bankConfirmed: false, proof: proof ? { fileName: proof.name, sizeBytes: proof.size, contentType: proof.type, ...(proof.path && { path: proof.path }) } : null }
         m.payments.push(payment)
-        pushActivity(db, { type: 'payment_marked_paid', category: 'payment', title: 'Pembayaran ditandai dibayar', body: `Jatuh tempo ${dueDate} · dicatat manual, tidak tersinkron dengan bank.`, action: { label: 'Lihat pembayaran', route: '/my-kpr/payment' } })
+        pushActivity(db, { type: 'payment_marked_paid', category: 'payment', title: 'Pembayaran ditandai dibayar', body: `Jatuh tempo ${dateLong(dueDate)} · dicatat manual, tidak tersinkron dengan bank.`, action: { label: 'Lihat pembayaran', route: '/my-kpr/payment' } })
         touch(db, m)
         return payment
       }),
       removePayment: call('mortgages.removePayment', (db, id, paymentId) => {
         const m = findMortgage(db, id)
+        const removed = m.payments.find((p) => p.id === paymentId)
         m.payments = m.payments.filter((p) => p.id !== paymentId)
+        if (removed) pushActivity(db, { type: 'payment_unmarked', category: 'payment', title: 'Tanda pembayaran dibatalkan', body: `Jatuh tempo ${dateLong(removed.dueDate)}.`, action: { label: 'Lihat pembayaran', route: '/my-kpr/payment' } })
         touch(db, m)
         return m
       }),
@@ -1485,7 +1642,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
             mode: sim.input.mode,
             source: 'mortgage',
             mortgageId: m.id,
-            data: takeoverDataFromMortgage(m, { personal: prefilledPersonal(db), employment: prefilledEmployment(db), goal: { ...sim.input, tenorMonths: x.tenorMonths } }),
+            data: takeoverDataFromMortgage(mortgageAsOf(m, db.clock), { personal: prefilledPersonal(db), employment: prefilledEmployment(db), goal: { ...sim.input, tenorMonths: x.tenorMonths } }),
           })
           db.simulation = { ...sim, source: { type: 'application', id: app.id } }
         }
@@ -1499,7 +1656,8 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
     explore: {
       // Signals are computed with the same engine as the simulation; never design placeholder numbers.
       get: call('explore.get', (db) => {
-        const m = activeMortgageOf(db)
+        const active = activeMortgageOf(db)
+        const m = active && mortgageAsOf(active, db.clock)
         const education = publishedArticles(db).map(({ body: _b, ...a }) => a)
         if (!m) return { hasActiveMortgage: false, signals: null, education, message: 'Take Over, Refinancing, dan Multiguna aktif setelah KPR disetujui dan akad.' }
         const days = m.currentRateType === 'fixed' && m.fixedUntil && m.fixedUntil >= db.clock ? daysUntil({ fromDate: db.clock, targetDate: m.fixedUntil }) : null
@@ -1511,7 +1669,8 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           const reference = fixedLeft != null ? sim.baseline.payments[fixedLeft] : sim.baseline.currentPayment
           const cheaper = sim.items.filter((x) => reference - x.payment > 0 && x.netSaving > 0 && x.eligibility !== 'not_eligible' && !x.stale)
           const best = [...cheaper].sort((a, b) => a.payment - b.payment)[0]
-          const maxLtvBps = Math.max(...productsOf(db).filter((p) => p.productTypes.includes('takeover')).map((p) => p.eligibility.maximumLtvBps))
+          const ltvs = productsOf(db).filter((p) => p.productTypes.includes('takeover')).map((p) => p.eligibility.maximumLtvBps)
+          const maxLtvBps = ltvs.length ? Math.max(...ltvs) : null // empty catalog: no figure, never -Infinity
           const value = m.property?.estimatedValue
           opportunity = {
             available: true,
@@ -1522,7 +1681,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
             bestFixedRateBps: best?.fixedRateBps ?? null,
             bestFixedMonths: best?.fixedMonths ?? null,
             bestBreakEvenMonth: best?.breakEven.month ?? null,
-            maxGrossTopup: value > 0 ? Math.max(0, Math.floor((value * maxLtvBps) / 10_000) - m.outstandingPrincipal) : null,
+            maxGrossTopup: value > 0 && maxLtvBps ? Math.max(0, Math.floor((value * maxLtvBps) / 10_000) - m.outstandingPrincipal) : null,
             maxLtvBps,
           }
         } catch {
@@ -1897,6 +2056,39 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           },
           { admin: true },
         ),
+        reviewDocument: call(
+          'admin.applications.reviewDocument',
+          (db, id, { documentType, result, reasonCode, note, expectedVersion }) => {
+            const { owner, app } = findUserApp(db, id)
+            checkVersion(app, expectedVersion)
+            const verdict = (d) => (d?.review ? rejectMessage(d.review) : d?.status === 'verified' ? 'Sesuai' : 'Terunggah')
+            const before = verdict(app.documents[documentType])
+            applyReview(app, { documentType, result, reasonCode, note }, nowIso(db))
+            const document = DOC_LABELS[documentType]
+            audit(db, { action: 'application.document_review', resource: { type: 'application', id, label: owner.user.name }, before: { document, result: before }, after: { document, result: verdict(app.documents[documentType]) } })
+            touch(db, app)
+            return applicationDetail(db, owner, app)
+          },
+          { admin: true },
+        ),
+        saveStageNote: call(
+          'admin.applications.saveStageNote',
+          (db, id, { message, schedule, expectedVersion }) => {
+            const { owner, app } = findUserApp(db, id)
+            checkVersion(app, expectedVersion)
+            if (!STAGE_NOTE_STATUSES.includes(app.status)) fail('INVALID_STATE_TRANSITION', 'Info untuk user hanya bisa diisi saat pengajuan sedang diproses.', 409)
+            const before = app.stageNotes?.[app.status] ?? null
+            const note = { ...stageNoteOf(app.status, { message, schedule }), updatedAt: nowIso(db) }
+            app.stageNotes = { ...app.stageNotes, [app.status]: note }
+            const stage = STATUS_LABEL[app.status]
+            // The text stays out of the Activity, so an older notification never shows a note that was edited since.
+            pushActivity(db, { type: 'application_stage_note', category: 'application', title: before ? `Info ${stage} diperbarui` : `Info baru dari tim · ${stage}`, body: app.status === 'appraisal' ? 'Jadwal appraisal sudah dikonfirmasi.' : 'Buka detail pengajuan untuk membaca pesannya.', action: { label: 'Lihat status', route: '/my-kpr/application' } }, owner)
+            audit(db, { action: 'application.stage_note', resource: { type: 'application', id, label: owner.user.name }, before: before && { message: before.message, schedule: before.schedule }, after: { status: app.status, message: note.message, schedule: note.schedule } })
+            touch(db, app)
+            return applicationDetail(db, owner, app)
+          },
+          { admin: true },
+        ),
         // The demo keeps file metadata only; the Supabase adapter answers with a short-lived signed URL.
         documentUrl: call('admin.applications.documentUrl', () => fail('RESOURCE_NOT_FOUND', 'Pratinjau dokumen hanya tersedia di server asli.', 404), { admin: true }),
         addNote: call(
@@ -1991,9 +2183,12 @@ export const mockControls = {
     const db = loadDb()
     const app = findApp(db, id)
     if (app.status === 'additional_docs_requested') {
-      // The bank takes the documents as they are.
       app.status = 'docs_verification'
       app.pendingActions = []
+    }
+    // The team takes the documents as they are.
+    if (app.status === 'docs_verification') {
+      for (const [t, { review: _draft, ...doc }] of Object.entries(app.documents)) app.documents[t] = { ...doc, status: 'verified', invalidReason: null }
     }
     const next = allowedTransitions(app).find((s) => s !== 'rejected' && s !== 'additional_docs_requested')
     if (!next) return
@@ -2014,7 +2209,8 @@ export const mockControls = {
     const app = findApp(db, id)
     if (!allowedTransitions(app).includes('additional_docs_requested')) return
     const type = app.documents[documentType] ? documentType : Object.keys(app.documents)[0]
-    transitionApplication(db, db, app, { toStatus: 'additional_docs_requested', metadata: { documentTypes: [type], message: `${DOC_LABELS[type]} terbaru dibutuhkan bank.` } })
+    app.documents[type] = { ...app.documents[type], status: 'uploaded', review: { reasonCode: 'expired', note: 'Unggah versi terbaru.', at: nowIso(db) } }
+    transitionApplication(db, db, app, { toStatus: 'additional_docs_requested' })
     saveDb(db)
   },
 }

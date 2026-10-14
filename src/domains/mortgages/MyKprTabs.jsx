@@ -6,7 +6,7 @@ import { api } from '@/data/api'
 import { uploadHint } from '@/data/documentRules'
 import { addDays, daysUntil } from '@/calculations/dates'
 import { useForm } from '@/lib/hooks'
-import { CERTIFICATES, CITIES, PROPERTY_TYPES, dateLong, dateShort, daysLabel, intInput, labelOf, moneyInput, monthName, monthYear, percentBps, percentRatio, rupiah, signedRupiah, tenorLabel, toInt, toMoney } from '@/lib/format'
+import { CERTIFICATES, CITIES, PROPERTY_TYPES, dateLong, dateShort, daysLabel, intInput, labelOf, moneyInput, monthName, monthYear, percentBps, percentProgress, percentRatio, rupiah, signedRupiah, tenorLabel, toInt, toMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { DateField, FormGrid, MoneyField, NumberField, RadioCards, SelectField, TextField } from '@/components/shared/fields'
 import { FormDialog } from '@/components/shared/dialogs'
@@ -22,7 +22,7 @@ export function OverviewTab() {
   return (
     <section className="grid grid-cols-1 gap-7 rounded-card bg-card p-6 shadow-card md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] sm:p-7" aria-label="Ringkasan KPR">
       <div className="flex min-w-0 flex-col gap-4">
-        <span className="text-[13px] font-extrabold text-ink-3">Sisa Pokok {m.outstandingEstimated && <EstimateTag />}</span>
+        <span className="text-[13px] font-extrabold text-ink-3">Sisa Pokok {(m.outstandingEstimated || m.outstandingProjected) && <EstimateTag />}</span>
         <span className="text-[34px] font-extrabold tracking-[-1px] tabular sm:text-[40px]">{rupiah(m.outstandingPrincipal)}</span>
         <span className="mt-2 text-[13px] font-extrabold text-ink-3">Progress Pokok</span>
         {d.paidRatio == null ? (
@@ -35,7 +35,7 @@ export function OverviewTab() {
         ) : (
           <>
             <ProgressBar value={d.paidRatio * 100} size="lg" label="Progres pokok lunas" />
-            <span className="text-sm font-bold text-primary">{Math.round(d.paidRatio * 100)}% lunas</span>
+            <span className="text-sm font-bold text-primary">{percentProgress(d.paidRatio)} lunas</span>
           </>
         )}
         <div className="grid grid-cols-3 gap-2 border-t border-line pt-3.5">
@@ -58,9 +58,9 @@ export function OverviewTab() {
           rows={[
             { k: 'Bank / produk', v: `${m.bankName}${m.productName ? ` · ${m.productName}` : ''}` },
             { k: 'Pinjaman Awal', v: rupiah(m.originalPrincipal) },
-            { k: 'Cicilan Saat Ini', v: rupiah(m.currentPayment) },
+            { k: 'Cicilan Saat Ini', v: rupiah(d.payment), tag: d.termsEstimated && <EstimateTag /> },
             { k: 'Sisa Tenor', v: m.remainingTenorMonths ? `${m.remainingTenorMonths} bulan (${tenorLabel(m.remainingTenorMonths)})` : 'Belum diisi' },
-            { k: 'Bunga', v: m.currentRateBps ? `${percentBps(m.currentRateBps)} ${rateTypeLabel(m.currentRateType)}` : rateTypeLabel(m.currentRateType) },
+            { k: 'Bunga', v: `${d.rateBps ? `${percentBps(d.rateBps)} ` : ''}${rateTypeLabel(d.termsEstimated ? 'floating' : m.currentRateType)}`, tag: d.termsEstimated && <EstimateTag /> },
             { k: 'Jatuh tempo', v: `Setiap tanggal ${m.dueDay}` },
           ]}
         />
@@ -90,8 +90,8 @@ export function PaymentTab() {
   return (
     <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
       <Panel className="gap-3 sm:p-7">
-        <span className="text-[13px] font-extrabold text-ink-3">Pembayaran berikutnya</span>
-        <span className="text-[34px] font-extrabold tracking-[-0.6px] tabular">{rupiah(m.currentPayment)}</span>
+        <span className="text-[13px] font-extrabold text-ink-3">Pembayaran berikutnya {d.termsEstimated && <EstimateTag />}</span>
+        <span className="text-[34px] font-extrabold tracking-[-0.6px] tabular">{rupiah(d.payment)}</span>
         <span className="text-sm text-ink-3">
           {dateLong(d.nextDue)} · {daysLabel(d.daysToNextDue)}
         </span>
@@ -160,9 +160,9 @@ export function PaymentTab() {
           })}
         </ul>
         {!m.payments.length && <p className="text-[13px] text-muted-foreground">Belum ada pembayaran yang ditandai.</p>}
-        <Disclaimer>Status pembayaran kamu catat sendiri (user-recorded) dan tidak tersinkron dengan bank.</Disclaimer>
+        <Disclaimer>Status pembayaran kamu catat sendiri (user-recorded) dan tidak tersinkron dengan bank. Sisa pokok berkurang mengikuti tanggal jatuh tempo, bukan tanda ini.</Disclaimer>
       </Panel>
-      {marking && <MarkPaidDialog onOpenChange={() => setMarking(null)} m={m} dueOptions={d.payableDues} initialDue={marking} clock={snap.clock} onDone={reload} uploadRules={snap.config.upload} />}
+      {marking && <MarkPaidDialog onOpenChange={() => setMarking(null)} m={m} payment={d.payment} dueOptions={d.payableDues} initialDue={marking} clock={snap.clock} onDone={reload} uploadRules={snap.config.upload} />}
     </div>
   )
 }
@@ -170,9 +170,9 @@ export function PaymentTab() {
 const PROOF_DOC = { label: 'Bukti pembayaran', required: false }
 
 // Shared by the Payment tab and the Home dashboard so marking a payment is one tap from either.
-export function MarkPaidDialog({ onOpenChange, m, dueOptions, initialDue, clock, onDone, uploadRules }) {
+export function MarkPaidDialog({ onOpenChange, m, payment = m.currentPayment, dueOptions, initialDue, clock, onDone, uploadRules }) {
   const [dueDate, setDueDate] = useState(initialDue ?? dueOptions[0] ?? '')
-  const [amount, setAmount] = useState(String(m.currentPayment))
+  const [amount, setAmount] = useState(String(payment))
   const [paidAt, setPaidAt] = useState(clock)
   const [proof, setProof] = useState(null) // file metadata only
   const [error, setError] = useState('')
@@ -222,7 +222,7 @@ export function RateTab() {
       ? { label: 'Jenis bunga belum diketahui', sub: 'Saat ini', state: 'current' }
       : fixed
       ? { label: `Fixed ${percentBps(m.currentRateBps)}`, sub: `Sekarang – ${dateShort(m.fixedUntil)}`, state: 'current' }
-      : { label: `Floating ${percentBps(m.currentRateBps)}`, sub: 'Saat ini', state: 'current' },
+      : { label: d.rateBps ? `Floating ${percentBps(d.rateBps)}` : 'Floating (estimasi belum diisi)', sub: d.termsEstimated ? 'Saat ini · estimasi' : 'Saat ini', state: 'current' },
     ...(fixed && m.fixedUntil ? [{ label: m.estimatedFloatingRateBps ? `Estimasi Floating ${percentBps(m.estimatedFloatingRateBps)}` : 'Floating (estimasi belum diisi)', sub: `Mulai ${dateShort(addDays(m.fixedUntil, 1))}`, state: 'estimate' }] : []),
   ]
   return (
@@ -231,8 +231,16 @@ export function RateTab() {
         <div className="flex flex-col gap-1">
           <span className="text-[13px] font-extrabold text-ink-3">Bunga saat ini</span>
           <span className="text-[34px] font-extrabold">
-            {unknown ? (m.currentRateBps ? percentBps(m.currentRateBps) : rateTypeLabel(null)) : `${percentBps(m.currentRateBps)} ${fixed ? 'Fixed' : 'Floating'}`}
+            {unknown ? (m.currentRateBps ? percentBps(m.currentRateBps) : rateTypeLabel(null)) : `${d.rateBps ? `${percentBps(d.rateBps)} ` : ''}${fixed ? 'Fixed' : 'Floating'}`}
           </span>
+          {d.termsEstimated && (
+            <span className="flex flex-wrap items-center gap-x-2 text-[13px] text-ink-3">
+              <EstimateTag /> Masa fixed sudah berakhir. Perbarui bunga dari bank.
+              <Link to="/monitoring/setup/1?edit=rate" className="flex min-h-11 items-center font-bold text-primary underline">
+                Perbarui bunga
+              </Link>
+            </span>
+          )}
           {unknown && (
             <span className="flex flex-wrap items-center gap-x-2 text-base font-bold text-warning-text">
               Jenis bunga belum diketahui
@@ -277,10 +285,14 @@ export function RateTab() {
             ) : fixed ? (
               'Belum dapat dihitung'
             ) : (
-              `${rupiah(m.currentPayment)}/bulan dengan bunga floating`
+              `${rupiah(d.payment)}/bulan dengan bunga floating${d.termsEstimated ? ' (estimasi)' : ''}`
             )}
           </span>
-          {fi && <span className="text-xs text-muted-foreground">Dihitung dari proyeksi sisa pokok saat reset {dateShort(fi.resetDate)} dan sisa tenor yang sama.</span>}
+          {fi && (
+            <span className="text-xs text-muted-foreground">
+              Fixed berakhir {dateShort(m.fixedUntil)}; cicilan floating pertama jatuh tempo {dateShort(fi.resetDate)}. Dihitung dari proyeksi sisa pokok saat itu dan sisa tenor yang sama.
+            </span>
+          )}
         </div>
         <Button className="w-fit" onClick={() => navigate('/explore')}>
           Bandingkan Pilihan

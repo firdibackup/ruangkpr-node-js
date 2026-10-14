@@ -8,7 +8,7 @@ import { CONSENT_TYPES, CONSENT_VERSION } from '@/domains/session/validation'
 import { requiredDocuments } from './documentRules'
 
 export const CLOCK = '2026-09-28'
-export const SCHEMA_VERSION = 4 // v4: sign-in by email only; seeded accounts carry their consents
+export const SCHEMA_VERSION = 6 // v6: sisa pokok carries the date it is true for (outstandingAsOf)
 
 export const SCENARIOS = [
   { id: 'guest', label: 'Belum daftar (registrasi)' },
@@ -36,6 +36,8 @@ const USER = { id: 'usr_01J8Z0Y5MA6W2Q9T4P7K3R1CDE', name: 'Firdi Audi', contact
 
 // The mock "Google account": signInWithGoogle opens this email's account.
 export const GOOGLE_DEMO = { email: USER.contact, name: USER.name }
+// Seeded and staff accounts sign in with this password until it is changed (mock only; the e2e helper uses it too).
+export const DEMO_PASSWORD = 'ruangkpr123'
 // Seeded accounts already agreed to the current S&K and privacy text, so signing in again skips /welcome.
 const SEED_CONSENTS = CONSENT_TYPES.map((type) => ({ type, version: CONSENT_VERSION, acceptedAt: '2026-09-01T02:00:00.000Z' }))
 
@@ -73,7 +75,33 @@ const PROPERTY = {
   valueLater: false,
 }
 
-export const DEFAULT_REMINDERS = { payment: [7, 3, 1], fixedExpiry: [90, 60, 30, 14, 7], channels: { inApp: true, email: true, whatsapp: false } }
+// What database triggers record when a user edits their own data (migration user_changes); the demo has no database.
+const SAMPLE_USER_CHANGES = [
+  {
+    id: 'chg_sample_01',
+    userId: 'usr_sample_05',
+    action: 'mortgage.update',
+    resource: { type: 'mortgage', id: 'mtg_sample_05', label: 'Bank ABC · KPR Fixed 5 Tahun' },
+    before: { 'property.estimatedValue': 820_000_000, 'property.valueAsOf': '2026-06-01' },
+    after: { 'property.estimatedValue': 850_000_000, 'property.valueAsOf': '2026-09-01' },
+    occurredAt: '2026-09-01T03:15:00.000Z',
+  },
+  { id: 'chg_sample_02', userId: 'usr_sample_05', action: 'profile', resource: { type: 'user', id: 'usr_sample_05', label: 'Sari Wulandari' }, before: { phone: '081200000100' }, after: { phone: '081200000105' }, occurredAt: '2026-08-20T02:00:00.000Z' },
+  { id: 'chg_sample_03', userId: 'usr_sample_05', action: 'finance', resource: { type: 'user', id: 'usr_sample_05', label: 'Sari Wulandari' }, before: { cardDebt: 750_000 }, after: { cardDebt: 0 }, occurredAt: '2026-08-10T12:30:00.000Z' },
+  { id: 'chg_sample_04', userId: 'usr_sample_05', action: 'profile', resource: { type: 'user', id: 'usr_sample_05', label: 'Sari Wulandari' }, before: { jobTitle: 'Staf Umum' }, after: { jobTitle: 'Staf Administrasi' }, occurredAt: '2026-07-15T04:00:00.000Z' },
+  {
+    id: 'chg_sample_05',
+    userId: 'usr_sample_05',
+    action: 'mortgage.update',
+    resource: { type: 'mortgage', id: 'mtg_sample_05', label: 'Bank ABC · KPR Fixed 5 Tahun' },
+    before: { 'reminders.channels': { inApp: true, email: false, whatsapp: false } },
+    after: { 'reminders.channels': { inApp: true, email: true, whatsapp: false } },
+    occurredAt: '2026-07-01T01:00:00.000Z',
+  },
+  { id: 'chg_sample_06', userId: 'usr_sample_05', action: 'profile', resource: { type: 'user', id: 'usr_sample_05', label: 'Sari Wulandari' }, before: { address: 'Jl. Melati No. 2, Kota Bekasi' }, after: { address: 'Jl. Contoh No. 5, Kota Bekasi' }, occurredAt: '2026-06-20T03:00:00.000Z' },
+]
+
+export const DEFAULT_REMINDERS ={ payment: [7, 3, 1], fixedExpiry: [90, 60, 30, 14, 7], channels: { inApp: true, email: true, whatsapp: false } }
 
 function base(scenario, extra = {}) {
   return {
@@ -114,7 +142,8 @@ function mortgageBase({ id = 'mtg_01J8Z1Q6XWF7NE4M2A9K3D5PVT', startDate, produc
   const originalTenorMonths = 240
   const dueDay = 22
   const paidMonths = countDueDatesBetween({ startDate, today: CLOCK, dueDay })
-  return { id, status: 'active', setupStep: 6, source: 'monitoring', bankName: 'Bank ABC', productName, scheme: 'conventional', originalPrincipal, originalTenorMonths, startDate, dueDay, paidMonths }
+  // Sisa pokok and tenor are computed for CLOCK; later clocks move them on from there (mortgageAsOf).
+  return { id, status: 'active', setupStep: 6, source: 'monitoring', bankName: 'Bank ABC', productName, scheme: 'conventional', originalPrincipal, originalTenorMonths, startDate, dueDay, paidMonths, outstandingAsOf: CLOCK }
 }
 
 function fixedMortgage({ startDate, fixedUntil, rateBps = 550, floatingBps = 900, withValue = true, productName }) {
@@ -397,7 +426,7 @@ export const ACCOUNT_KEYS = ['user', 'profile', 'finance', 'applications', 'mort
 export const pickAccount = (db) => Object.fromEntries(ACCOUNT_KEYS.filter((k) => k in db).map((k) => [k, db[k]]))
 export const newAccount = (user = null) => ({ user, profile: {}, finance: {}, applications: [], mortgages: [], simulation: null, activities: [] })
 
-// Staff sign in through the same register + OTP flow with these emails (roles in roles.js).
+// Staff sign in on the same login page with these emails (roles in roles.js).
 const ADMIN = { id: 'usr_admin_01', name: 'Admin RuangKPR', contact: 'admin@ruangkpr.id', contactType: 'email', role: 'super_admin', createdAt: '2026-09-01T02:00:00.000Z' }
 // A second super admin, so the audit log can be tried with more than one admin.
 const ADMIN_2 = { id: 'usr_admin_02', name: 'Sinta Maharani', contact: 'sinta@ruangkpr.id', contactType: 'email', role: 'super_admin', createdAt: '2026-09-01T02:00:00.000Z' }
@@ -557,7 +586,7 @@ export function createSeed(scenario = 'guest') {
       app.documents.income_proof = { ...app.documents.income_proof, status: 'needs_update', invalidReason: 'Slip gaji Agustus belum ada.' }
       return base(scenario, {
         applications: [app],
-        activities: [activity('act_0103', 'additional_document_requested', 'application', 'Bank minta dokumen tambahan', 'Slip gaji 3 bulan terakhir belum lengkap.', '2026-09-26T02:00:00.000Z', { label: 'Upload sekarang', route: '/my-kpr/application' }, false)],
+        activities: [activity('act_0103', 'additional_document_requested', 'application', 'Dokumen perlu diunggah ulang', 'Slip gaji 3 bulan terakhir belum lengkap.', '2026-09-26T02:00:00.000Z', { label: 'Upload sekarang', route: '/my-kpr/application' }, false)],
       })
     }
     case 'application_rejected_dti':
@@ -609,7 +638,7 @@ export function createSeed(scenario = 'guest') {
     }
     case 'admin_ops':
       // Signed in as the super admin; Firdi (application at the bank) waits in the queue with the sample users.
-      return base(scenario, { ...newAccount({ ...ADMIN }), accounts: [pickAccount(createSeed('application_in_process')), ...sampleAccounts()] })
+      return base(scenario, { ...newAccount({ ...ADMIN }), accounts: [pickAccount(createSeed('application_in_process')), ...sampleAccounts()], userChanges: SAMPLE_USER_CHANGES })
     case 'content_writer':
       return base(scenario, newAccount({ ...WRITER }))
     default:

@@ -11,7 +11,9 @@ Isi folder ini:
 
 ## Status VPS (2026-10-09)
 
-Migration `20261009051240_auth_foundation`, `20261009071328_app_data`, `20261009071331_seed_articles`, `20261009074226_tighten_rules`, `20261009075346_reminders`, dan `20261009084157_email_via_resend` **sudah jalan** dan tercatat di `supabase_migrations.schema_migrations`, jadi `db push` hanya akan menjalankan migration yang lebih baru. Test pgTAP: `001` 14/14, `002` 30/30, `003` 10/10, `004` 16/16, `005` 12/12. Linter Supabase (splinter) bersih, hanya catatan INFO untuk index yang belum terpakai karena tabelnya masih kosong. Uji live seluruh alur lulus 6/6.
+Migration `20261009051240_auth_foundation`, `20261009071328_app_data`, `20261009071331_seed_articles`, `20261009074226_tighten_rules`, `20261009075346_reminders`, `20261009084157_email_via_resend`, `20261013090000_user_changes`, `20261013092729_reminders_first_installment`, dan `20261013120000_document_review` **sudah jalan** dan tercatat di `supabase_migrations.schema_migrations`, jadi `db push` hanya akan menjalankan migration yang lebih baru. Test pgTAP: `001` 14/14, `002` 30/30, `003` 10/10, `004` 16/16, `005` 12/12, `006` 16/16, `007` 6/6, `008` 20/20 (dicek 2026-10-13, `002`/`003`/`008` dicek ulang 2026-10-14 setelah `document_review`; `004` di VPS 15/16: "H-3 reminds r1 and r2 again" dapat 4, harusnya 2, karena job juga menghitung KPR asli di database itu; `007` hanya memeriksa KPR ujinya sendiri). Linter Supabase (splinter) bersih, hanya catatan INFO untuk index yang belum terpakai karena tabelnya masih kosong. Uji live seluruh alur lulus 14/14 (2026-10-14, termasuk review dokumen, upload ulang, dan info tahap appraisal).
+
+**Login email + password (2026-10-12):** app sudah memakainya. Dicek 2026-10-13: `ADDITIONAL_REDIRECT_URLS` sudah berisi `http://localhost:5173`, jadi link reset password membuka app lokal, dan login Google sudah aktif. Sisa langkah 5: aturan password di server, dan domain app produksi saat sudah online.
 
 **Email di VPS (dipasang 2026-10-09):** kode OTP dikirim lewat **SMTP Resend + template server** (`volumes/templates/otp.html`, container `templates-server`), jadi hook `send_email_hook` **tidak diaktifkan**. Email reminder tetap dikirim dari database lewat API Resend dan butuh key `resend_api_key` di Vault (langkah 4.2). Tes OTP terkirim, dan user pertama tercipta dengan profil otomatis.
 
@@ -94,6 +96,40 @@ select status_code, left(content, 120), created from net._http_response order by
 ```
 
 `supabase/templates/otp.html` dan `config.toml` hanya dipakai Supabase lokal. Di VPS, isi email ada di fungsi `private.email_html`.
+
+### 5. Login email + password (2026-10-12, reset lewat link 2026-10-13)
+Login biasa memakai email + password. **Daftar** memverifikasi email dengan kode 6 digit (template *confirmation*, sudah berupa kode di VPS). **Lupa password** mengirim **link** yang membuka halaman `/reset-password` di app untuk membuat password baru. Template bawaan GoTrue sudah berisi link, jadi yang wajib hanya alamat app-nya.
+
+1. **Wajib: alamat app untuk link** (sudah untuk localhost, dicek 2026-10-13). Link reset dan Google hanya kembali ke alamat yang terdaftar; alamat lain jatuh ke `SITE_URL`, yaitu alamat server ini, dan gagal. Di `.env` VPS:
+
+```dotenv
+SITE_URL=http://localhost:5173
+ADDITIONAL_REDIRECT_URLS=http://localhost:5173/**
+```
+
+   Saat app sudah online, ganti `SITE_URL` dengan domain app dan tambahkan domain itu ke `ADDITIONAL_REDIRECT_URLS` (dipisah koma), misalnya `https://app.ruangkpr.id/**`.
+
+2. **Disarankan: aturan password di server.** `docker-compose.yml` → `auth:` → `environment:`:
+
+```yaml
+      GOTRUE_PASSWORD_MIN_LENGTH: 8
+      GOTRUE_PASSWORD_REQUIRED_CHARACTERS: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789"
+      GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_REAUTHENTICATION: "true"
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: "Kode verifikasi akun RuangKPR"
+```
+
+   Dua baris pertama sama dengan aturan di app: minimal 8 karakter, berisi huruf dan angka. Baris ketiga membuat ganti password lewat API wajib memakai sesi yang baru dibuka. App selalu login ulang atau membuka link reset dulu, jadi alurnya tetap jalan.
+
+3. **Opsional: email reset berbahasa Indonesia.** Salin `supabase/templates/recovery.html` ke folder template di VPS (folder yang sama dengan `otp.html`), lalu tambahkan:
+
+```yaml
+      GOTRUE_MAILER_TEMPLATES_RECOVERY: "<alamat recovery.html di templates-server, sama polanya dengan baris GOTRUE_MAILER_TEMPLATES_CONFIRMATION>"
+      GOTRUE_MAILER_SUBJECTS_RECOVERY: "Reset password RuangKPR"
+```
+
+4. Jalankan `docker compose up -d --force-recreate auth`, lalu `docker compose logs auth --tail 30` dan pastikan tidak ada error.
+
+Cek: jalankan app di `http://localhost:5173` → **Lupa password** → buka link dari email **di browser yang sama** → halaman "Buat password baru" muncul. Link hanya bisa dipakai sekali; membukanya lagi menampilkan "Link tidak bisa dipakai". Akun yang dibuat sebelum 2026-10-12 lewat kode OTP belum punya password yang diketahui siapa pun, jadi pakai **Lupa password** sekali.
 
 ### 6. Jalankan migration
 **Cara A (awal, paling mudah): SQL Editor di Studio.** Buka setiap file di `migrations/` sesuai urutan nama, tempel isinya, lalu **Run**. Setelah itu tempel file di `tests/` dan **Run**. Semua baris harus `ok`, dan baris terakhir tidak boleh berisi `Looks like you failed`.

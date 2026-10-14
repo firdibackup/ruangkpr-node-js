@@ -65,6 +65,14 @@ export const UNLOCKED_LAYOUT = [
   { i: 'myKpr', x: 0, y: 11, w: 7, h: 12 },
   { i: 'agenda', x: 7, y: 18, w: 5, h: 6 },
 ]
+// Unlocked but with no potential, Peluang leaves Home: KPR Saya → Amortisasi on the left, Pembayaran → Health → Agenda.
+export const NO_OPPORTUNITY_LAYOUT = [
+  { i: 'myKpr', x: 0, y: 0, w: 7, h: 12 },
+  { i: 'nextPayment', x: 7, y: 0, w: 5, h: 5 },
+  { i: 'health', x: 7, y: 5, w: 5, h: 5 },
+  { i: 'agenda', x: 7, y: 10, w: 5, h: 6 },
+  { i: 'amortization', x: 0, y: 12, w: 7, h: 8 },
+]
 
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi)
 const int = (v, fallback) => (Number.isInteger(v) ? v : fallback)

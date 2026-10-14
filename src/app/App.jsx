@@ -3,7 +3,7 @@ import { Toaster } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { SessionProvider, useSession } from '@/domains/session/SessionProvider'
 import { STAFF } from '@/data/roles'
-import { RegisterPage, VerifyPage, WelcomePage } from '@/domains/session/AuthPages'
+import { ChangePasswordPage, ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage, VerifyPage, WelcomePage } from '@/domains/session/AuthPages'
 import { isMock } from '@/data/api'
 import { HomePage } from '@/domains/home/HomePage'
 import { PrimaryWizard } from '@/domains/applications/PrimaryWizard'
@@ -23,7 +23,7 @@ import { ActivityPage } from '@/domains/activity/ActivityPage'
 import { ProfilePage, ProfileEditPage, ReminderSettingsPage } from '@/domains/profile/ProfilePages'
 import { AdminLayout, ForbiddenPage } from '@/domains/admin/AdminLayout'
 import { OverviewPage as AdminOverviewPage } from '@/domains/admin/OverviewPage'
-import { UserDetailPage, UserListPage } from '@/domains/admin/UsersPages'
+import { UserDetailPage, UserHistoryPage, UserListPage, UserMortgagePage } from '@/domains/admin/UsersPages'
 import { ApplicationDetailPage, ApplicationListPage } from '@/domains/admin/ApplicationsPages'
 import { BankListPage, ProductFormPage, ProductListPage } from '@/domains/admin/CatalogPages'
 import { ArticleFormPage, ArticleListPage } from '@/domains/admin/ArticlesPages'
@@ -33,8 +33,11 @@ import { AuditLogPage } from '@/domains/admin/AuditLogPage'
 import { NotFoundPage } from './NotFoundPage'
 import { DevPanel } from './DevPanel'
 
-// Where each session status belongs; a guard sends any session it does not serve to its home.
-const HOME_OF = { guest: '/register', pending: '/verify', onboarding: '/welcome', authenticated: '/' }
+// Where each session status belongs; a guard sends any session it does not serve to its home. `pending` waits for the
+// code that verifies a new account; `recovery` came in through a reset link and still has to set its new password.
+const HOME_OF = { guest: '/login', pending: '/verify', recovery: '/reset-password', onboarding: '/welcome', authenticated: '/' }
+// Anyone not signed in, or halfway through a code, may go back to these.
+const SIGNED_OUT = ['guest', 'pending', 'recovery']
 
 // B2C pages send staff to their admin home (roles.js); /admin answers everyone else with a 403, never a silent
 // redirect. UX only: every admin operation checks the role again in the data layer.
@@ -53,8 +56,17 @@ function SessionGate({ allow }) {
 }
 
 const router = createBrowserRouter([
-  { element: <SessionGate allow={['guest', 'pending']} />, children: [{ path: '/register', element: <RegisterPage /> }] },
+  {
+    element: <SessionGate allow={SIGNED_OUT} />,
+    children: [
+      { path: '/login', element: <LoginPage /> },
+      { path: '/register', element: <RegisterPage /> },
+      { path: '/forgot-password', element: <ForgotPasswordPage /> },
+    ],
+  },
   { element: <SessionGate allow={['pending']} />, children: [{ path: '/verify', element: <VerifyPage /> }] },
+  // A guest here followed a reset link that failed; the page says so.
+  { element: <SessionGate allow={['guest', 'recovery']} />, children: [{ path: '/reset-password', element: <ResetPasswordPage /> }] },
   { element: <SessionGate allow={['onboarding']} />, children: [{ path: '/welcome', element: <WelcomePage /> }] },
   {
     path: '/admin',
@@ -66,6 +78,8 @@ const router = createBrowserRouter([
           { index: true, element: <AdminOverviewPage /> },
           { path: 'users', element: <UserListPage /> },
           { path: 'users/:userId', element: <UserDetailPage /> },
+          { path: 'users/:userId/kpr/:mortgageId', element: <UserMortgagePage /> },
+          { path: 'users/:userId/riwayat', element: <UserHistoryPage /> },
           { path: 'applications', element: <ApplicationListPage /> },
           { path: 'applications/:applicationId', element: <ApplicationDetailPage /> },
           { path: 'products', element: <ProductListPage /> },
@@ -79,6 +93,7 @@ const router = createBrowserRouter([
           { path: 'configuration', element: <ConfigurationPage /> },
           { path: 'configuration/health', element: <HealthConfigPage /> },
           { path: 'audit-log', element: <AuditLogPage /> },
+          { path: 'password', element: <ChangePasswordPage admin /> },
           { path: '*', element: <NotFoundPage to="/admin" label="Kembali ke Overview" /> },
         ],
       },
@@ -124,6 +139,7 @@ const router = createBrowserRouter([
           { path: 'profile', element: <ProfilePage /> },
           { path: 'profile/edit', element: <ProfileEditPage /> },
           { path: 'profile/reminders', element: <ReminderSettingsPage /> },
+          { path: 'profile/password', element: <ChangePasswordPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],
       },

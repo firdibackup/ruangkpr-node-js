@@ -43,6 +43,35 @@ test('admin drafts a product, sees what blocks publishing, previews it, publishe
   await expect(page.getByText('Diarsipkan').first()).toBeVisible()
 })
 
+test('admin selects several products and publishes or archives them at once', async ({ page }) => {
+  await useScenario(page, 'admin_ops', '/admin/products/new')
+  await page.getByLabel('Bank', { exact: true }).selectOption({ label: 'Bank ABC' })
+  await page.getByLabel('Nama produk').fill('KPR Uji Massal')
+  await page.getByRole('button', { name: 'Simpan draft' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'KPR Uji Massal' })).toBeVisible()
+  await page.getByRole('link', { name: 'Kembali' }).click()
+
+  // The list opens on published products; drafts show under "Semua".
+  await expect(page.getByLabel('Status')).toHaveValue('published')
+  await expect(page.getByRole('row', { name: /KPR Uji Massal/ })).toHaveCount(0)
+  await page.getByLabel('Status').selectOption({ label: 'Semua' })
+
+  // The draft is incomplete: publishing skips it, reports why, and keeps it selected.
+  await page.getByRole('checkbox', { name: 'Pilih KPR Uji Massal' }).check()
+  await page.getByRole('button', { name: 'Terbitkan (1)' }).click()
+  await page.getByRole('alertdialog').getByLabel('Alasan').fill('Rilis kuartal 4')
+  await page.getByRole('button', { name: 'Ya, terbitkan' }).click()
+  await expect(page.getByText('0 dari 1 produk diterbitkan.')).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: 'Pilih KPR Uji Massal' })).toBeChecked()
+
+  await page.getByRole('table', { name: 'Daftar produk' }).getByRole('checkbox').nth(1).check()
+  await page.getByRole('button', { name: 'Arsipkan (2)' }).click()
+  await page.getByRole('alertdialog').getByLabel('Alasan').fill('Katalog dirapikan')
+  await page.getByRole('button', { name: 'Ya, arsipkan' }).click()
+  await expect(page.getByText('2 produk diarsipkan.')).toBeVisible()
+  await expect(page.getByRole('row', { name: /KPR Uji Massal/ }).getByText('Diarsipkan')).toBeVisible()
+})
+
 test('a bank is switched off with a reason and shows as inactive', async ({ page }) => {
   await useScenario(page, 'admin_ops', '/admin/banks')
   const row = page.getByRole('row', { name: /Bank GHI/ })

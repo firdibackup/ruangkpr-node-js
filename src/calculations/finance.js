@@ -219,6 +219,7 @@ export function aggregateScheduleByYear(rows) {
     y.minRateBps = Math.min(y.minRateBps, row.annualRateBps)
     y.maxRateBps = Math.max(y.maxRateBps, row.annualRateBps)
     y.containsTransition ||= row.periodChanged
+    if (row.periodChanged) y.transitionRateBps ??= row.annualRateBps // the rate the new period starts at
     y.containsEstimate ||= row.estimatedRate
   })
   return years

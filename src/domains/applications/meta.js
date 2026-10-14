@@ -176,6 +176,9 @@ export function trackerSteps(app) {
   }));
 }
 
+// Stages where the team can leave the user a note (spec 2026-10-13 §1.2); appraisal carries the agreed schedule.
+export const STAGE_NOTE_STATUSES = ["docs_verification", "bank_processing", "appraisal", "approved", "old_mortgage_settlement", "akad"];
+
 export const STATUS_LABEL = {
   draft: "Draft",
   submitted: "Diajukan",

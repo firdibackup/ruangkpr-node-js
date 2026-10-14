@@ -6,15 +6,12 @@ import { DateField, SelectField, TextField } from '@/components/shared/fields'
 import { ErrorPanel, PageSkeleton, Panel } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { STATUS_LABEL } from '@/domains/applications/meta'
-import { ACTION_LABEL, FIELD_LABEL } from './labels'
+import { ACTION_LABEL, FIELD_LABEL, at, formatValue } from './labels'
 import { AdminHeader } from './shared'
 
 const head = 'text-xs font-bold text-ink-3'
 const RESOURCE_LABEL = { user: 'User', application: 'Pengajuan', product: 'Produk', bank: 'Bank', article: 'Artikel', report: 'Laporan', config: 'Konfigurasi', health_config: 'Formula KPR Health' }
 const PUBLISHING = { published: 'Terbit', archived: 'Diarsipkan' }
-
-// Times read in WIB (open question §12 Q5 recommends Asia/Jakarta for the backend too).
-const at = (iso) => new Date(iso).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })
 
 // Values arrive already masked (NIK); this only makes them readable.
 function readable(key, v) {
@@ -23,6 +20,7 @@ function readable(key, v) {
   if (typeof v === 'number') return v.toLocaleString('id-ID')
   if (key === 'status') return STATUS_LABEL[v] ?? PUBLISHING[v] ?? v
   if (key === 'formats') return v.map((f) => f.toUpperCase()).join(', ')
+  if (key === 'schedule') return formatValue(key, v)
   if (Array.isArray(v) && v.every((x) => typeof x !== 'object')) return v.join(', ')
   return typeof v === 'string' ? v : JSON.stringify(v)
 }

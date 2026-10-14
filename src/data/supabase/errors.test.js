@@ -17,6 +17,9 @@ describe('toApiError', () => {
   it('maps auth errors to Indonesian messages', () => {
     expect(toApiError(new AuthApiError('Token has expired or is invalid', 403, 'otp_expired'))).toMatchObject({ code: 'OTP_INVALID', message: 'Kode salah atau kedaluwarsa. Coba lagi atau kirim ulang kode.' })
     expect(toApiError(new AuthApiError('Email rate limit exceeded', 429, 'over_email_send_rate_limit'))).toMatchObject({ code: 'RATE_LIMITED', retryable: true })
+    expect(toApiError(new AuthApiError('Invalid login credentials', 400, 'invalid_credentials'))).toMatchObject({ code: 'INVALID_CREDENTIALS', message: 'Email atau password salah.' })
+    expect(toApiError(new AuthApiError('Password should contain at least one character of each', 422, 'weak_password'))).toMatchObject({ code: 'VALIDATION_FAILED' })
+    expect(toApiError(new AuthApiError('User already registered', 422, 'user_already_exists'))).toMatchObject({ code: 'EMAIL_TAKEN', status: 409 })
   })
 
   it('maps the one-active unique indexes to the same codes the mock uses', () => {

@@ -1,26 +1,21 @@
 import { expect, test } from '@playwright/test'
-import { expectNoSecondary, pdf, useScenario } from './helpers'
+import { expectNoSecondary, pdf, register, useScenario } from './helpers'
 
-test('primary: email → OTP → consent → 7 steps → submit → tracker (resume at step 5)', async ({ page }) => {
+test('primary: register (name, password, consent) → email code → 7 steps → submit → tracker (resume at step 5)', async ({ page }) => {
   await useScenario(page, 'guest', '/register')
-  await page.getByLabel('Email').fill('firdi@example.com')
-  await page.getByRole('button', { name: 'Kirim kode' }).click()
+  // Looks disabled (aria-disabled) but stays clickable so users learn what is missing; no API call happens.
+  await page.getByRole('button', { name: 'Daftar', exact: true }).click({ force: true })
+  await expect(page.getByText('Nama minimal 3 huruf.')).toBeVisible()
+  await register(page, { name: 'Firdi Audi', email: 'firdi@example.com' })
   await expect(page).toHaveURL(/\/verify$/)
-  await expect(page.getByText('Step')).toHaveCount(0) // signing in is not an application step
+  await expect(page.getByText('Step')).toHaveCount(0) // signing up is not an application step
 
   await page.getByLabel('Digit 1 dari 6').fill('000000')
   await page.getByRole('button', { name: 'Verifikasi' }).click()
   await expect(page.getByRole('alert')).toContainText('Kode salah')
   await page.getByLabel('Digit 1 dari 6').fill('148260')
   await page.getByRole('button', { name: 'Verifikasi' }).click()
-  await expect(page).toHaveURL(/\/welcome$/)
-  // Looks disabled (aria-disabled) but stays clickable so users learn what is missing; no API call happens.
-  await page.getByRole('button', { name: 'Mulai pakai RuangKPR' }).click({ force: true })
-  await expect(page.getByText('Nama minimal 3 huruf.')).toBeVisible()
-  await page.getByLabel('Nama Lengkap').fill('Firdi Audi')
-  await page.getByRole('checkbox', { name: /Syarat & Ketentuan/ }).check()
-  await page.getByRole('checkbox', { name: /Kebijakan Privasi/ }).check()
-  await page.getByRole('button', { name: 'Mulai pakai RuangKPR' }).click()
+  // Consent was given on the registration form: straight to Home, no /welcome.
   await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/$/)
 
   const products = page.getByRole('list', { name: 'Produk KPR' }).getByRole('listitem')
@@ -150,5 +145,5 @@ test('cancel dialog does not delete before confirm; additional document can be r
 
   await page.locator('input[type=file]').nth(2).setInputFiles(pdf('slip-gaji-terbaru.pdf'))
   await expect(page.getByText('Status: Verifikasi Dokumen')).toBeVisible()
-  await expect(page.getByText('Permintaan Bank')).toHaveCount(0)
+  await expect(page.getByText('Permintaan tim RuangKPR')).toHaveCount(0)
 })

@@ -154,13 +154,15 @@ export function createSupabaseStore(client = supabase) {
 
     // Admin pages see every user account (RLS decides what a role may read).
     if (admin && role) {
-      const [profiles, roles, allApps, allMortgages, notes, audit] = await Promise.all([
+      const [profiles, roles, allApps, allMortgages, notes, audit, changes] = await Promise.all([
         must(sb.from('profiles').select('*').neq('id', uid)),
         must(sb.from('user_roles').select('user_id, role')),
         must(sb.from('applications').select('id, user_id, doc, version').neq('user_id', uid).order('created_at', { ascending: false })),
         must(sb.from('mortgages').select('id, user_id, doc, version').neq('user_id', uid).order('created_at', { ascending: false })),
         must(sb.from('admin_notes').select('doc').order('created_at', { ascending: false })),
         must(sb.from('audit_log').select('doc').order('occurred_at', { ascending: false })),
+        // ponytail: every admin call reads the whole history; filter by user in the query once it grows large.
+        must(sb.from('user_changes').select('id, user_id, doc, occurred_at').order('occurred_at', { ascending: false })),
       ])
       const roleOf = new Map(roles.map((r) => [r.user_id, r.role]))
       for (const r of allApps) versions.applications[r.id] = r.version
@@ -179,6 +181,8 @@ export function createSupabaseStore(client = supabase) {
       })
       db.adminNotes = docs(notes)
       db.auditLog = docs(audit)
+      // Written by database triggers only (migration user_changes); planWrites never sends it back.
+      db.userChanges = changes.map((r) => ({ ...r.doc, id: r.id, userId: r.user_id, occurredAt: r.occurred_at }))
     }
 
     loaded.set(db, { before: structuredClone(db), versions })

@@ -8,7 +8,7 @@ import { ErrorSummary, TextAreaField } from '@/components/shared/fields'
 import { FormDialog } from '@/components/shared/dialogs'
 import { Chip, Notice, Spinner } from '@/components/shared/ui'
 import { STATUS_LABEL } from '@/domains/applications/meta'
-import { ACTION_LABEL, fieldList } from './labels'
+import { ACTION_LABEL, FIELD_LABEL, at, fieldList, formatValue } from './labels'
 
 // Status words carry tone only where it means an outcome: rejected and disbursed; drafts stay quiet.
 const STATUS_TONE = { draft: 'mute', rejected: 'bad', disbursed: 'ok' }
@@ -66,32 +66,59 @@ const auditDetail = (e) =>
     ? `v${e.before.version} → v${e.after.version}`
     : e.action === 'application.transition'
     ? `${STATUS_LABEL[e.before?.status] ?? e.before?.status} → ${STATUS_LABEL[e.after?.status] ?? e.after?.status}`
-    : e.action === 'report.export'
-      ? `${dateShort(e.after.from)} – ${dateShort(e.after.to)} · ${e.after.rows} pengajuan`
-      : e.after
-        ? fieldList(Object.keys(e.after))
-        : null
+    : e.action === 'application.document_review'
+      ? `${e.after.document}: ${e.after.result}`
+      : e.action === 'application.stage_note'
+        ? `Tahap ${STATUS_LABEL[e.after.status] ?? e.after.status}`
+        : e.action === 'report.export'
+          ? `${dateShort(e.after.from)} – ${dateShort(e.after.to)} · ${e.after.rows} pengajuan`
+          : e.after
+            ? fieldList(Object.keys(e.after))
+            : null
 
-// Audit events, newest first. `subject` adds whose record changed (lists that mix many users).
-export function AuditList({ events, label, subject = true, empty = 'Belum ada aktivitas admin.' }) {
+// "Alamat: Jl. A → Jl. B" per edited field; a value only on one side (a payment marked or undone) reads on its own.
+const changeLines = (e) =>
+  [...new Set([...Object.keys(e.before ?? {}), ...Object.keys(e.after ?? {})])].map((k) => {
+    const was = e.before && k in e.before
+    const now = e.after && k in e.after
+    return { k, label: FIELD_LABEL[k] ?? k, v: was && now ? `${formatValue(k, e.before[k])} → ${formatValue(k, e.after[k])}` : formatValue(k, now ? e.after[k] : e.before[k]) }
+  })
+
+const resourceLabel = (e) => e.resource.label
+
+// Audit events, newest first. `subject` names whose record changed (false for none, or a function for some events
+// only); `values` shows each edited field old → new instead of the field names; `withTime` adds the WIB time.
+// Events with `actor.role: 'user'` are the user's own edits.
+export function AuditList({ events, label, subject = resourceLabel, values = false, withTime = false, empty = 'Belum ada aktivitas admin.' }) {
   if (!events.length) return <p className="text-sm text-muted-foreground">{empty}</p>
   return (
     <ul aria-label={label} className="flex flex-col">
-      {events.map((e) => (
-        <li key={e.id} className="flex flex-col gap-0.5 border-b border-line py-3 first:pt-0 last:border-b-0 last:pb-0">
-          <span className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
-            <span className="font-bold">
-              {ACTION_LABEL[e.action] ?? e.action}
-              {subject && e.resource.label && <span className="font-semibold text-ink-3"> · {e.resource.label}</span>}
+      {events.map((e) => {
+        const lines = values ? changeLines(e) : []
+        const detail = lines.length ? null : auditDetail(e)
+        const whose = subject && subject(e)
+        return (
+          <li key={e.id} className="flex flex-col gap-0.5 border-b border-line py-3 first:pt-0 last:border-b-0 last:pb-0">
+            <span className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
+              <span className="font-bold">
+                {ACTION_LABEL[e.action] ?? e.action}
+                {whose && <span className="font-semibold text-ink-3"> · {whose}</span>}
+              </span>
+              <span className="text-xs text-muted-foreground tabular">{withTime ? `${at(e.occurredAt)} WIB` : dateShort(e.occurredAt)}</span>
             </span>
-            <span className="text-xs text-muted-foreground tabular">{dateShort(e.occurredAt)}</span>
-          </span>
-          {e.reason && <span className="text-[13px] text-ink-2">“{e.reason}”</span>}
-          <span className="text-xs text-muted-foreground">
-            {auditDetail(e) && `${auditDetail(e)} · `}oleh {e.actor.name}
-          </span>
-        </li>
-      ))}
+            {e.reason && <span className="text-[13px] text-ink-2">“{e.reason}”</span>}
+            {lines.map((l) => (
+              <span key={l.k} className="text-[13px] break-words text-ink-2">
+                <span className="text-ink-3">{l.label}:</span> <span className="tabular">{l.v}</span>
+              </span>
+            ))}
+            <span className="text-xs text-muted-foreground">
+              {detail && `${detail} · `}oleh {e.actor.name}
+              {e.actor.role === 'user' && ' (user)'}
+            </span>
+          </li>
+        )
+      })}
     </ul>
   )
 }

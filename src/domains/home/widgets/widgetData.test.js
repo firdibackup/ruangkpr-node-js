@@ -8,6 +8,7 @@ import {
   fixedMilestones,
   journeySteps,
   nextPaymentSplit,
+  opportunityPotential,
   paymentCalendar,
   pickArticles,
   remainingInterest,
@@ -25,6 +26,15 @@ const scenario = (id, patch = {}) => {
   return { m, d: deriveMortgage(m, db.clock), clock: db.clock }
 }
 const locked = ({ m, d }) => WIDGETS.filter((w) => widgetLock(w.id, m, d)).map((w) => w.id)
+
+describe('opportunityPotential', () => {
+  it('counts a potential only when it is real: a cheaper program, or cash left to draw', () => {
+    expect(opportunityPotential({ cheaperProgramCount: 2, maxGrossTopup: 0 })).toEqual({ takeover: true, topup: false })
+    expect(opportunityPotential({ cheaperProgramCount: 0, maxGrossTopup: 150_000_000 })).toEqual({ takeover: false, topup: true })
+    expect(opportunityPotential({ available: false })).toEqual({ takeover: false, topup: false })
+    expect(opportunityPotential(undefined)).toEqual({ takeover: false, topup: false }) // not loaded or failed
+  })
+})
 
 describe('widgetLock', () => {
   it('locks nothing when the KPR data is complete', () => {
@@ -55,6 +65,12 @@ describe('widgetLock', () => {
 
     const sharia = scenario('mortgage_active_normal', { scheme: 'sharia' })
     expect(widgetLock('interestLeft', sharia.m, sharia.d)).toMatchObject({ reason: 'Belum untuk KPR syariah', action: null })
+  })
+
+  it('a fixed period that ran out already knows its last fixed cicilan for Dampak Floating', () => {
+    const db = createSeed('mortgage_active_h90') // fixed until 22 Dec 2026, floating estimate 9%
+    const m = db.mortgages[0]
+    expect(widgetLock('floatingImpact', m, deriveMortgage(m, '2027-01-05'))).toBeNull()
   })
 })
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HEALTH_V1, deriveMortgage, healthScore, rateMode } from './derive'
+import { HEALTH_V1, deriveMortgage, healthScore, mortgageAsOf, rateMode } from './derive'
 
 const today = '2026-09-28'
 // What the 3-step setup can leave behind: bank, cicilan, jatuh tempo, and "Belum tahu" for the rate type.
@@ -37,6 +37,82 @@ describe('derive with reminder-only data', () => {
     expect(deriveMortgage(tracked, '2026-10-25').paymentAlert).toEqual({ due: '2026-10-22', days: -3, tone: 'bad' })
     // A due before activation could not be recorded here, so it is not flagged as late.
     expect(deriveMortgage({ ...tracked, activatedAt: '2026-09-28T08:00:00.000Z', payments: [] }, today).paymentAlert).toBeNull()
+  })
+})
+
+describe('sisa pokok as of today', () => {
+  // The reported case: 400 jt at 5,5% over 240 months, typed from the bank on 13 Oct 2026, due on the 5th.
+  // Expected balances are closed-form annuity values B(k) = P·(1+r)^k − A·((1+r)^k − 1)/r, not the app's schedule.
+  const loan = { ...minimal, scheme: 'conventional', originalPrincipal: 400_000_000, currentPayment: 2_751_549, currentRateType: 'floating', currentRateBps: 550, startDate: '2026-10-05', dueDay: 5, outstandingPrincipal: 400_000_000, remainingTenorMonths: 240, outstandingEstimated: false, outstandingAsOf: '2026-10-13' }
+
+  it('marking a payment moves nothing; the balance drops once its due date has passed', () => {
+    const marked = { ...loan, payments: [{ dueDate: '2026-11-05', status: 'paid' }] }
+    expect(mortgageAsOf(marked, '2026-10-13')).toMatchObject({ outstandingPrincipal: 400_000_000, remainingTenorMonths: 240 })
+    expect(mortgageAsOf(marked, '2026-11-05')).toMatchObject({ outstandingPrincipal: 400_000_000, remainingTenorMonths: 240 }) // due today: still to pay
+    expect(mortgageAsOf(marked, '2026-11-06')).toMatchObject({ outstandingPrincipal: 399_081_784, remainingTenorMonths: 239, outstandingProjected: true })
+    expect(mortgageAsOf(loan, '2026-11-06')).toMatchObject({ outstandingPrincipal: 399_081_784, remainingTenorMonths: 239 })
+  })
+
+  it('six months on, progress, LTV and the payoff date follow the moved balance instead of restarting from it', () => {
+    expect(deriveMortgage(loan, '2026-10-13').estimatedEndDate).toBe('2046-10-05')
+    const d = deriveMortgage({ ...loan, property: { estimatedValue: 500_000_000 } }, '2027-04-13')
+    expect(mortgageAsOf(loan, '2027-04-13')).toMatchObject({ outstandingPrincipal: 394_427_190, remainingTenorMonths: 234 })
+    expect(d.estimatedEndDate).toBe('2046-10-05') // used to slide to 2047-04-05
+    expect(d.schedule.rows[0]).toMatchObject({ dueDate: '2027-05-05', openingBalance: 394_427_190 })
+    expect(d.paidRatio).toBeCloseTo(0.013932025, 9)
+    expect(d.property.ltvRatio).toBeCloseTo(0.78885438, 8)
+  })
+
+  it('a fixed rate without a floating estimate still moves at its fixed rate', () => {
+    const fixed = { ...loan, currentRateType: 'fixed', fixedUntil: '2029-10-05', estimatedFloatingRateBps: null }
+    expect(mortgageAsOf(fixed, '2026-12-06')).toMatchObject({ outstandingPrincipal: 398_159_360, remainingTenorMonths: 238 })
+  })
+
+  it('a loan past its last installment is paid off, and its pages still derive', () => {
+    const last = { ...loan, outstandingPrincipal: 5_000_000, remainingTenorMonths: 2 }
+    expect(mortgageAsOf(last, '2027-01-06')).toMatchObject({ outstandingPrincipal: 0, remainingTenorMonths: 0 })
+    expect(deriveMortgage(last, '2027-01-06')).toMatchObject({ paidRatio: 1, estimatedEndDate: null })
+  })
+
+  it('without a saved date: counted from activation, or from the akad for a KPR opened by an application', () => {
+    const { outstandingAsOf: _saved, ...legacy } = loan
+    expect(mortgageAsOf({ ...legacy, activatedAt: '2026-10-13T03:00:00.000Z' }, '2026-11-06').outstandingPrincipal).toBe(399_081_784)
+    expect(mortgageAsOf({ ...legacy, source: 'application', activatedAt: '2026-11-20T03:00:00.000Z' }, '2026-11-21').outstandingPrincipal).toBe(399_081_784)
+    expect(mortgageAsOf(legacy, '2027-04-13').outstandingPrincipal).toBe(400_000_000) // no date at all: left as saved
+  })
+
+  it('sharia: the tenor counts down, the balance stays as entered (never the annuity formula)', () => {
+    expect(mortgageAsOf({ ...loan, scheme: 'sharia' }, '2026-12-06')).toMatchObject({ outstandingPrincipal: 400_000_000, remainingTenorMonths: 238 })
+  })
+
+  it('a copy already moved to today is not moved twice; a replaced loan is not aged', () => {
+    const served = mortgageAsOf(loan, '2027-04-13')
+    expect(mortgageAsOf(served, '2027-04-13')).toEqual(served)
+    expect(deriveMortgage(served, '2027-04-13').schedule.rows[0].openingBalance).toBe(394_427_190)
+    expect(mortgageAsOf({ ...loan, status: 'replaced' }, '2027-04-13').outstandingPrincipal).toBe(400_000_000)
+  })
+})
+
+describe('after the fixed period ends', () => {
+  // Estimated on 13 Oct 2026; fixed 5,5% until 13 Oct 2028, then an estimated 12%; jatuh tempo tgl 28.
+  // 4.258.770 is the closed-form annuity at 12% over the 215 months left at the first floating installment.
+  const m = { ...minimal, scheme: 'conventional', originalPrincipal: 400_000_000, currentPayment: 2_751_549, currentRateType: 'fixed', currentRateBps: 550, fixedUntil: '2028-10-13', estimatedFloatingRateBps: 1200, startDate: '2026-09-01', dueDay: 28, outstandingPrincipal: 399_081_750, remainingTenorMonths: 239, outstandingEstimated: true, outstandingAsOf: '2026-10-13', finance: { monthlyIncome: 15_000_000, vehicleDebt: 1_000_000 } }
+
+  it('the cicilan and bunga in effect, and the DTI, switch to the floating estimate; before that they are the saved ones', () => {
+    expect(deriveMortgage(m, '2026-10-13')).toMatchObject({ payment: 2_751_549, rateBps: 550, termsEstimated: false })
+    const d = deriveMortgage(m, '2028-11-01')
+    expect(d).toMatchObject({ mode: 'floating', payment: 4_258_770, rateBps: 1200, previousPayment: 2_751_549, termsEstimated: true })
+    expect(d.dti.dtiRatio).toBeCloseTo((4_258_770 + 1_000_000) / 15_000_000, 10)
+    expect(d.health.components.find((c) => c.key === 'dti').score).toBe(62)
+  })
+
+  it('without a floating estimate the rate in effect is unknown instead of the old fixed one', () => {
+    expect(deriveMortgage({ ...m, estimatedFloatingRateBps: null }, '2028-11-01')).toMatchObject({ rateBps: null, termsEstimated: true })
+  })
+
+  it('a KPR saved as floating keeps its own figures', () => {
+    const floating = { ...m, currentRateType: 'floating', currentRateBps: 900, fixedUntil: null, estimatedFloatingRateBps: null, previousFixedPayment: 2_500_000 }
+    expect(deriveMortgage(floating, '2028-11-01')).toMatchObject({ payment: 2_751_549, rateBps: 900, previousPayment: 2_500_000, termsEstimated: false })
   })
 })
 

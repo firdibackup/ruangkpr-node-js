@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { signIn, useScenario } from './helpers'
 
 test('a content writer signs in to Articles only; other admin pages refuse and B2C pages send them back', async ({ page }) => {
-  await useScenario(page, 'guest', '/register')
+  await useScenario(page, 'guest', '/login')
   await signIn(page, 'Penulis Konten', 'penulis@ruangkpr.id')
   await expect(page).toHaveURL(/\/admin\/articles$/)
   await expect(page.getByRole('navigation', { name: 'Navigasi admin' }).getByRole('link')).toHaveText(['Articles'])

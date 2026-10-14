@@ -24,7 +24,7 @@ export function DevPanel() {
 
   const apply = () => {
     mockControls.reset(scenario)
-    window.location.assign(scenario === 'guest' ? '/register' : '/')
+    window.location.assign(scenario === 'guest' ? '/login' : '/')
   }
 
   if (!open) {

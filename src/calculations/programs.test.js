@@ -98,6 +98,12 @@ describe('take over / top-up', () => {
     expect(best.monthlyDiff).toBeGreaterThan(0)
     expect(best.breakEven.status).toBe('reached')
   })
+  it('a fixed period already over: the baseline is the estimated floating installment, not the old fixed one', () => {
+    // 4.533.784: closed-form annuity of 400 jt at 12% over 215 months.
+    const lapsed = takeoverBaseline({ outstanding: 400_000_000, rateBps: 550, rateType: 'fixed', fixedUntil: '2026-09-01', floatingRateBps: 1200, remainingMonths: 215, currentPayment: 2_751_549, penaltyBps: null, dueDay: 28, asOf: '2026-10-13' })
+    expect(lapsed).toMatchObject({ rateBps: 1200, rateType: 'floating', currentPayment: 4_533_784, fixedMonthsLeft: null })
+    expect(lapsed.payments[0]).toBe(4_533_784)
+  })
   it('no monthly benefit → no positive break-even', () => {
     const cheap = takeoverBaseline({ ...baseline, outstanding: 421_500_000, rateBps: 500, rateType: 'floating', remainingMonths: 181, currentPayment: 3_400_000, penaltyBps: 0, dueDay: 12, asOf })
     const product = BANK_PRODUCTS.find((p) => p.id === 'bpr_ghi_takeover_fix10_v1')

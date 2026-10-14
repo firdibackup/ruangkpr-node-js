@@ -44,6 +44,7 @@ import {
   ProgressBar,
   SummaryRows,
 } from "@/components/shared/ui";
+import { PendingDocs, StageNoteCard } from "@/domains/applications/ApplicationTracker";
 import { RejectedActions } from "@/domains/applications/RejectedActions";
 import {
   draftProgress,
@@ -689,6 +690,7 @@ function InProcessSection({ app }) {
             </Link>
           </Button>
         </HeroCard>
+        <StageNoteCard app={app} />
         <Panel>
           <PanelTitle>Tahapan pengajuan</PanelTitle>
           <StatusStepper steps={trackerSteps(app)} />
@@ -702,17 +704,13 @@ function InProcessSection({ app }) {
             </Chip>
             <div className="flex flex-col gap-1.5">
               <h2 className="text-lg font-extrabold">
-                Bank minta dokumen tambahan
+                Ada dokumen yang perlu diunggah ulang
               </h2>
-              {pending.map((p) => (
-                <p key={p.id} className="text-sm leading-[21px] text-ink-3">
-                  {p.message}
-                </p>
-              ))}
+              <PendingDocs app={app} />
             </div>
             <Button asChild size="sm" className="w-fit">
               <Link to="/my-kpr/application">
-                Upload sekarang
+                Upload ulang
                 <ArrowRightIcon aria-hidden />
               </Link>
             </Button>
@@ -779,7 +777,7 @@ function ActiveMortgageMini({ mortgage: m, derived, takeover }) {
           { k: "Sisa pokok", v: rupiah(m.outstandingPrincipal) },
           {
             k: "Pembayaran berikutnya",
-            v: `${rupiah(m.currentPayment)} · ${dateShort(derived.nextDue)}`,
+            v: `${rupiah(derived.payment)} · ${dateShort(derived.nextDue)}`,
           },
         ]}
       />

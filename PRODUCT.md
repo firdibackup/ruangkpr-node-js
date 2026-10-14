@@ -33,14 +33,14 @@ Bukan "kalkulator KPR yang lebih lengkap", tetapi **dashboard yang menjaga KPR t
 
 ## Operating Context
 
-- **B2C:** pengguna di rumah, kebanyakan dari HP. Daftar dan masuk lewat akun Google atau kode OTP ke email (tanpa nomor HP). Mengunggah dokumen (KTP, NPWP, slip gaji, dokumen properti; JPG/PNG/PDF). Menandai pembayaran sendiri secara manual. Menerima reminder pembayaran (H-7/3/1) dan peringatan akhir masa fixed.
+- **B2C:** pengguna di rumah, kebanyakan dari HP. Daftar dengan email + password (kode 6 digit ke email untuk verifikasi) atau akun Google, lalu masuk dengan email + password; lupa password lewat link di email (tanpa nomor HP). Mengunggah dokumen (KTP, NPWP, slip gaji, dokumen properti; JPG/PNG/PDF). Menandai pembayaran sendiri secara manual. Menerima reminder pembayaran (H-7/3/1) dan peringatan akhir masa fixed.
 - **Admin:** tim ops di desktop meninjau dokumen, meminta revisi, memindahkan status pengajuan sesuai alur bank (`submitted → docs_verification → bank_processing → appraisal → approved → akad → disbursed`), mengelola katalog dan artikel, serta mengubah konfigurasi yang versioned (termasuk rumus KPR Health).
 - **Tahap saat ini:** prototype frontend-first. Semua data mock dan disimpan di `localStorage`; satu browser bisa menyimpan banyak akun; panel Demo hanya ada di mode dev.
 - Dokumen sumber: `ruangkpr-docs/01–05` dan rencana admin `ruangkpr-docs/2026-10-07_110428-admin-dashboard.md`.
 
 ## Capabilities and Constraints
 
-- **Sudah ada:** registrasi/OTP, pengajuan KPR Primary 7 langkah dengan tracker dan pemulihan saat ditolak, setup KPR berjalan + monitoring + reminder + amortisasi + KPR Health, simulasi dan pengajuan Take Over + Top-up, Explore (edukasi), Activity, Profile, dan dashboard admin (fase awal).
+- **Sudah ada:** registrasi email + password (verifikasi lewat kode email, lupa password lewat link email), pengajuan KPR Primary 7 langkah dengan tracker dan pemulihan saat ditolak, setup KPR berjalan + monitoring + reminder + amortisasi + KPR Health, simulasi dan pengajuan Take Over + Top-up, Explore (edukasi), Activity, Profile, dan dashboard admin (fase awal).
 - **Batas MVP:** satu pengajuan aktif dan satu KPR aktif per akun; satu pengajuan = satu bank/program (tanpa multi-bank); belum ada backend, provider OTP/storage/email, AI, eKYC/OCR, maupun sinkronisasi bank.
 - **Istilah domain:** KPR, DP, DTI, LTV, fixed/floating, tenor, akad, appraisal, Take Over, Refinancing + Top-up, Multiguna, break-even.
 - **Belum diputuskan:** kebijakan retensi (pembatalan masih hard delete di mock, hapus akun, dokumen); angka final yang wajib saat akad; daftar kode penolakan; zona waktu laporan. Rinciannya di §12 rencana admin.

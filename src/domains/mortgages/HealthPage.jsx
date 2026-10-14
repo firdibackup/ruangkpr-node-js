@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { CircleDotIcon } from 'lucide-react'
 import { api } from '@/data/api'
 import { useResource } from '@/lib/hooks'
-import { percentRatio, rupiah, rupiahShort } from '@/lib/format'
+import { percentProgress, percentRatio, rupiah, rupiahShort } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/AppShell'
@@ -16,9 +16,9 @@ import { progressGap } from './setupMeta'
 const BAR = { ok: 'bg-success-strong', warn: 'bg-warning-accent', bad: 'bg-brand-red' }
 const TEXT = { ok: 'text-success', warn: 'text-warning-text', bad: 'text-danger' }
 const MEANING = {
-  ok: 'Sehat berarti kondisi KPR kamu secara umum aman.',
-  warn: 'Perlu perhatian berarti belum berisiko, tapi ada komponen yang skornya rendah dan perlu dipantau.',
-  bad: 'Berisiko berarti beberapa komponen membebani KPR kamu dan perlu segera ditindaklanjuti.',
+  ok: 'Secara umum KPR kamu aman.',
+  warn: 'Belum berisiko, tapi ada yang perlu dipantau.',
+  bad: 'Ada yang membebani KPR kamu dan perlu segera ditangani.',
 }
 const MEASURES = {
   dti: 'Total cicilan bulanan (KPR dan cicilan lain) dibanding penghasilan. Makin kecil, makin ringan.',
@@ -67,11 +67,10 @@ export function HealthPage() {
   const h = d.health
   const weakest = h.components.filter((c) => c.score !== null).sort((a, b) => a.score - b.score)[0]
   const counted = h.components.filter((c) => c.score !== null && p.weights[c.key] > 0)
-  const equalWeights = counted.every((c) => p.weights[c.key] === p.weights[counted[0].key])
   const levels = [
-    { tone: 'ok', label: `Sehat ≥ ${p.labels.healthy}` },
+    { tone: 'ok', label: `Sehat ${p.labels.healthy}–100` },
     { tone: 'warn', label: `Perlu perhatian ${p.labels.attention}–${p.labels.healthy - 1}` },
-    { tone: 'bad', label: `Berisiko < ${p.labels.attention}` },
+    { tone: 'bad', label: `Berisiko 0–${p.labels.attention - 1}` },
   ]
   const fi = d.floatingImpact
   // One "Lengkapi" action per component that cannot be scored yet; the property value opens the same pop-up as Home.
@@ -84,7 +83,7 @@ export function HealthPage() {
     dti: d.dti ? `Rasio cicilan ${percentRatio(d.dti.dtiRatio)} dari penghasilan` : 'Penghasilan belum diisi',
     ltv: d.property ? `LTV ${percentRatio(d.property.ltvRatio)} (sisa pokok ÷ estimasi nilai rumah)` : 'Nilai properti belum diisi',
     rate: d.mode == null ? 'Jenis bunga belum diketahui' : d.mode === 'floating' ? 'Sudah menggunakan bunga floating' : d.daysUntilFixedEnd != null ? `Fixed berakhir ${d.daysUntilFixedEnd} hari lagi` : 'Tanggal akhir fixed belum diisi',
-    progress: d.paidRatio == null ? 'Progres pelunasan belum diketahui' : `${Math.round(d.paidRatio * 100)}% pokok sudah lunas`,
+    progress: d.paidRatio == null ? 'Progres pelunasan belum diketahui' : `${percentProgress(d.paidRatio)} pokok sudah lunas`,
   }
   const todo = [
     d.mode === 'warning' && d.floatingImpact && `Siapkan kenaikan cicilan sekitar ${rupiah(d.floatingImpact.monthlyDelta)}/bln setelah fixed berakhir (estimasi).`,
@@ -121,7 +120,7 @@ export function HealthPage() {
           {h.score != null && (
             <div className="flex flex-col gap-2.5 rounded-2xl bg-muted px-4 py-3.5 text-[13px] leading-5 text-ink-2">
               <p>
-                Skor {h.score} adalah {equalWeights ? `rata-rata ${counted.length} komponen di bawah: (${counted.map((c) => c.score).join(' + ')}) ÷ ${counted.length}` : `rata-rata berbobot ${counted.length} komponen di bawah`}. {MEANING[h.tone]}
+                Skor ini gabungan {counted.length} komponen di bawah. {MEANING[h.tone]}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {levels.map((l) => (

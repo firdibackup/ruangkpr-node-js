@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { BellIcon, BriefcaseIcon, LogOutIcon, PencilIcon, ShieldCheckIcon, Trash2Icon, UserIcon } from 'lucide-react'
+import { BellIcon, BriefcaseIcon, KeyRoundIcon, LogOutIcon, PencilIcon, ShieldCheckIcon, Trash2Icon, UserIcon } from 'lucide-react'
 import { api } from '@/data/api'
 import { useForm, useResource } from '@/lib/hooks'
 import { GENDERS, MARITAL, OCCUPATIONS, dateLong, initials, labelOf, maskNik, rupiah, toMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
-import { PageHeader } from '@/components/layout/AppShell'
+import { LogoutDialog, PageHeader } from '@/components/layout/AppShell'
 import { CheckboxField, DateField, ErrorSummary, FormGrid, MoneyField, NumberField, RadioCards, SelectField, TextAreaField, TextField } from '@/components/shared/fields'
 import { ConfirmDialog, FormDialog, UnsavedChangesGuard } from '@/components/shared/dialogs'
 import { WizardProgress } from '@/components/shared/progress'
@@ -20,7 +20,7 @@ import { profileFormValues, validatePersonal } from '@/domains/applications/vali
 
 export function ProfilePage() {
   const navigate = useNavigate()
-  const { logout, refresh } = useSession()
+  const { refresh } = useSession()
   const { data: snap, error, reload } = useResource(() => api.dashboard.getSnapshot())
   const [confirm, setConfirm] = useState(false)
   const [del, setDel] = useState(false)
@@ -117,6 +117,10 @@ export function ProfilePage() {
               </span>
             ))}
             <div className="mt-2 flex flex-wrap gap-2.5">
+              <Button variant="neutral" size="md" className="w-fit" onClick={() => navigate('/profile/password')}>
+                <KeyRoundIcon aria-hidden />
+                Ubah Password
+              </Button>
               <Button variant="neutral" size="md" className="w-fit text-danger" onClick={() => setConfirm(true)}>
                 <LogOutIcon aria-hidden />
                 Keluar
@@ -137,18 +141,7 @@ export function ProfilePage() {
           </Panel>
         </div>
       </div>
-      <ConfirmDialog
-        open={confirm}
-        onOpenChange={setConfirm}
-        destructive={false}
-        title="Keluar dari RuangKPR?"
-        body="Draft dan data KPR yang sudah tersimpan tidak dihapus. Kamu bisa masuk lagi dengan kontak yang sama."
-        confirmLabel="Keluar"
-        onConfirm={async () => {
-          await logout()
-          navigate('/register', { replace: true })
-        }}
-      />
+      <LogoutDialog open={confirm} onOpenChange={setConfirm} />
       {blocked ? (
         <ConfirmDialog
           open={del}
@@ -171,7 +164,7 @@ export function ProfilePage() {
             await api.auth.deleteAccount()
             await refresh()
             toast('Akun kamu sudah dihapus.')
-            navigate('/register', { replace: true })
+            navigate('/login', { replace: true })
           }}
         >
           <ul className="-mt-2 list-disc pl-5 text-sm leading-[21px] text-ink-3">

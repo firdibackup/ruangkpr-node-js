@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { deriveMortgage, healthScore, nextMilestone, rateMode } from './derive'
-import { FIXED_PASSED, filledOnly, impliedRate, remainingFromStart, validateLoanStep, validatePropertyStep, validateReminders, withImpliedRate } from './validation'
+import { FIXED_PASSED, filledOnly, impliedRate, paymentMismatch, remainingFromStart, validateLoanStep, validatePropertyStep, validateReminders, withImpliedRate } from './validation'
 import { createSeed } from '@/data/seed'
 
 const today = '2026-09-28'
@@ -34,6 +34,22 @@ describe('mortgage setup validation', () => {
     expect(Object.keys(validateLoanStep(official, { today }))).toEqual(['outstandingPrincipal', 'remainingTenorMonths'])
     expect(validateLoanStep({ ...official, outstandingPrincipal: '700000000', remainingTenorMonths: '183' }, { today }).outstandingPrincipal).toBeTruthy()
     expect(validateLoanStep({ ...official, outstandingPrincipal: '415000000', remainingTenorMonths: '183' }, { today })).toEqual({})
+  })
+
+  it('sisa tenor: an installment due today is still to pay, as in the schedule and the payment tab', () => {
+    const akadSept = { originalTenorMonths: '240', startDate: '2026-09-01', dueDay: '28' }
+    expect(remainingFromStart(akadSept, '2026-10-27')).toBe(239) // 28 Sep paid
+    expect(remainingFromStart(akadSept, '2026-10-28')).toBe(239) // 28 Oct due today
+    expect(remainingFromStart(akadSept, '2026-10-29')).toBe(238)
+  })
+
+  it('bank figures that do not fit the cicilan are flagged with the cicilan they imply', () => {
+    // Expected cicilan: closed-form annuity of 415 jt at 5,5% over 183 months.
+    const bank = { ...loan, knowsOutstanding: 'yes', currentPayment: '2751549', currentRate: '5,50' }
+    expect(paymentMismatch({ ...bank, outstandingPrincipal: '415000000', remainingTenorMonths: '183' })).toBe(3_355_115)
+    expect(paymentMismatch({ ...bank, outstandingPrincipal: '399500000', remainingTenorMonths: '239' })).toBeNull() // 0,1% off: bank rounding
+    expect(paymentMismatch({ ...bank, knowsOutstanding: 'no', outstandingPrincipal: '415000000', remainingTenorMonths: '183' })).toBeNull()
+    expect(paymentMismatch({ ...bank, outstandingPrincipal: '', remainingTenorMonths: '183' })).toBeNull() // not filled in yet
   })
 
   it('step 2 property: details required when filled in, the value may stay empty', () => {

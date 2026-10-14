@@ -25,7 +25,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_…
 SUPABASE_SECRET_KEY=sb_secret_…
 ```
 
-Masuk lewat **Google** atau **kode OTP ke email**. Login pertama kali meminta nama dan persetujuan S&K + Kebijakan Privasi. Akun admin diberi role lewat SQL (lihat `supabase/README.md` langkah 7).
+Masuk dengan **email + password** atau **Google**. Halaman Daftar meminta nama, email, password, dan persetujuan S&K + Kebijakan Privasi; kode 6 digit ke email hanya dipakai untuk verifikasi pendaftaran; **Lupa password** mengirim link yang membuka halaman Buat password baru. Login Google pertama kali meminta nama dan persetujuan di halaman Selamat datang. Password bisa diubah di Profil (staf: tombol Ubah password di admin). Akun admin diberi role lewat SQL (lihat `supabase/README.md` langkah 7).
 
 ## Build production
 

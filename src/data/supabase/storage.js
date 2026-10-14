@@ -60,8 +60,9 @@ export async function removeFiles(bucket, paths) {
   if (list.length) await supabase().storage.from(bucket).remove(list).catch(() => {})
 }
 
-export async function signedUrl(bucket, path) {
-  const { data, error } = await supabase().storage.from(bucket).createSignedUrl(path, 300)
+// `download` (a file name, or true) makes Storage answer with Content-Disposition: attachment.
+export async function signedUrl(bucket, path, download) {
+  const { data, error } = await supabase().storage.from(bucket).createSignedUrl(path, 300, download ? { download } : undefined)
   if (error) throw make('RESOURCE_NOT_FOUND', 'Dokumen tidak ditemukan.', 404)
   return data.signedUrl
 }

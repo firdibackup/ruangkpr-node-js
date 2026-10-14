@@ -17,7 +17,7 @@ import { ErrorPanel, Notice, PageSkeleton, Spinner } from '@/components/shared/u
 import { deriveMortgage } from './derive'
 import { ReminderSettingsForm } from './ReminderSettingsForm'
 import { SETUP_PERCENT, SETUP_STEPS, SETUP_TITLES, setupStepOf } from './setupMeta'
-import { FIXED_PASSED, RATE_AUTO_HINT, impliedRate, remainingFromStart, validateLoanStep, validateReminders, withImpliedRate } from './validation'
+import { FIXED_PASSED, RATE_AUTO_HINT, impliedRate, paymentMismatch, remainingFromStart, validateLoanStep, validateReminders, withImpliedRate } from './validation'
 
 const RETURN = { mykpr: '/my-kpr/overview', home: '/', profile: '/profile', rate: '/my-kpr/rate', explore: '/explore', review: '/monitoring/setup/2' }
 const SCHEMES = [
@@ -222,6 +222,7 @@ function LoanStep({ m, clock, onSaved, editing, backTo, navigate }) {
   const loan = loanPreview(v, clock)
   const impact = floatingPreview(m, v, clock, loan)
   const estimating = v.knowsOutstanding === 'no' && v.scheme !== 'sharia'
+  const mismatch = v.scheme !== 'sharia' && paymentMismatch(v)
   // Live estimates sit in the sidebar so they stay in view (sticky on desktop) while the form is filled.
   // Each estimate pops in when it first appears; the impact one re-pops when its direction flips.
   // reducedMotion "user": transforms are skipped for prefers-reduced-motion, leaving only the fade.
@@ -330,6 +331,11 @@ function LoanStep({ m, clock, onSaved, editing, backTo, navigate }) {
             </>
           )}
         </FormGrid>
+        {mismatch && (
+          <Notice tone="warn" role="note">
+            Cicilan {rupiah(toMoney(v.currentPayment))} tidak cocok dengan sisa pokok, bunga, dan sisa tenor ini (hitungannya sekitar {rupiah(mismatch)}). Cek lagi angka dari bank; jadwal amortisasi mengikuti sisa pokok, bunga, dan sisa tenor.
+          </Notice>
+        )}
         {estimating && !(loan.outstanding > 0) && <p className="text-[13px] text-muted-foreground">Isi cicilan, bunga, tenor awal, dan tanggal akad untuk melihat perkiraan.</p>}
       </Section>
       {error && <Notice tone="bad" role="alert">{error}</Notice>}
@@ -350,7 +356,7 @@ function ReminderStep({ m, clock, reminderDefaults, navigate }) {
   const [error, setError] = useState('')
   const errors = validateReminders(reminders)
   const sections = [
-    { title: 'KPR', to: '/monitoring/setup/1', lines: [`${m.bankName}${m.productName ? ` · ${m.productName}` : ''}`, `Pinjaman awal ${rupiah(m.originalPrincipal)} · ${tenorLabel(m.originalTenorMonths)}`, `Cicilan ${rupiah(m.currentPayment)}/bulan · jatuh tempo tgl ${m.dueDay}`, `Sisa pokok ${m.outstandingPrincipal ? `${rupiah(m.outstandingPrincipal)}${m.outstandingEstimated ? ' (perkiraan)' : ''}` : 'belum dihitung'} · sisa ${m.remainingTenorMonths} bulan`] },
+    { title: 'KPR', to: '/monitoring/setup/1', lines: [`${m.bankName}${m.productName ? ` · ${m.productName}` : ''}`, `Pinjaman awal ${rupiah(m.originalPrincipal)} · ${tenorLabel(m.originalTenorMonths)}`, `Cicilan ${rupiah(m.currentPayment)}/bulan · jatuh tempo tgl ${m.dueDay}`, `Sisa pokok ${m.outstandingPrincipal ? `${rupiah(m.outstandingPrincipal)}${m.outstandingEstimated || m.outstandingProjected ? ' (perkiraan)' : ''}` : 'belum dihitung'} · sisa ${m.remainingTenorMonths} bulan`] },
     { title: 'Bunga', to: '/monitoring/setup/1', lines: m.currentRateType === 'fixed' ? [`Fixed ${percentBps(m.currentRateBps)} sampai ${dateShort(m.fixedUntil)}`, `Estimasi floating ${percentBps(m.estimatedFloatingRateBps)}`] : [`Floating ${percentBps(m.currentRateBps)}`] },
   ]
 

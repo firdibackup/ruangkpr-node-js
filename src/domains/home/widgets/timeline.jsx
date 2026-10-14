@@ -45,8 +45,9 @@ export function FixedCountdownWidget({ m, d }) {
           Sudah floating
         </span>
         <span className="text-[13px] text-muted-foreground">
-          Sejak {dateShort(addDays(m.fixedUntil, 1))} · bunga{" "}
-          {percentBps(m.currentRateBps)}
+          {/* Saved as floating from the start: there is no fixed end date. */}
+          {m.fixedUntil && `Sejak ${dateShort(addDays(m.fixedUntil, 1))} · `}bunga{" "}
+          {percentBps(d.rateBps)}
         </span>
         <Link
           to="/explore"

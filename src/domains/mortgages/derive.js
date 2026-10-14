@@ -45,6 +45,23 @@ export function buildSchedule(m, asOf) {
   }
 }
 
+// Sisa pokok and sisa tenor are saved as of `outstandingAsOf`, the day they were typed or estimated. Pages read them as
+// of today: each installment due since then counts as paid on schedule, so the balance follows the amortization schedule.
+// A payment the user marks is only their own record and never moves it (doc 04 §23). Due today is still to pay.
+export function mortgageAsOf(m, asOf) {
+  // Saved before the date was kept: the activation day, or the akad for a KPR opened by an application.
+  const from = m.outstandingAsOf ?? (m.source === 'application' ? m.startDate : m.activatedAt?.slice(0, 10))
+  if ((m.status !== 'active' && m.status !== 'draft') || !from || !(m.dueDay > 0) || !(m.remainingTenorMonths > 0)) return m
+  let paid = 0
+  for (let due = firstDue(m, from); due < asOf && paid < m.remainingTenorMonths; due = addMonths(due, 1, m.dueDay)) paid++
+  if (!paid) return m
+  // Only the months already due matter here, so without a floating estimate the current rate stands in.
+  const { schedule } = buildSchedule({ ...m, estimatedFloatingRateBps: m.estimatedFloatingRateBps || m.currentRateBps }, from)
+  // Sharia (no annuity formula) or incomplete data: only the tenor counts down.
+  const outstandingPrincipal = schedule ? (schedule.rows[paid]?.openingBalance ?? 0) : m.outstandingPrincipal
+  return { ...m, outstandingPrincipal, remainingTenorMonths: outstandingPrincipal === 0 ? 0 : m.remainingTenorMonths - paid, outstandingAsOf: asOf, outstandingProjected: true }
+}
+
 export function rateMode(m, asOf) {
   // "Belum tahu" in setup: no floating reminder and no made-up "normal" rate score.
   if (!m.currentRateType) return { mode: null, daysUntilFixedEnd: null }
@@ -123,14 +140,19 @@ function paymentWindow(m, asOf, nextDue) {
 }
 
 // `healthConfig`: the published KPR Health version from the snapshot; pages that show no score leave it out.
-export function deriveMortgage(m, asOf, healthConfig) {
+export function deriveMortgage(saved, asOf, healthConfig) {
+  const m = mortgageAsOf(saved, asOf)
   const { mode, daysUntilFixedEnd } = rateMode(m, asOf)
   const nextDue = nextUnpaidDue(m, asOf)
   const { schedule, missing, error, fixedMonths } = buildSchedule(m, asOf)
+  // Once the fixed period is over, the saved cicilan and bunga are still the fixed ones until the user updates them;
+  // what is paid meanwhile is the schedule's installment at the estimated floating rate.
+  const lapsed = mode === 'floating' && m.currentRateType === 'fixed'
+  const payment = lapsed ? schedule?.rows[0].payment ?? m.currentPayment : m.currentPayment
   const f = m.finance ?? {}
   const income = (f.monthlyIncome ?? 0) + (f.jointIncome ? f.partnerIncome ?? 0 : 0)
   const otherDebt = (f.vehicleDebt ?? 0) + (f.cardDebt ?? 0) + (f.otherDebt ?? 0)
-  const dti = income > 0 ? calculateDti({ monthlyIncome: income, mortgagePayment: m.currentPayment, otherMonthlyDebt: otherDebt }) : null
+  const dti = income > 0 ? calculateDti({ monthlyIncome: income, mortgagePayment: payment, otherMonthlyDebt: otherDebt }) : null
   const value = m.property?.estimatedValue ?? null
   const property = value > 0 && m.outstandingPrincipal >= 0 ? calculatePropertyMetrics({ propertyValue: value, outstanding: m.outstandingPrincipal ?? 0 }) : null
   // Unknown (null), not 0%, until both the original principal and today's balance are known.
@@ -156,6 +178,11 @@ export function deriveMortgage(m, asOf, healthConfig) {
     scheduleError: error,
     firstRow: schedule?.rows[0] ?? null,
     estimatedEndDate: schedule?.rows.at(-1).dueDate ?? null,
+    // Cicilan and bunga in effect; `termsEstimated` once they come from the schedule instead of the user.
+    payment,
+    rateBps: lapsed ? schedule?.rows[0].annualRateBps ?? null : m.currentRateBps,
+    previousPayment: lapsed ? m.currentPayment : m.previousFixedPayment ?? null,
+    termsEstimated: lapsed,
     dti,
     income,
     otherDebt,

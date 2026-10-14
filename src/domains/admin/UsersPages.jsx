@@ -1,19 +1,23 @@
 import { useCallback, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { ArrowRightIcon } from 'lucide-react'
 import { api } from '@/data/api'
 import { useForm, useResource } from '@/lib/hooks'
-import { EMPTY, GENDERS, MARITAL, OCCUPATIONS, dateLong, dateShort, labelOf, percentBps, rupiah, toInt, toMoney } from '@/lib/format'
+import { CERTIFICATES, EMPTY, GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES, dateLong, dateShort, daysLabel, labelOf, monthYear, percentBps, percentProgress, percentRatio, rupiah, signedRupiah, tenorLabel, toInt, toMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
-import { FormGrid, SelectField, TextField } from '@/components/shared/fields'
-import { ErrorPanel, PageSkeleton, Panel, PanelTitle, SummaryRows } from '@/components/shared/ui'
+import { DateField, FormGrid, SelectField, TextField } from '@/components/shared/fields'
+import { Chip, ErrorPanel, EstimateTag, Notice, PageSkeleton, Panel, PanelTitle, ProgressBar, StatTile, SummaryRows } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { productName } from '@/domains/applications/meta'
 import { profileFormValues, toPersonal, validatePersonal } from '@/domains/applications/validation'
 import { validateEmploymentBasic } from '@/domains/optimize/validation'
 import { filledOnly } from '@/domains/mortgages/validation'
+import { deriveMortgage } from '@/domains/mortgages/derive'
+import { rateTypeLabel } from '@/domains/mortgages/setupMeta'
 import { IncomeFields, JobFields, PersonalFields } from '@/domains/profile/ProfilePages'
 import { AdminHeader, AuditList, EditDialog, StatusChip } from './shared'
+import { formatValue } from './labels'
 
 const CHOICE = { '': undefined, yes: true, no: false }
 const head = 'text-xs font-bold text-ink-3'
@@ -74,8 +78,22 @@ export function UserListPage() {
 }
 
 const MORTGAGE_STATUS = { active: 'Aktif', draft: 'Setup belum selesai', replaced: 'Diganti (Take Over)', closed: 'Lunas' }
+const mortgageName = (m) => [m.bankName, m.productName].filter(Boolean).join(' · ') || 'KPR'
 const rows = (items, render, empty) => (items.length ? <ul className="flex flex-col">{items.map(render)}</ul> : <p className="text-sm text-muted-foreground">{empty}</p>)
 const row = 'flex items-center justify-between gap-3 border-b border-line py-3 first:pt-0 last:border-b-0 last:pb-0'
+
+// History panels show the latest few; the history page has all of it. KPR events name their KPR, the user's own
+// record never repeats the user's name.
+const PREVIEW = 5
+const kprName = (e) => e.resource.type === 'mortgage' && e.resource.label
+function AllHistory({ to, count, children }) {
+  return (
+    <Link to={to} className="flex min-h-11 w-fit items-center gap-1.5 text-sm font-bold text-primary underline-offset-4 hover:underline">
+      {children} ({count})
+      <ArrowRightIcon className="size-4" aria-hidden />
+    </Link>
+  )
+}
 
 export function UserDetailPage() {
   const { userId } = useParams()
@@ -179,7 +197,13 @@ export function UserDetailPage() {
               (m) => (
                 <li key={m.id} className={row}>
                   <span className="flex min-w-0 flex-col">
-                    <span className="text-sm font-bold">{[m.bankName, m.productName].filter(Boolean).join(' · ')}</span>
+                    {m.status === 'draft' ? (
+                      <span className="text-sm font-bold">{mortgageName(m)}</span>
+                    ) : (
+                      <Link to={`/admin/users/${user.id}/kpr/${m.id}`} className="w-fit text-sm font-bold text-primary underline-offset-4 hover:underline">
+                        {mortgageName(m)}
+                      </Link>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       Sisa pokok {rupiah(m.outstandingPrincipal)} · cicilan {rupiah(m.currentPayment)} · {m.currentRateType === 'floating' ? 'floating' : 'fixed'} {percentBps(m.currentRateBps)}
                     </span>
@@ -191,8 +215,13 @@ export function UserDetailPage() {
             )}
           </Panel>
           <Panel>
-            <PanelTitle>Riwayat perubahan</PanelTitle>
-            <AuditList events={data.audit} label="Riwayat perubahan" subject={false} empty="Belum ada perubahan oleh admin." />
+            <PanelTitle sub="Oleh admin (dengan alasan) dan oleh user sendiri.">Riwayat perubahan</PanelTitle>
+            <AuditList events={data.audit.slice(0, PREVIEW)} label="Riwayat perubahan" subject={kprName} values empty="Belum ada perubahan." />
+            {data.audit.length > PREVIEW && (
+              <AllHistory to={`/admin/users/${user.id}/riwayat`} count={data.audit.length}>
+                Lihat semua riwayat
+              </AllHistory>
+            )}
           </Panel>
         </div>
       </div>
@@ -205,6 +234,279 @@ export function UserDetailPage() {
           onSaved={(next) => saved(next, `Keuangan tersimpan. ${next.recalculated.includes('health') ? 'DTI dan KPR Health' : 'DTI'} user dihitung ulang dari data baru.`)}
         />
       )}
+    </>
+  )
+}
+
+const SOURCE = { monitoring: 'Pantau KPR', application: 'Dari pengajuan' }
+const months = (n) => (n ? `${n} bulan (${tenorLabel(n)})` : EMPTY)
+const link = 'text-primary underline-offset-4 hover:underline'
+
+// Read-only: everything the user entered for one KPR plus what My KPR derives from it, on the user's figures.
+export function UserMortgagePage() {
+  const { userId, mortgageId } = useParams()
+  const { data, error, reload } = useResource(() => api.admin.users.get(userId), [userId])
+  const back = `/admin/users/${userId}`
+  // Drafts are not linked: schedule and due dates need data the setup has not collected yet.
+  const m = data?.mortgages.find((x) => x.id === mortgageId && x.status !== 'draft')
+  if (!m) {
+    const missing = data || error?.code === 'RESOURCE_NOT_FOUND'
+    return (
+      <>
+        <AdminHeader title="Detail KPR" back={back} />
+        {missing ? <ErrorPanel title="KPR tidak ditemukan." message="KPR ini mungkin sudah dihapus atau pengaturannya belum selesai." /> : error ? <ErrorPanel onRetry={reload} /> : <PageSkeleton />}
+      </>
+    )
+  }
+  const d = deriveMortgage(m, data.asOf, data.health)
+  const s = d.schedule
+  const p = m.property ?? {}
+  const f = m.finance ?? {}
+  const r = m.reminders
+  const fi = d.floatingImpact
+  const history = data.audit.filter((e) => e.resource.type === 'mortgage' && e.resource.id === m.id)
+  return (
+    <>
+      <AdminHeader title={mortgageName(m)} subtitle={`${data.user.name} · KPR ${m.scheme === 'sharia' ? 'Syariah' : 'Konvensional'}`} back={back} actions={<Chip tone={m.status === 'active' ? 'ok' : 'mute'}>{MORTGAGE_STATUS[m.status] ?? m.status}</Chip>} />
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <Panel>
+            <PanelTitle sub={`Dari data yang diisi user, dihitung per ${dateLong(data.asOf)}.`}>Ringkasan</PanelTitle>
+            <div className="flex flex-col gap-2">
+              <span className="flex items-center gap-2 text-[13px] font-extrabold text-ink-3">Sisa pokok {(m.outstandingEstimated || m.outstandingProjected) && <EstimateTag />}</span>
+              <span className="text-[30px] font-extrabold tracking-[-0.6px] tabular">{rupiah(m.outstandingPrincipal)}</span>
+              {d.paidRatio == null ? (
+                <span className="text-sm text-muted-foreground">Progres pelunasan belum diketahui.</span>
+              ) : (
+                <>
+                  <ProgressBar value={d.paidRatio * 100} label="Progres pokok lunas" />
+                  <span className="text-sm font-bold text-primary">{percentProgress(d.paidRatio)} lunas</span>
+                </>
+              )}
+            </div>
+            <SummaryRows
+              rows={[
+                { k: 'Sumber', v: m.applicationId ? <Link to={`/admin/applications/${m.applicationId}`} className={link}>Dari pengajuan</Link> : (SOURCE[m.source] ?? EMPTY) },
+                { k: 'Pinjaman awal', v: rupiah(m.originalPrincipal) },
+                { k: 'Cicilan saat ini', v: rupiah(m.currentPayment) },
+                m.previousFixedPayment && { k: 'Cicilan saat fixed', v: rupiah(m.previousFixedPayment) },
+                { k: 'Tenor awal', v: months(m.originalTenorMonths) },
+                { k: 'Sisa tenor', v: months(m.remainingTenorMonths) },
+                { k: 'Mulai (akad)', v: dateLong(m.startDate) },
+                { k: 'Jatuh tempo', v: m.dueDay ? `Setiap tanggal ${m.dueDay}` : EMPTY },
+                m.status === 'active' && { k: 'Pembayaran berikutnya', v: `${dateLong(d.nextDue)} · ${daysLabel(d.daysToNextDue)}` },
+                { k: 'Estimasi lunas', v: monthYear(d.estimatedEndDate) },
+                { k: 'Diaktifkan', v: dateLong(m.activatedAt) },
+                m.updatedAt && { k: 'Terakhir diubah', v: dateLong(m.updatedAt) },
+              ]}
+            />
+          </Panel>
+          <Panel>
+            <PanelTitle>Bunga</PanelTitle>
+            <SummaryRows
+              rows={[
+                { k: 'Bunga saat ini', v: m.currentRateBps ? `${percentBps(m.currentRateBps)} ${rateTypeLabel(m.currentRateType)}` : rateTypeLabel(m.currentRateType) },
+                m.fixedUntil && { k: 'Fixed berakhir', v: `${dateLong(m.fixedUntil)}${d.daysUntilFixedEnd > 0 ? ` · ${daysLabel(d.daysUntilFixedEnd)}` : ''}` },
+                d.mode !== 'floating' && { k: 'Estimasi floating', v: percentBps(m.estimatedFloatingRateBps), tag: m.estimatedFloatingRateBps > 0 && <EstimateTag /> },
+                fi && { k: 'Dampak cicilan', v: `${rupiah(fi.currentPayment)} → ${rupiah(fi.estimatedNextPayment)} (${signedRupiah(fi.monthlyDelta)}/bln)`, tag: <EstimateTag /> },
+              ]}
+            />
+            <h3 className="text-sm font-extrabold">Riwayat periode bunga</h3>
+            {rows(
+              m.rateHistory ?? [],
+              (h) => (
+                <li key={h.id} className={row}>
+                  <span className="text-sm font-bold">
+                    {rateTypeLabel(h.type)} {percentBps(h.rateBps)}
+                  </span>
+                  <span className="text-xs text-muted-foreground tabular">
+                    {dateShort(h.startDate)} – {h.endDate ? dateShort(h.endDate) : 'sekarang'}
+                  </span>
+                </li>
+              ),
+              'Belum ada perubahan periode bunga.',
+            )}
+          </Panel>
+        </div>
+        <div className="flex min-w-0 flex-col gap-6">
+          <Panel>
+            <PanelTitle sub={`Formula versi ${d.health.version}. Bukan skor kredit bank.`}>KPR Health</PanelTitle>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[30px] font-extrabold tabular">
+                {d.health.score ?? '–'}
+                <span className="text-sm font-semibold text-ink-3"> / 100</span>
+              </span>
+              <Chip tone={d.health.tone}>{d.health.partial && d.health.score != null ? `${d.health.label} · parsial` : d.health.label}</Chip>
+            </div>
+            <SummaryRows rows={d.health.components.map((c) => ({ k: c.name, v: c.score ?? 'Belum dapat dihitung', tone: c.tone }))} />
+          </Panel>
+          <Panel>
+            <PanelTitle sub="Salinan keuangan di KPR ini; ikut berubah lewat Ubah keuangan di profil user.">Keuangan & DTI</PanelTitle>
+            <SummaryRows
+              rows={[
+                { k: 'Penghasilan bulanan', v: rupiah(f.monthlyIncome) },
+                f.jointIncome && { k: 'Penghasilan pasangan', v: rupiah(f.partnerIncome) },
+                { k: 'Cicilan KPR', v: rupiah(m.currentPayment) },
+                { k: 'Cicilan lain per bulan', v: rupiah(d.otherDebt) },
+                { k: 'DTI', v: percentRatio(d.dti?.dtiRatio) },
+              ]}
+            />
+          </Panel>
+          <Panel>
+            <PanelTitle sub="Nilai properti diisi user, bukan appraisal resmi.">Properti</PanelTitle>
+            <SummaryRows
+              rows={[
+                { k: 'Alamat', v: p.address || EMPTY },
+                { k: 'Kota / kabupaten', v: p.city || EMPTY },
+                { k: 'Jenis', v: p.type ? labelOf(PROPERTY_TYPES, p.type) : EMPTY },
+                { k: 'Luas tanah / bangunan', v: p.landArea || p.buildingArea ? `${p.landArea ?? '–'} / ${p.buildingArea ?? '–'} m²` : EMPTY },
+                { k: 'Sertifikat', v: p.certificateType ? labelOf(CERTIFICATES, p.certificateType) : EMPTY },
+                { k: 'Pemilik sertifikat', v: p.certificateOwner || EMPTY },
+                { k: 'Sedang bersengketa', v: p.disputed == null ? EMPTY : p.disputed ? 'Ya' : 'Tidak', tone: p.disputed ? 'warn' : undefined },
+                { k: 'Estimasi nilai', v: rupiah(p.estimatedValue), tag: p.estimatedValue > 0 && <EstimateTag /> },
+                { k: 'Nilai per', v: dateLong(p.valueAsOf) },
+                { k: 'Estimasi equity', v: rupiah(d.property?.equity), tone: d.property ? (d.property.equity >= 0 ? 'ok' : 'bad') : undefined },
+                { k: 'LTV', v: percentRatio(d.property?.ltvRatio), tone: d.property?.ltvRatio > 1 ? 'bad' : undefined },
+              ]}
+            />
+          </Panel>
+          <Panel>
+            <PanelTitle sub="Ditandai sendiri oleh user, tidak dikonfirmasi bank.">Pembayaran</PanelTitle>
+            {rows(
+              [...(m.payments ?? [])].sort((a, b) => b.dueDate.localeCompare(a.dueDate)),
+              (x) => (
+                <li key={x.id} className={row}>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="text-sm font-bold">Jatuh tempo {dateShort(x.dueDate)}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      Dibayar {dateShort(x.paidAt)}
+                      {x.proof && ` · bukti ${x.proof.fileName}`}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-sm font-extrabold tabular">{rupiah(x.amount)}</span>
+                </li>
+              ),
+              'Belum ada pembayaran yang ditandai.',
+            )}
+          </Panel>
+          <Panel>
+            <PanelTitle>Reminder</PanelTitle>
+            <SummaryRows
+              rows={[
+                { k: 'Jatuh tempo cicilan', v: formatValue('reminders.payment', r?.payment ?? []) },
+                { k: 'Akhir masa fixed', v: formatValue('reminders.fixedExpiry', r?.fixedExpiry ?? []) },
+                { k: 'Channel', v: formatValue('reminders.channels', r?.channels ?? {}) },
+              ]}
+            />
+          </Panel>
+          <Panel>
+            <PanelTitle sub="Perubahan yang dilakukan user sendiri, termasuk tanda pembayaran.">Riwayat perubahan KPR</PanelTitle>
+            <AuditList events={history.slice(0, PREVIEW)} label="Riwayat perubahan KPR" subject={false} values empty="Belum ada perubahan dari user." />
+            {history.length > PREVIEW && (
+              <AllHistory to={`${back}/riwayat?jenis=kpr`} count={history.length}>
+                Lihat semua riwayat KPR
+              </AllHistory>
+            )}
+          </Panel>
+        </div>
+      </div>
+      <Panel>
+        <PanelTitle sub="Proyeksi anuitas dari sisa pokok hari ini. Bunga floating selalu estimasi.">Jadwal amortisasi</PanelTitle>
+        {s ? (
+          <>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <StatTile label="Total cicilan" value={rupiah(s.totals.payment)} />
+              <StatTile label="Total pokok" value={rupiah(s.totals.principal)} />
+              <StatTile label="Total bunga" value={rupiah(s.totals.interest)} />
+              <StatTile label="Periode" value={`${monthYear(s.rows[0].dueDate)} – ${monthYear(s.rows.at(-1).dueDate)}`} />
+            </div>
+            <Table aria-label="Jadwal amortisasi per tahun" className="tabular">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  {['Tahun', 'Suku bunga', 'Cicilan', 'Pokok', 'Bunga', 'Sisa pokok'].map((h, i) => (
+                    <TableHead key={h} className={`${head} ${i > 1 ? 'text-right' : ''}`}>
+                      {h}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {s.yearly.map((y) => (
+                  <TableRow key={y.year}>
+                    <TableCell className="py-2.5 font-bold">{y.year}</TableCell>
+                    <TableCell className={`py-2.5 ${y.containsEstimate ? 'text-warning-text' : 'text-ink-2'}`}>
+                      {y.minRateBps === y.maxRateBps ? percentBps(y.minRateBps) : `${percentBps(y.minRateBps)}–${percentBps(y.maxRateBps)}`}
+                      {y.containsEstimate && '*'}
+                    </TableCell>
+                    {['payment', 'principal', 'interest', 'closingBalance'].map((k) => (
+                      <TableCell key={k} className="py-2.5 text-right">
+                        {rupiah(y[k])}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {s.yearly.some((y) => y.containsEstimate) && <p className="text-xs text-muted-foreground">* Memakai estimasi bunga floating.</p>}
+          </>
+        ) : (
+          <Notice tone="muted">{d.scheduleError ? `Jadwal tidak dapat dihitung: ${d.scheduleError.message}` : `Belum dapat dihitung. Data yang belum tersedia: ${d.scheduleMissing.join(', ')}.`}</Notice>
+        )}
+      </Panel>
+    </>
+  )
+}
+
+// Admin edits and the user's own, by kind; anything that is not profile or finance is the KPR (data, activation, payments).
+const KIND = { profile: 'profile', 'user.profile.update': 'profile', finance: 'finance', 'user.finance.update': 'finance' }
+const KINDS = [
+  { value: 'profile', label: 'Profil' },
+  { value: 'finance', label: 'Keuangan' },
+  { value: 'kpr', label: 'KPR & pembayaran' },
+]
+const BY = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'user', label: 'User' },
+]
+const FILTERS = ['jenis', 'oleh', 'dari', 'sampai']
+
+// Every change to one user's data, filterable. Filters live in the URL, so the KPR page can link to its own part.
+export function UserHistoryPage() {
+  const { userId } = useParams()
+  const [params, setParams] = useSearchParams()
+  const { data, error, reload } = useResource(() => api.admin.users.get(userId), [userId])
+  const back = `/admin/users/${userId}`
+  if (!data) {
+    return (
+      <>
+        <AdminHeader title="Riwayat perubahan" back={back} />
+        {error ? <ErrorPanel onRetry={reload} title={error.code === 'RESOURCE_NOT_FOUND' ? 'User tidak ditemukan.' : undefined} message={error.code === 'RESOURCE_NOT_FOUND' ? 'Akun ini mungkin sudah dihapus.' : undefined} /> : <PageSkeleton />}
+      </>
+    )
+  }
+  const f = Object.fromEntries(FILTERS.map((k) => [k, params.get(k) ?? '']))
+  const set = (k) => (v) => setParams(Object.fromEntries(Object.entries({ ...f, [k]: v }).filter(([, x]) => x)), { replace: true })
+  const day = (e) => e.occurredAt.slice(0, 10) // same day rule as the Audit Log filter
+  const items = data.audit.filter(
+    (e) =>
+      (!f.jenis || (KIND[e.action] ?? 'kpr') === f.jenis) &&
+      (!f.oleh || (e.actor.role === 'user' ? 'user' : 'admin') === f.oleh) &&
+      (!f.dari || day(e) >= f.dari) &&
+      (!f.sampai || day(e) <= f.sampai),
+  )
+  return (
+    <>
+      <AdminHeader title="Riwayat perubahan" subtitle={`${data.user.name} · oleh admin dan oleh user sendiri, terbaru di atas`} back={back} />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <SelectField label="Jenis" placeholder="Semua" value={f.jenis} onChange={set('jenis')} options={KINDS} />
+        <SelectField label="Oleh" placeholder="Semua" value={f.oleh} onChange={set('oleh')} options={BY} />
+        <DateField label="Dari" value={f.dari} onChange={set('dari')} />
+        <DateField label="Sampai" value={f.sampai} onChange={set('sampai')} />
+      </div>
+      <Panel>
+        <p className="text-sm font-semibold text-ink-3">{items.length} catatan</p>
+        <AuditList events={items} label="Riwayat perubahan" subject={kprName} values withTime empty={FILTERS.some((k) => f[k]) ? 'Tidak ada perubahan yang cocok dengan filter ini.' : 'Belum ada perubahan.'} />
+      </Panel>
     </>
   )
 }

@@ -1,5 +1,5 @@
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ChartColumnIcon, FileStackIcon, LandmarkIcon, LayoutDashboardIcon, LogOutIcon, NewspaperIcon, ScrollTextIcon, ShieldAlertIcon, SlidersHorizontalIcon, UsersIcon } from 'lucide-react'
+import { ChartColumnIcon, FileStackIcon, KeyRoundIcon, LandmarkIcon, LayoutDashboardIcon, LogOutIcon, NewspaperIcon, ScrollTextIcon, ShieldAlertIcon, SlidersHorizontalIcon, UsersIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { initials } from '@/lib/format'
 import { useRouteFocus } from '@/lib/hooks'
@@ -60,7 +60,7 @@ export function AdminLayout() {
 
   const signOut = async () => {
     await logout()
-    navigate('/register', { replace: true })
+    navigate('/login', { replace: true })
   }
 
   return (
@@ -81,9 +81,14 @@ export function AdminLayout() {
         <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between px-4 py-3">
             <Brand compact tagline={staff.label} />
-            <button type="button" onClick={signOut} aria-label="Keluar admin" className="flex size-11 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted">
-              <LogOutIcon className="size-5" aria-hidden />
-            </button>
+            <div className="flex gap-2">
+              <Link to="/admin/password" aria-label="Ubah password" className="flex size-11 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted">
+                <KeyRoundIcon className="size-5" aria-hidden />
+              </Link>
+              <button type="button" onClick={signOut} aria-label="Keluar admin" className="flex size-11 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted">
+                <LogOutIcon className="size-5" aria-hidden />
+              </button>
+            </div>
           </div>
           <nav aria-label="Navigasi admin" className="flex gap-1.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {mine.map((item) => (
@@ -103,6 +108,10 @@ export function AdminLayout() {
                   <span className="text-xs text-muted-foreground">{staff.label}</span>
                 </span>
               </span>
+              <Button variant="neutral" size="sm" onClick={() => navigate('/admin/password')}>
+                <KeyRoundIcon aria-hidden />
+                Ubah password
+              </Button>
               <Button variant="neutral" size="sm" onClick={signOut}>
                 <LogOutIcon aria-hidden />
                 Keluar admin

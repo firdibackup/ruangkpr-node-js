@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { api } from "@/data/api";
 import { addDays } from "@/calculations/dates";
+import { useResource } from "@/lib/hooks";
 import {
   daysLabel,
   percentBps,
@@ -52,6 +53,8 @@ export function MonitoringDashboard({
   const [marking, setMarking] = useState(false);
   const [askIncome, setAskIncome] = useState(false);
   const [askProperty, setAskProperty] = useState(false);
+  // Peluang's figures; the board reads them too, to drop the card when there is no potential.
+  const explore = useResource(() => api.explore.get(), [m.id, m.version]);
   const fi = d.floatingImpact;
   const pay = d.paymentAlert;
   // "Tetap di bank" hides the warning until the next milestone.
@@ -212,13 +215,13 @@ export function MonitoringDashboard({
           </div>
           <dl className="flex flex-col rounded-[18px] bg-white/12 px-5 py-2">
             {[
-              ["Bunga saat ini", percentBps(m.currentRateBps)],
-              ["Cicilan saat ini", rupiah(m.currentPayment)],
-              ...(m.previousFixedPayment
+              ["Bunga saat ini", percentBps(d.rateBps)],
+              ["Cicilan saat ini", rupiah(d.payment)],
+              ...(d.previousPayment
                 ? [
                     [
                       "Perubahan dari fixed",
-                      `${signedRupiah(m.currentPayment - m.previousFixedPayment)}/bln`,
+                      `${signedRupiah(d.payment - d.previousPayment)}/bln`,
                     ],
                   ]
                 : []),
@@ -244,6 +247,7 @@ export function MonitoringDashboard({
           m,
           d,
           clock,
+          explore,
           onAskIncome: () => setAskIncome(true),
           onAskProperty: () => setAskProperty(true),
           onOpenPrograms: openPrograms,
@@ -279,6 +283,7 @@ export function MonitoringDashboard({
         <MarkPaidDialog
           onOpenChange={() => setMarking(false)}
           m={m}
+          payment={d.payment}
           dueOptions={d.payableDues}
           initialDue={pay?.due ?? d.nextDue}
           clock={clock}

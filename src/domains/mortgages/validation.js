@@ -1,6 +1,6 @@
 // Pure validators for the monitoring setup (doc 02 MON-01…MON-05). Values are form strings.
 import { countDueDatesBetween } from '@/calculations/dates'
-import { solveAnnualRateBps } from '@/calculations/finance'
+import { calculateAnnuityPayment, solveAnnualRateBps } from '@/calculations/finance'
 import { bpsInput, toBps, toInt, toMoney } from '@/lib/format'
 
 const minLen = (v, n) => String(v ?? '').trim().length >= n
@@ -38,6 +38,23 @@ export function impliedRate(v, rateType) {
     return annualRateBps > 0 ? bpsInput(annualRateBps) : ''
   } catch {
     return ''
+  }
+}
+
+// Bank figures whose cicilan does not fit sisa pokok, bunga and sisa tenor (more than 5% off the annuity they imply):
+// the cicilan they imply, for a warning. The schedule follows those figures, the header the typed cicilan. Null if they fit.
+export function paymentMismatch(v) {
+  if (v.knowsOutstanding !== 'yes') return null
+  const principal = toMoney(v.outstandingPrincipal)
+  const termMonths = toInt(v.remainingTenorMonths)
+  const annualRateBps = toBps(v.currentRate)
+  const payment = toMoney(v.currentPayment)
+  if (!(principal > 0) || !(termMonths > 0) || !(annualRateBps > 0) || !(payment > 0)) return null
+  try {
+    const implied = calculateAnnuityPayment({ principal, annualRateBps, termMonths }).payment
+    return Math.abs(payment - implied) > implied * 0.05 ? implied : null
+  } catch {
+    return null // still being typed
   }
 }
 

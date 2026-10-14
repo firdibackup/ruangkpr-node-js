@@ -42,8 +42,30 @@ function CatalogTabs() {
 }
 
 export function ProductListPage() {
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState('published')
+  const [selected, setSelected] = useState([])
+  const [bulk, setBulk] = useState(null)
+  const [reason, setReason] = useState('')
   const { data, error, reload } = useResource(() => api.admin.products.list({ status: status || undefined }), [status])
+  const picked = data?.filter((p) => selected.includes(p.id)) ?? []
+  const targets = { publish: picked.filter((p) => p.status === 'draft' || p.hasPendingRevision), archive: picked.filter((p) => p.status !== 'archived') }
+  const toggle = (id) => (on) => setSelected((s) => (on ? [...s, id] : s.filter((x) => x !== id)))
+  // One call per product, in turn: each keeps its own version check and audit entry. Failures stay selected.
+  const runBulk = async () => {
+    const failed = []
+    for (const p of targets[bulk]) {
+      try {
+        await api.admin.products[bulk](p.id, { reason, expectedVersion: p.rev })
+      } catch (e) {
+        failed.push({ p, message: e.message })
+      }
+    }
+    const done = targets[bulk].length - failed.length
+    const verb = bulk === 'publish' ? 'diterbitkan' : 'diarsipkan'
+    toast(failed.length ? `${done} dari ${targets[bulk].length} produk ${verb}.` : `${done} produk ${verb}.`, failed.length ? { description: failed.map((x) => `${x.p.name}: ${x.message}`).join(' ') } : undefined)
+    setSelected(failed.map((x) => x.p.id))
+    reload()
+  }
   return (
     <>
       <AdminHeader
@@ -60,19 +82,50 @@ export function ProductListPage() {
       />
       <CatalogTabs />
       <div className="max-w-xs">
-        <SelectField label="Status" placeholder="Semua" value={status} onChange={setStatus} options={Object.entries(PRODUCT_STATUS).map(([value, [label]]) => ({ value, label }))} />
+        <SelectField
+          label="Status"
+          placeholder="Semua"
+          value={status}
+          onChange={(v) => {
+            setStatus(v)
+            setSelected([])
+          }}
+          options={Object.entries(PRODUCT_STATUS).map(([value, [label]]) => ({ value, label }))}
+        />
       </div>
       {!data && error && <ErrorPanel onRetry={reload} />}
       {!data && !error && <PageSkeleton />}
       {data && (
         <Panel>
-          <p className="text-sm font-semibold text-ink-3">{data.length} produk</p>
+          <div className="flex min-h-11 flex-wrap items-center gap-3">
+            <p className="text-sm font-semibold text-ink-3">{picked.length ? `${picked.length} dari ${data.length} produk dipilih` : `${data.length} produk`}</p>
+            {picked.length > 0 && (
+              <>
+                {targets.publish.length > 0 && (
+                  <Button size="sm" onClick={() => setBulk('publish')}>
+                    Terbitkan ({targets.publish.length})
+                  </Button>
+                )}
+                {targets.archive.length > 0 && (
+                  <Button size="sm" variant="destructive-soft" onClick={() => setBulk('archive')}>
+                    Arsipkan ({targets.archive.length})
+                  </Button>
+                )}
+                <Button size="sm" variant="neutral" onClick={() => setSelected([])}>
+                  Batal pilih
+                </Button>
+              </>
+            )}
+          </div>
           {data.length === 0 ? (
             <p className="text-sm text-muted-foreground">Tidak ada produk dengan status ini.</p>
           ) : (
             <Table aria-label="Daftar produk">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-11">
+                    <CheckboxField label={<span className="sr-only">Pilih semua produk</span>} checked={picked.length === data.length} onChange={(on) => setSelected(on ? data.map((p) => p.id) : [])} />
+                  </TableHead>
                   <TableHead className={head}>Produk</TableHead>
                   <TableHead className={head}>Jenis</TableHead>
                   <TableHead className={head}>Status</TableHead>
@@ -82,7 +135,10 @@ export function ProductListPage() {
               </TableHeader>
               <TableBody>
                 {data.map((p) => (
-                  <TableRow key={p.id}>
+                  <TableRow key={p.id} data-state={selected.includes(p.id) ? 'selected' : undefined}>
+                    <TableCell className="py-3">
+                      <CheckboxField label={<span className="sr-only">Pilih {p.name}</span>} checked={selected.includes(p.id)} onChange={toggle(p.id)} />
+                    </TableCell>
                     <TableCell className="min-w-52 py-3 whitespace-normal">
                       <span className="flex flex-col">
                         <Link to={`/admin/products/${p.id}`} className="w-fit font-bold text-primary underline-offset-4 hover:underline">
@@ -122,6 +178,23 @@ export function ProductListPage() {
           )}
         </Panel>
       )}
+      <ConfirmDialog
+        open={bulk !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBulk(null)
+            setReason('')
+          }
+        }}
+        destructive={bulk === 'archive'}
+        title={bulk === 'archive' ? `Arsipkan ${targets.archive.length} produk?` : `Terbitkan ${targets.publish.length} produk?`}
+        body={bulk === 'archive' ? 'Produk berhenti tampil di pencocokan. Pengajuan yang sudah memilihnya tidak berubah.' : 'Produk langsung dipakai pencocokan program untuk semua user. Produk yang datanya belum lengkap dilewati.'}
+        confirmLabel={bulk === 'archive' ? 'Ya, arsipkan' : 'Ya, terbitkan'}
+        confirmDisabled={reason.trim().length < 5}
+        onConfirm={runBulk}
+      >
+        <TextAreaField label="Alasan" required rows={2} value={reason} onChange={setReason} hint="Masuk ke audit log setiap produk (minimal 5 karakter)." />
+      </ConfirmDialog>
     </>
   )
 }

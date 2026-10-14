@@ -6,8 +6,14 @@ const make = (code, message, status, extra = {}) => new ApiError({ code, message
 const offline = () => make('SERVICE_UNAVAILABLE', 'Koneksi bermasalah. Periksa koneksi lalu coba lagi.', 503, { retryable: true })
 const SESSION_ENDED = ['AUTH_REQUIRED', 'Sesi berakhir. Silakan masuk lagi.', 401]
 const GOOGLE_OFF = ['SERVICE_UNAVAILABLE', 'Masuk dengan Google belum tersedia.', 503]
+const EMAIL_TAKEN = ['EMAIL_TAKEN', 'Email ini sudah terdaftar. Masuk atau pakai Lupa password.', 409]
 
 const AUTH = {
+  invalid_credentials: ['INVALID_CREDENTIALS', 'Email atau password salah.', 400],
+  weak_password: ['VALIDATION_FAILED', 'Password minimal 8 karakter dan berisi huruf serta angka.', 422],
+  same_password: ['VALIDATION_FAILED', 'Password baru harus berbeda dari password lama.', 422],
+  user_already_exists: EMAIL_TAKEN,
+  email_exists: EMAIL_TAKEN,
   otp_expired: ['OTP_INVALID', 'Kode salah atau kedaluwarsa. Coba lagi atau kirim ulang kode.', 401],
   over_email_send_rate_limit: ['RATE_LIMITED', 'Terlalu sering meminta kode. Tunggu sebentar lalu coba lagi.', 429],
   over_request_rate_limit: ['RATE_LIMITED', 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.', 429],

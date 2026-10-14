@@ -90,12 +90,12 @@ export function createSupabaseApi() {
     ...base.admin,
     applications: {
       ...base.admin.applications,
-      // A 5-minute signed link to the stored file (admin dashboard: verify the document).
+      // A 5-minute signed link that downloads the stored file under its original name (admin: verify the document).
       async documentUrl(id, documentType) {
         const detail = await base.admin.applications.get(id)
-        const path = detail.application.documents.find((d) => d.type === documentType)?.file?.path
-        if (!path) throw new ApiError({ code: 'RESOURCE_NOT_FOUND', message: 'File dokumen tidak ditemukan.' }, { status: 404 })
-        return signedUrl(DOCS_BUCKET, path)
+        const file = detail.application.documents.find((d) => d.type === documentType)?.file
+        if (!file?.path) throw new ApiError({ code: 'RESOURCE_NOT_FOUND', message: 'File dokumen tidak ditemukan.' }, { status: 404 })
+        return signedUrl(DOCS_BUCKET, file.path, file.fileName || true)
       },
     },
   }

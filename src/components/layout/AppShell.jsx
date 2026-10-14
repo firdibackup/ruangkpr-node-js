@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom'
-import { ActivityIcon, ArrowLeftIcon, BellIcon, CompassIcon, HouseIcon, LandmarkIcon, UserRoundIcon } from 'lucide-react'
+import { DropdownMenu } from 'radix-ui'
+import { ActivityIcon, ArrowLeftIcon, BellIcon, ChevronDownIcon, CompassIcon, HouseIcon, LandmarkIcon, LogOutIcon, UserRoundIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/data/api'
+import { ConfirmDialog } from '@/components/shared/dialogs'
 import { useSession } from '@/domains/session/SessionProvider'
 import { firstName, initials } from '@/lib/format'
 import { useRouteFocus } from '@/lib/hooks'
@@ -111,10 +113,33 @@ export function AppShell() {
   )
 }
 
-// Page title row (artifact): optional back, crumb, title/subtitle, notification + profile chips on desktop.
+// Sign-out confirmation, shared by the Profile page and the desktop profile menu.
+export function LogoutDialog({ open, onOpenChange }) {
+  const navigate = useNavigate()
+  const { logout } = useSession()
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      destructive={false}
+      title="Keluar dari RuangKPR?"
+      body="Draft dan data KPR yang sudah tersimpan tidak dihapus. Kamu bisa masuk lagi dengan email dan password yang sama."
+      confirmLabel="Keluar"
+      onConfirm={async () => {
+        await logout()
+        navigate('/login', { replace: true })
+      }}
+    />
+  )
+}
+
+const menuItem = 'flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl px-3 text-sm font-semibold outline-none select-none data-[highlighted]:bg-muted'
+
+// Page title row (artifact): optional back, crumb, title/subtitle, notification + profile menu on desktop.
 export function PageHeader({ title, subtitle, back, crumb, actions }) {
   const navigate = useNavigate()
   const { session } = useSession()
+  const [logoutOpen, setLogoutOpen] = useState(false)
   const name = session?.user?.name
   const unread = useOutletContext()?.unread ?? 0
   return (
@@ -137,12 +162,28 @@ export function PageHeader({ title, subtitle, back, crumb, actions }) {
           <BellIcon className="size-5" aria-hidden />
           {unread > 0 && <span className="absolute top-2 right-2 size-2.5 rounded-full bg-brand-red" />}
         </NavLink>
-        <NavLink to="/profile" className="hidden items-center gap-2.5 rounded-full border border-border bg-card py-1.5 pr-3.5 pl-1.5 hover:bg-muted lg:flex">
-          <span className="flex size-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-white" aria-hidden>
-            {initials(name)}
-          </span>
-          <span className="text-sm font-semibold">{firstName(name) || 'Profil'}</span>
-        </NavLink>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger className="hidden items-center gap-2.5 rounded-full border border-border bg-card py-1.5 pr-3 pl-1.5 hover:bg-muted data-[state=open]:bg-muted lg:flex">
+            <span className="flex size-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-white" aria-hidden>
+              {initials(name)}
+            </span>
+            <span className="text-sm font-semibold">{firstName(name) || 'Profil'}</span>
+            <ChevronDownIcon className="size-4 text-muted-foreground" aria-hidden />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content align="end" sideOffset={8} className="z-50 flex min-w-48 flex-col gap-0.5 rounded-2xl border border-border bg-card p-1.5 text-foreground shadow-pop data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
+              <DropdownMenu.Item className={menuItem} onSelect={() => navigate('/profile')}>
+                <UserRoundIcon className="size-4" aria-hidden />
+                Lihat Profil
+              </DropdownMenu.Item>
+              <DropdownMenu.Item className={cn(menuItem, 'text-danger')} onSelect={() => setLogoutOpen(true)}>
+                <LogOutIcon className="size-4" aria-hidden />
+                Keluar
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+        <LogoutDialog open={logoutOpen} onOpenChange={setLogoutOpen} />
       </div>
     </div>
   )

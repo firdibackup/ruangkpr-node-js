@@ -220,6 +220,93 @@ test('penghasilan from the Home pop-up fills Take Over; data the setup no longer
   await expect(page).toHaveURL(/optimize\/7/)
 })
 
+// The demo keeps its own clock (Supabase mode reads the real date): move it as if days passed.
+async function setClock(page, date) {
+  await page.evaluate((d) => {
+    const key = 'ruangkpr:prototype:v1'
+    localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key)), clock: d }))
+  }, date)
+  await page.reload()
+}
+
+test('sisa pokok: a payment mark changes nothing, a passed due date lowers it on every tab, labelled estimasi', async ({ page }) => {
+  await useScenario(page, 'mortgage_active_normal', '/my-kpr/payment')
+  // 22 Oct marked on 28 Sep: still to come, so the bank's figure stays.
+  await page.getByRole('button', { name: 'Tandai Sudah Dibayar' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Tandai pembayaran' })
+  await dialog.getByRole('button', { name: 'Simpan' }).click()
+  await expect(dialog).toHaveCount(0)
+  await page.getByRole('tab', { name: 'Overview' }).click()
+  const summary = page.getByRole('region', { name: 'Ringkasan KPR' })
+  await expect(summary).toContainText('Rp517.584.453')
+  await expect(summary).toContainText('187 bulan')
+  await expect(summary).toContainText('Apr 2042')
+  await expect(summary.getByText('estimasi', { exact: true })).toHaveCount(0)
+
+  await setClock(page, '2026-10-23') // the day after that due date
+  await expect(summary).toContainText('Rp515.829.391')
+  await expect(summary).toContainText('186 bulan')
+  await expect(summary).toContainText('Apr 2042') // the payoff date does not slide a month
+  await expect(summary.getByText('estimasi', { exact: true })).toBeVisible()
+  await page.getByRole('tab', { name: 'Property' }).click()
+  await expect(page.getByRole('region', { name: 'Properti' })).toContainText('Rp515.829.391')
+})
+
+const money = (text) => Number(text.replace(/\D/g, ''))
+const ddOf = (page, label) => page.locator('dt', { hasText: label }).locator('xpath=following-sibling::dd')
+
+test('after the fixed period: rate, cicilan and the Health ratio follow the floating estimate, labelled estimasi', async ({ page }) => {
+  await useScenario(page, 'mortgage_active_h90', '/my-kpr/rate')
+  await setClock(page, '2027-01-05') // fixed 5,50% ended 22 Dec 2026; floating estimate 9,00%
+  await expect(page.locator('main')).toContainText('9,00% Floating')
+  await expect(page.locator('main')).not.toContainText('5,50% Floating')
+  await page.getByRole('tab', { name: 'Overview' }).click()
+  await expect(ddOf(page, 'Bunga')).toHaveText('9,00% Floating')
+  await page.getByRole('tab', { name: 'Payment' }).click()
+  // The amount due equals that installment's pokok + bunga.
+  const due = money(await page.getByText('Pembayaran berikutnya').locator('xpath=following-sibling::span[1]').innerText())
+  const pokok = money(await ddOf(page, /^Pokok bulan/).innerText())
+  const bunga = money(await ddOf(page, /^Bunga bulan/).innerText())
+  expect(due).toBe(pokok + bunga)
+  await page.goto('/my-kpr/health') // seeded income 15 jt, other installments 1,5 jt
+  const ratio = (Math.round(((due + 1_500_000) / 15_000_000) * 1000) / 10).toLocaleString('id-ID', { minimumFractionDigits: 1 })
+  await expect(page.locator('main')).toContainText(`${ratio}%`)
+})
+
+test('Home schedule widget starts where the full schedule does, even with the next month marked early', async ({ page }) => {
+  await useScenario(page, 'mortgage_active_normal', '/my-kpr/payment')
+  await page.getByRole('button', { name: 'Tandai Sudah Dibayar' }).click() // 22 Oct, marked on 28 Sep
+  const dialog = page.getByRole('dialog', { name: 'Tandai pembayaran' })
+  await dialog.getByRole('button', { name: 'Simpan' }).click()
+  await expect(dialog).toHaveCount(0)
+  await page.goto('/')
+  const table = page.getByRole('table', { name: /Cicilan berikutnya/ })
+  await expect(table.getByRole('row').nth(1)).toContainText('Okt 2026')
+  await expect(page.getByText('Sisa 187 cicilan')).toBeVisible() // the same count as Sisa Tenor
+})
+
+test('bank figures that do not fit the cicilan get a warning in the setup', async ({ page }) => {
+  await useScenario(page, 'fresh', '/monitoring/intro')
+  await page.getByRole('button', { name: 'Mulai Tambahkan KPR' }).click()
+  await page.getByLabel('Bank', { exact: true }).selectOption('Bank ABC')
+  await page.getByLabel('Jumlah pinjaman awal').fill('600000000')
+  await page.getByLabel('Cicilan bulanan saat ini').fill('2751549')
+  await page.getByLabel('Tenor awal').fill('240')
+  await page.getByLabel('Tanggal akad').fill('2021-12-22')
+  await page.getByLabel('Jatuh tempo setiap tanggal').fill('22')
+  await page.getByRole('radio', { name: /Masih fixed/ }).click()
+  await page.getByLabel('Bunga saat ini').fill('5,50')
+  await page.getByLabel('Fixed berakhir').fill('2026-12-22')
+  await page.getByLabel('Estimasi bunga floating').fill('9,00')
+  await page.getByRole('radio', { name: 'Ya, ada angka dari bank' }).click()
+  await page.getByLabel('Sisa pokok saat ini').fill('415000000')
+  await page.getByLabel('Sisa tenor', { exact: true }).fill('183')
+  const warning = page.getByText(/tidak cocok dengan sisa pokok, bunga, dan sisa tenor ini \(hitungannya sekitar Rp3\.355\.115\)/)
+  await expect(warning).toBeVisible()
+  await page.getByLabel('Cicilan bulanan saat ini').fill('3355115')
+  await expect(warning).toHaveCount(0)
+})
+
 test('warning & partial states: H-90 warning is first, partial rate shows no fake table', async ({ page }) => {
   await useScenario(page, 'mortgage_active_h90', '/')
   await expect(page.getByText('Peringatan bunga · H-90')).toBeVisible()

@@ -31,6 +31,9 @@ export const percentBps = (bps, digits = 2) =>
   bps == null ? EMPTY : `${(bps / 100).toLocaleString('id-ID', { minimumFractionDigits: digits, maximumFractionDigits: digits })}%`
 
 // Ratios display with one decimal, rounded per doc 03 §2.2.
+// Whole-percent progress; a start that would round to "0%" reads "< 1%".
+export const percentProgress = (ratio) => (ratio > 0 && ratio < 0.005 ? '< 1%' : `${Math.round(ratio * 100)}%`)
+
 export const percentRatio = (ratio, digits = 1) =>
   ratio == null || !Number.isFinite(ratio) ? EMPTY : `${(Math.round(ratio * 10 ** (digits + 2)) / 10 ** digits).toLocaleString('id-ID', { minimumFractionDigits: digits, maximumFractionDigits: digits })}%`
 

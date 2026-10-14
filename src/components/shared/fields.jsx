@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { Checkbox as CheckboxPrimitive, RadioGroup as RadioGroupPrimitive } from 'radix-ui'
-import { CheckIcon, ChevronDownIcon, CircleAlertIcon, PencilIcon } from 'lucide-react'
+import { CheckIcon, ChevronDownIcon, CircleAlertIcon, EyeIcon, EyeOffIcon, PencilIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { thousands } from '@/lib/format'
 
@@ -44,7 +44,7 @@ export function FieldError({ id, children }) {
 
 const describedBy = (id, hint, error) => [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined
 
-export function TextField({ label, name, value, onChange, onBlur, error, hint, optional, required, span, placeholder, type = 'text', inputMode, autoComplete, prefix, suffix, highlight, max, min, maxLength, className, disabled }) {
+export function TextField({ label, name, value, onChange, onBlur, error, hint, optional, required, span, placeholder, type = 'text', inputMode, autoComplete, prefix, suffix, trailing, highlight, max, min, maxLength, className, disabled }) {
   const id = useId()
   return (
     <FieldShell id={id} label={label} hint={hint} error={error} optional={optional} required={required} span={span} className={className}>
@@ -70,8 +70,32 @@ export function TextField({ label, name, value, onChange, onBlur, error, hint, o
           className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-[#8a93a3]"
         />
         {suffix && <span className="text-sm font-semibold whitespace-nowrap text-muted-foreground">{suffix}</span>}
+        {trailing}
       </div>
     </FieldShell>
+  )
+}
+
+// A toggle button, not a changing label: aria-pressed tells whether the password is shown.
+export function PasswordField(props) {
+  const [shown, setShown] = useState(false)
+  const Icon = shown ? EyeOffIcon : EyeIcon
+  return (
+    <TextField
+      {...props}
+      type={shown ? 'text' : 'password'}
+      trailing={
+        <button
+          type="button"
+          onClick={() => setShown((s) => !s)}
+          aria-pressed={shown}
+          aria-label={`Tampilkan ${props.label.toLowerCase()}`}
+          className="-mr-3.5 flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+        >
+          <Icon className="size-5" aria-hidden />
+        </button>
+      }
+    />
   )
 }
 

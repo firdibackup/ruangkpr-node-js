@@ -49,12 +49,13 @@ export function nextDueDate({ today, dueDay }) {
   return thisMonth >= today ? thisMonth : addMonths(thisMonth, 1, dueDay)
 }
 
-// Number of due dates strictly after `startDate` and on/before `today` (payments already due).
+// Number of due dates strictly after `startDate` and before `today`: installments already paid. One due today is still
+// to pay, as in the schedule (derive.js firstDue) and the Payment tab.
 export function countDueDatesBetween({ startDate, today, dueDay }) {
   if (!(today > startDate)) return 0
   let count = 0
   let due = nextDueDate({ today: addDays(startDate, 1), dueDay })
-  while (due <= today) {
+  while (due < today) {
     count += 1
     due = addMonths(due, 1, dueDay)
   }

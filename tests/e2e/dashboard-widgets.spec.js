@@ -84,6 +84,36 @@ test('home widgets: default board fits; hide, add, resize by keyboard and drag; 
   await expect(tile).toHaveCount(0)
 })
 
+test('Peluang shows only the potentials that exist and leaves Home when there is none', async ({ page }) => {
+  await useScenario(page, 'mortgage_active_normal', '/')
+  // No program beats the current installment after moving costs: only Refinancing shows.
+  await expect(page.getByRole('button', { name: /POTENSI REFINANCING/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Ada potensi dana cair dari rumah kamu.' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /POTENSI TAKE OVER/ })).toHaveCount(0)
+  const box = (name) => widget(page, name).boundingBox()
+  expect((await box('Jadwal Amortisasi')).x).toBeGreaterThan((await box('KPR Saya')).x) // beside, in the right column
+
+  // A property worth less than the loan leaves no cash to draw either, so the card leaves Home.
+  await page.goto('/my-kpr/property')
+  await page.getByRole('button', { name: /Data Properti/ }).click()
+  const property = page.getByRole('dialog', { name: 'Data properti' })
+  await property.getByLabel('Estimasi nilai saat ini').fill('500000000')
+  await property.getByRole('button', { name: 'Simpan Data Properti' }).click()
+  await expect(property).toBeHidden()
+  await page.goto('/')
+  await expect(widget(page, 'KPR Saya')).toBeVisible()
+  await expect(widget(page, 'Peluang KPR')).toHaveCount(0)
+  // Amortisasi moves under KPR Saya.
+  await settled(widget(page, 'KPR Saya'))
+  await settled(widget(page, 'Jadwal Amortisasi'))
+  const [myKpr, amortization] = [await box('KPR Saya'), await box('Jadwal Amortisasi')]
+  expect(amortization.x).toBeCloseTo(myKpr.x, 0)
+  expect(amortization.y).toBeGreaterThanOrEqual(myKpr.y + myKpr.height)
+  // It stays on the board, so arranging still shows it.
+  await page.getByRole('button', { name: 'Atur Dashboard' }).click()
+  await expect(widget(page, 'Peluang KPR')).toContainText('Belum ada potensi')
+})
+
 test('gallery: live previews per tab; a widget missing data unlocks via its form; charts are opt-in', async ({ page }) => {
   await useScenario(page, 'mortgage_partial_property', '/')
   await expect(widget(page, 'Agenda terdekat')).toBeVisible()

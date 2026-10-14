@@ -11,11 +11,11 @@ test('a regular user gets a 403 page at /admin, never the admin navigation', asy
 
 test('a guest opening /admin is sent to sign in', async ({ page }) => {
   await useScenario(page, 'guest', '/admin')
-  await expect(page).toHaveURL(/\/register$/)
+  await expect(page).toHaveURL(/\/login$/)
 })
 
-test('the admin signs in through OTP, lands on /admin without B2C navigation, and survives a refresh', async ({ page }) => {
-  await useScenario(page, 'guest', '/register')
+test('the admin signs in with email and password, lands on /admin without B2C navigation, and survives a refresh', async ({ page }) => {
+  await useScenario(page, 'guest', '/login')
   await signIn(page, 'Admin RuangKPR', 'admin@ruangkpr.id')
 
   await expect(page).toHaveURL(/\/admin$/)
@@ -32,7 +32,7 @@ test('super admin is kept out of B2C pages; unknown admin pages stay inside the 
   await expect(page.getByRole('heading', { name: 'Halaman tidak ditemukan' })).toBeVisible()
   await expect(adminNav(page)).toBeVisible()
   await page.getByRole('button', { name: 'Keluar admin' }).click()
-  await expect(page).toHaveURL(/\/register$/)
+  await expect(page).toHaveURL(/\/login$/)
 })
 
 test('overview lists the team queue longest-waiting first and recovers from a failed load', async ({ page }) => {

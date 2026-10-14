@@ -5,11 +5,12 @@ import { api, isMock } from '@/data/api'
 import { useResource } from '@/lib/hooks'
 import { EMPTY, OCCUPATIONS, bpsInput, dateLong, dateShort, labelOf, percentBps, rupiah, tenorLabel, toBps, toInt, toMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
-import { CheckboxField, DateField, FieldError, FormGrid, MoneyField, NumberField, RateField, SelectField, TextAreaField, TextField } from '@/components/shared/fields'
+import { DOC_REJECT_REASONS, rejectMessage } from '@/data/documentRules'
+import { CheckboxField, DateField, FormGrid, MoneyField, NumberField, RateField, SelectField, TextAreaField, TextField } from '@/components/shared/fields'
 import { FormDialog } from '@/components/shared/dialogs'
 import { Chip, ErrorPanel, Notice, PageSkeleton, Panel, PanelTitle, Spinner, SummaryRows } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { STATUS_LABEL, productName } from '@/domains/applications/meta'
+import { STAGE_NOTE_STATUSES, STATUS_LABEL, productName } from '@/domains/applications/meta'
 import { PRODUCT_TYPES } from './labels'
 import { AdminHeader, StatusChip } from './shared'
 
@@ -87,7 +88,7 @@ export function ApplicationListPage() {
 
 const ACTIONS = {
   docs_verification: 'Mulai verifikasi dokumen',
-  additional_docs_requested: 'Minta revisi dokumen',
+  additional_docs_requested: 'Kirim permintaan revisi ke user',
   bank_processing: 'Teruskan ke bank',
   appraisal: 'Masuk tahap appraisal',
   approved: 'Tandai disetujui bank',
@@ -98,31 +99,166 @@ const ACTIONS = {
 }
 const DOC_STATUS = { uploaded: ['Terunggah', 'info'], verified: ['Terverifikasi', 'ok'], needs_update: ['Perlu diperbarui', 'warn'] }
 const row = 'flex items-center justify-between gap-3 border-b border-line py-3 first:pt-0 last:border-b-0 last:pb-0'
+// The Button's `disabled:` look for an aria-disabled button (it stays focusable), as PrimaryWizard does.
+const looksDisabled = 'border-transparent bg-border text-ink-3 hover:bg-border'
 
-// Opens the stored file in a new tab through a short-lived signed link. The tab opens on the click itself so the
-// browser does not treat it as a pop-up; it is pointed at the file once the link arrives.
-function OpenDocument({ applicationId, documentType, label }) {
+// [label, chip tone]; a drafted rejection outranks the stored status until it is sent.
+const docChip = (f) => (!f ? ['Belum ada', 'mute'] : f.review ? ['Ditolak · belum dikirim', 'bad'] : (DOC_STATUS[f.status] ?? [f.status, 'mute']))
+
+// Per-document review while verifying (spec 2026-10-13 §4.1): Sesuai saves at once; Tolak drafts a reason the user
+// only sees once the team sends the revision request.
+function DocumentsPanel({ data, onSaved, onReload, onSend }) {
+  const { application: app } = data
+  const reviewing = app.status === 'docs_verification'
+  const [busy, setBusy] = useState(null)
+  const [rejecting, setRejecting] = useState(null)
+  const required = app.documents.filter((d) => d.required)
+  const checked = required.filter((d) => d.file?.status === 'verified' || d.file?.review).length
+  const drafts = app.documents.filter((d) => d.file?.review).length
+  const approve = async (d) => {
+    if (busy || d.file.status === 'verified') return
+    setBusy(d.type)
+    try {
+      onSaved(await api.admin.applications.reviewDocument(app.id, { documentType: d.type, result: 'ok', expectedVersion: app.version }))
+    } catch (e) {
+      toast.error(e.message)
+      if (e.code === 'CONFLICT_VERSION') onReload()
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <Panel>
+      <PanelTitle sub={isMock ? 'Mode demo menyimpan metadata saja, tanpa file.' : 'Unduh file untuk verifikasi.'}>Dokumen</PanelTitle>
+      <ul className="flex flex-col">
+        {app.documents.map((d) => {
+          const [chip, tone] = docChip(d.file)
+          return (
+            <li key={d.type} className={`${row} flex-wrap`}>
+              <span className="flex min-w-0 flex-col">
+                <span className="text-sm font-bold">
+                  {d.label}
+                  {!d.required && <span className="font-semibold text-muted-foreground"> · opsional</span>}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {d.file ? `${d.file.fileName} · ${Math.round(d.file.sizeBytes / 1024)} KB` : 'Belum diunggah'}
+                  {d.file?.invalidReason && ` · ${d.file.invalidReason}`}
+                </span>
+                {d.file?.review && <span className="text-xs font-semibold text-danger">↳ {rejectMessage(d.file.review)}</span>}
+              </span>
+              <span className="flex flex-wrap items-center gap-2">
+                {d.file?.path && <DownloadDocument applicationId={app.id} documentType={d.type} label={d.label} />}
+                {reviewing && d.file && (
+                  <>
+                    {/* aria-disabled, not disabled: the button keeps keyboard focus while it saves and once it is done. */}
+                    <Button type="button" size="sm" variant="outline" onClick={() => approve(d)} aria-disabled={!!busy || d.file.status === 'verified'} className={busy || d.file.status === 'verified' ? looksDisabled : ''} aria-busy={busy === d.type} aria-label={`Sesuai ${d.label}`}>
+                      {busy === d.type && <Spinner />}
+                      Sesuai
+                    </Button>
+                    <Button type="button" size="sm" variant="destructive-soft" onClick={() => !busy && setRejecting(d)} aria-disabled={!!busy} className={busy ? looksDisabled : ''} aria-label={`Tolak ${d.label}`}>
+                      Tolak
+                    </Button>
+                  </>
+                )}
+                <Chip tone={tone} className="whitespace-nowrap">
+                  {chip}
+                </Chip>
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      {reviewing && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+          <span className="text-sm font-semibold text-ink-3">
+            {checked} dari {required.length} dokumen wajib diperiksa{drafts > 0 && ` · ${drafts} ditolak`}
+          </span>
+          <Button type="button" size="sm" variant="outline" disabled={!drafts || !!busy} onClick={onSend}>
+            Kirim permintaan revisi ke user
+          </Button>
+        </div>
+      )}
+      {rejecting && (
+        <RejectDialog
+          app={app}
+          doc={rejecting}
+          onClose={() => setRejecting(null)}
+          onDone={(next) => {
+            onSaved(next)
+            setRejecting(null)
+          }}
+          onReload={() => {
+            setRejecting(null)
+            onReload()
+          }}
+        />
+      )}
+    </Panel>
+  )
+}
+
+// Shared by RejectDialog, StageNotePanel and TransitionDialog: a CONFLICT_VERSION notice offers reload, any other
+// save error just shows its message.
+function ErrorNotice({ error, onReload }) {
+  if (!error || error.fieldErrors?.length) return null
+  const conflict = error.code === 'CONFLICT_VERSION'
+  return (
+    <Notice tone="bad" role="alert" action={conflict && <Button size="xs" onClick={onReload}>Muat ulang data</Button>}>
+      {conflict ? 'Pengajuan ini sudah berubah sejak halaman dibuka. Muat ulang, lalu ulangi.' : error.message}
+    </Notice>
+  )
+}
+
+function RejectDialog({ app, doc, onClose, onDone, onReload }) {
+  const [reasonCode, setReasonCode] = useState(doc.file.review?.reasonCode ?? '')
+  const [note, setNote] = useState(doc.file.review?.note ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const fieldError = (k) => error?.fieldErrors?.find((x) => x.field === k)?.message
+  const submit = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    try {
+      onDone(await api.admin.applications.reviewDocument(app.id, { documentType: doc.type, result: 'rejected', reasonCode, note, expectedVersion: app.version }))
+    } catch (err) {
+      setError(err)
+      setSaving(false)
+    }
+  }
+  return (
+    <FormDialog open onOpenChange={(open) => !open && !saving && onClose()} title={`Tolak ${doc.label}`} description="Belum terkirim ke user sampai kamu menekan Kirim permintaan revisi ke user." className="max-w-[520px]">
+      <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+        <SelectField label="Alasan" required value={reasonCode} onChange={setReasonCode} options={DOC_REJECT_REASONS} error={fieldError('reasonCode')} />
+        <TextAreaField label="Catatan untuk user" required={reasonCode === 'other'} optional={reasonCode !== 'other'} value={note} onChange={setNote} error={fieldError('note')} hint="Tampil di Home dan tracker user setelah dikirim." />
+        <ErrorNotice error={error} onReload={onReload} />
+        <Button type="submit" variant="destructive" disabled={saving} aria-busy={saving}>
+          {saving && <Spinner />}
+          Simpan penolakan
+        </Button>
+      </form>
+    </FormDialog>
+  )
+}
+
+// Downloads the stored file through a short-lived signed link. The link answers with Content-Disposition: attachment,
+// so following it saves the file and the page stays where it is.
+function DownloadDocument({ applicationId, documentType, label }) {
   const [pending, setPending] = useState(false)
-  const open = async () => {
-    const tab = window.open('', '_blank')
+  const download = async () => {
     setPending(true)
     try {
-      const url = await api.admin.applications.documentUrl(applicationId, documentType)
-      if (tab) {
-        tab.opener = null
-        tab.location.href = url
-      } else window.location.assign(url)
+      window.location.assign(await api.admin.applications.documentUrl(applicationId, documentType))
     } catch (e) {
-      tab?.close()
       toast.error(e.message)
     } finally {
       setPending(false)
     }
   }
   return (
-    <Button type="button" size="sm" variant="outline" onClick={open} aria-busy={pending} aria-label={`Lihat ${label}`}>
+    <Button type="button" size="sm" variant="outline" onClick={download} disabled={pending} aria-busy={pending} aria-label={`Unduh ${label}`}>
       {pending && <Spinner />}
-      Lihat
+      Unduh
     </Button>
   )
 }
@@ -184,34 +320,12 @@ export function ApplicationDetailPage() {
               />
             </Panel>
           )}
-          <Panel>
-            <PanelTitle sub={isMock ? 'Mode demo menyimpan metadata saja, tanpa file.' : 'Buka file untuk verifikasi. Link berlaku 5 menit.'}>Dokumen</PanelTitle>
-            <ul className="flex flex-col">
-              {app.documents.map((d) => (
-                <li key={d.type} className={row}>
-                  <span className="flex min-w-0 flex-col">
-                    <span className="text-sm font-bold">
-                      {d.label}
-                      {!d.required && <span className="font-semibold text-muted-foreground"> · opsional</span>}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {d.file ? `${d.file.fileName} · ${Math.round(d.file.sizeBytes / 1024)} KB` : 'Belum diunggah'}
-                      {d.file?.invalidReason && ` · ${d.file.invalidReason}`}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    {d.file?.path && <OpenDocument applicationId={app.id} documentType={d.type} label={d.label} />}
-                    <Chip tone={d.file ? (DOC_STATUS[d.file.status]?.[1] ?? 'mute') : 'mute'} className="whitespace-nowrap">
-                      {d.file ? (DOC_STATUS[d.file.status]?.[0] ?? d.file.status) : 'Belum ada'}
-                    </Chip>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Panel>
+          <DocumentsPanel data={data} onSaved={setData} onReload={reload} onSend={() => setMoving('additional_docs_requested')} />
           <ApplicantPanel data={app.data} productType={app.productType} />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
+          {/* Keyed on the saved note too: after a reload with another admin's note, the form starts from that note. */}
+          {STAGE_NOTE_STATUSES.includes(app.status) && <StageNotePanel key={`${app.status}:${app.stageNotes[app.status]?.updatedAt ?? ''}`} data={data} onSaved={setData} onReload={reload} />}
           <Panel>
             <PanelTitle>Riwayat status</PanelTitle>
             <ol aria-label="Riwayat status" className="flex flex-col">
@@ -247,14 +361,16 @@ export function ApplicationDetailPage() {
 }
 
 function NextStep({ data, onMove }) {
-  const { application: app, allowedTransitions: moves } = data
+  const { application: app, allowedTransitions } = data
+  const moves = allowedTransitions.filter((to) => to !== 'additional_docs_requested') // sent from the Dokumen panel
+  const docsReady = app.documents.every((d) => (!d.required || d.file?.status === 'verified') && !d.file?.review)
   const docLabel = (type) => app.documents.find((d) => d.type === type)?.label ?? type
   return (
     <Panel>
       <PanelTitle>Langkah berikutnya</PanelTitle>
       {app.status === 'additional_docs_requested' && (
         <Notice tone="warn" title="Menunggu user mengunggah ulang dokumen">
-          {app.pendingActions.map((p) => `${docLabel(p.documentType)}: ${p.message}`).join(' · ')}
+          {app.pendingActions.map((p) => `${docLabel(p.documentType)} — ${p.message}`).join(' · ')}
         </Notice>
       )}
       {app.status === 'rejected' && (
@@ -268,12 +384,17 @@ function NextStep({ data, onMove }) {
         </Notice>
       )}
       {moves.length > 0 && (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {moves.map((to) => (
-            <Button key={to} size="sm" variant={to === 'rejected' ? 'destructive-soft' : to === 'additional_docs_requested' ? 'outline' : 'default'} onClick={() => onMove(to)}>
+            <Button key={to} size="sm" variant={to === 'rejected' ? 'destructive-soft' : 'default'} onClick={() => onMove(to)} disabled={to === 'bank_processing' && !docsReady} aria-describedby={to === 'bank_processing' && !docsReady ? 'bank-docs-hint' : undefined}>
               {ACTIONS[to]}
             </Button>
           ))}
+          {moves.includes('bank_processing') && !docsReady && (
+            <span id="bank-docs-hint" className="text-sm text-muted-foreground">
+              Semua dokumen wajib harus Sesuai.
+            </span>
+          )}
         </div>
       )}
     </Panel>
@@ -348,13 +469,64 @@ function NotesPanel({ data, onSaved }) {
   )
 }
 
+// What the team agreed with the user (on WhatsApp) for the current stage; the user always sees the latest save.
+function StageNotePanel({ data, onSaved, onReload }) {
+  const { application: app } = data
+  const note = app.stageNotes[app.status]
+  const appraisal = app.status === 'appraisal'
+  const [message, setMessage] = useState(note?.message ?? '')
+  const [schedule, setSchedule] = useState(note?.schedule ?? { date: '', time: '', location: '' })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const setSlot = (k) => (v) => setSchedule((s) => ({ ...s, [k]: v }))
+  const fieldError = (k) => error?.fieldErrors?.find((x) => x.field === k)?.message
+  const save = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    try {
+      onSaved(await api.admin.applications.saveStageNote(app.id, { message, schedule: appraisal ? schedule : null, expectedVersion: app.version }))
+      toast('Info untuk user tersimpan.')
+    } catch (err) {
+      setError(err)
+    } finally {
+      setSaving(false)
+    }
+  }
+  const empty = appraisal ? 'Belum diisi. User melihat: jadwal menunggu konfirmasi tim via WhatsApp.' : 'Belum diisi. User belum melihat info tambahan.'
+  return (
+    <Panel>
+      <PanelTitle sub={note ? `Terakhir diubah ${dateShort(note.updatedAt)}` : empty}>Info untuk user · {STATUS_LABEL[app.status]}</PanelTitle>
+      <form onSubmit={save} noValidate className="flex flex-col gap-4">
+        {appraisal && (
+          <>
+            <DateField label="Tanggal appraisal" required value={schedule.date} onChange={setSlot('date')} error={fieldError('date')} />
+            <TextField label="Jam appraisal" type="time" required value={schedule.time} onChange={setSlot('time')} error={fieldError('time')} />
+            <TextField label="Lokasi appraisal" required value={schedule.location} onChange={setSlot('location')} error={fieldError('location')} />
+          </>
+        )}
+        <TextAreaField label={appraisal ? 'Catatan untuk user' : 'Pesan untuk user'} required={!appraisal} optional={appraisal} rows={3} value={message} onChange={setMessage} error={fieldError('message')} hint="Hasil kesepakatan dengan user, mis. dari WhatsApp. Tampil di Home dan tracker user." />
+        <ErrorNotice
+          error={error}
+          onReload={() => {
+            setError(null)
+            onReload()
+          }}
+        />
+        <Button type="submit" variant="outline" size="sm" className="w-fit" disabled={saving} aria-busy={saving}>
+          {saving && <Spinner />}
+          Simpan info
+        </Button>
+      </form>
+    </Panel>
+  )
+}
+
 // One dialog per move: the fields that move needs (admin plan §4.3) plus the internal note for the audit log.
 function TransitionDialog({ data, toStatus, onClose, onDone, onReload }) {
   const { application: app } = data
   const s = app.selection ?? {}
   const [reason, setReason] = useState('')
-  const [docs, setDocs] = useState([])
-  const [message, setMessage] = useState('')
   const [code, setCode] = useState('')
   const [displayReason, setDisplayReason] = useState('')
   const [terms, setTerms] = useState({ loanAmount: String(s.loanAmount ?? ''), tenorMonths: String(s.tenorMonths ?? ''), fixedRate: bpsInput(s.fixedRateBps), fixedMonths: String(s.fixedMonths ?? ''), floatingRate: bpsInput(s.floatingRateBps), akadDate: data.asOf })
@@ -363,7 +535,6 @@ function TransitionDialog({ data, toStatus, onClose, onDone, onReload }) {
   const setTerm = (k) => (v) => setTerms((t) => ({ ...t, [k]: v }))
   const fieldError = (k) => error?.fieldErrors?.find((x) => x.field === k)?.message
   const metadata = {
-    additional_docs_requested: { documentTypes: docs, message },
     rejected: { code, displayReason },
     akad: { finalTerms: { loanAmount: toMoney(terms.loanAmount), tenorMonths: toInt(terms.tenorMonths), fixedRateBps: toBps(terms.fixedRate), fixedMonths: toInt(terms.fixedMonths), floatingRateBps: toBps(terms.floatingRate), akadDate: terms.akadDate } },
   }[toStatus]
@@ -378,23 +549,22 @@ function TransitionDialog({ data, toStatus, onClose, onDone, onReload }) {
       setSaving(false)
     }
   }
-  const conflict = error?.code === 'CONFLICT_VERSION'
   return (
     <FormDialog open onOpenChange={(open) => !open && !saving && onClose()} title={ACTIONS[toStatus]} description={`${STATUS_LABEL[app.status]} → ${STATUS_LABEL[toStatus]}`} className="max-w-[600px]">
       <form onSubmit={submit} noValidate className="flex flex-col gap-5">
         {toStatus === 'additional_docs_requested' && (
-          <>
-            <fieldset className="flex flex-col gap-1">
-              <legend className="mb-2 text-sm font-semibold text-ink-2">Dokumen yang perlu diunggah ulang</legend>
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-semibold text-ink-2">Dikirim ke user untuk diunggah ulang</span>
+            <ul aria-label="Dokumen yang ditolak" className="flex flex-col gap-1.5">
               {app.documents
-                .filter((d) => d.file)
+                .filter((d) => d.file?.review)
                 .map((d) => (
-                  <CheckboxField key={d.type} label={d.label} checked={docs.includes(d.type)} onChange={(on) => setDocs((x) => (on ? [...x, d.type] : x.filter((t) => t !== d.type)))} />
+                  <li key={d.type} className="text-sm">
+                    <span className="font-bold">{d.label}</span> — {rejectMessage(d.file.review)}
+                  </li>
                 ))}
-              {fieldError('documentTypes') && <FieldError>{fieldError('documentTypes')}</FieldError>}
-            </fieldset>
-            <TextAreaField label="Pesan untuk user" required value={message} onChange={setMessage} error={fieldError('message')} hint="Tampil di tracker dan Activity user." />
-          </>
+            </ul>
+          </div>
         )}
         {toStatus === 'rejected' && (
           <>
@@ -413,11 +583,7 @@ function TransitionDialog({ data, toStatus, onClose, onDone, onReload }) {
           </FormGrid>
         )}
         <TextAreaField label="Catatan perubahan status" required value={reason} onChange={setReason} error={fieldError('reason')} hint="Internal, masuk ke audit log." />
-        {error && !error.fieldErrors?.length && (
-          <Notice tone="bad" role="alert" action={conflict && <Button size="xs" onClick={onReload}>Muat ulang data</Button>}>
-            {conflict ? 'Pengajuan ini sudah berubah sejak halaman dibuka. Muat ulang, lalu ulangi.' : error.message}
-          </Notice>
-        )}
+        <ErrorNotice error={error} onReload={onReload} />
         <Button type="submit" variant={toStatus === 'rejected' ? 'destructive' : 'default'} disabled={saving} aria-busy={saving}>
           {saving && <Spinner />}
           Simpan status
