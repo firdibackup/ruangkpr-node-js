@@ -4,9 +4,10 @@ import { BriefcaseIcon, GaugeIcon, HandCoinsIcon, HouseIcon, InfoIcon, LockIcon,
 import { api } from '@/data/api'
 import { calculatePaymentCapacity } from '@/calculations/finance'
 import { useForm } from '@/lib/hooks'
-import { CITIES, GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES, intInput, moneyInput, percentRatio, rupiah, toMoney } from '@/lib/format'
+import { GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES, intInput, moneyInput, percentRatio, rupiah, toMoney } from '@/lib/format'
+import { CITIES } from '@/lib/regions'
 import { Button } from '@/components/ui/button'
-import { CheckboxField, DateField, ErrorSummary, FormGrid, MoneyField, NumberField, RadioCards, SelectField, TextAreaField, TextField } from '@/components/shared/fields'
+import { CheckboxField, ComboboxField, DateField, ErrorSummary, FormGrid, MoneyField, NumberField, RadioCards, SelectField, TextAreaField, TextField } from '@/components/shared/fields'
 import { UnsavedChangesGuard } from '@/components/shared/dialogs'
 import { Disclaimer, IconBox, Notice, Panel, Spinner } from '@/components/shared/ui'
 import { Aside } from '@/domains/optimize/shared'
@@ -246,7 +247,7 @@ export function PrimaryDetailsStep({ step, app, snapshot, onCreated, onSaved, fr
                 {v.purchaseType === 'new_from_developer' && <TextField label="Nama Developer" placeholder="PT Griya Asri Sejahtera" span {...b('developerName')} />}
                 {v.purchaseType === 'used_from_owner' && <TextField label="Nama Penjual" optional placeholder="Budi Santoso" span {...b('sellerName')} />}
                 <SelectField label="Jenis Properti" options={PROPERTY_TYPES} hint="Tidak menjamin program bank menerima jenis properti ini." {...b('propertyType')} />
-                <SelectField label="Kota / Kabupaten" options={CITIES} {...b('city')} />
+                <ComboboxField label="Kota / Kabupaten" options={CITIES} {...b('city')} />
                 <TextAreaField label="Alamat Properti" placeholder="Rumah Griya Asri Blok C2 No. 8, Bekasi" span {...b('propertyAddress')} />
                 <MoneyField label="Harga Properti" placeholder="500.000.000" span {...b('price')} />
               </>

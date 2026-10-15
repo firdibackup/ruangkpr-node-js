@@ -20,7 +20,6 @@ import {
   ListOrderedIcon,
   LockIcon,
   PercentIcon,
-  TargetIcon,
   UserRoundIcon,
   WalletIcon,
 } from "lucide-react";
@@ -31,7 +30,6 @@ import { useForm } from "@/lib/hooks";
 import {
   BANKS,
   CERTIFICATES,
-  CITIES,
   GENDERS,
   GOALS,
   MARITAL,
@@ -49,10 +47,12 @@ import {
   toInt,
   toMoney,
 } from "@/lib/format";
+import { CITIES } from "@/lib/regions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   CheckboxField,
+  ComboboxField,
   DateField,
   ErrorSummary,
   FormGrid,
@@ -64,10 +64,7 @@ import {
   TextAreaField,
   TextField,
 } from "@/components/shared/fields";
-import {
-  ConfirmDialog,
-  UnsavedChangesGuard,
-} from "@/components/shared/dialogs";
+import { UnsavedChangesGuard } from "@/components/shared/dialogs";
 import { UploadRow } from "@/components/shared/UploadRow";
 import {
   Chip,
@@ -79,7 +76,6 @@ import {
   PageSkeleton,
   ProgressBar,
   Spinner,
-  SummaryRows,
 } from "@/components/shared/ui";
 import {
   toEmployment,
@@ -92,7 +88,7 @@ import {
   HEALTH_SENTENCE,
   HealthRing,
 } from "@/domains/home/dashboardWidgets";
-import { applicationHealth, dtiTone, goalConditions } from "./insights";
+import { applicationHealth } from "./insights";
 import { Aside, OptimizeHeader, modeName, useOptimize } from "./shared";
 import { TakeoverMilestone } from "./TakeoverMilestone";
 import {
@@ -189,15 +185,23 @@ export function OptimizeStepPage({ employment = false }) {
   const fromGaps = location.state?.from === "gaps";
   // Step 3 has no form: it is the phase 1 summary of the old loan.
   const milestone = n === 3;
-  // `gaps` is from before this save, so it still lists the page just saved. Done: Dokumen once a bank is picked, else Tujuan.
+  // `gaps` is from before this save, so it still lists the page just saved. Done: Dokumen once a bank is picked, else
+  // the bank list with the goal the draft took from the monitored KPR (as Peluang does), or Tujuan when it has none.
   const gap = gaps.find((p) => p !== location.pathname);
+  const toPrograms = async () => {
+    setApp(await api.applications.saveStep(app.id, { step: 5, values: { goal: app.data.goal } }));
+    navigate("/optimize/programs"); // runs the draft's simulation (ProgramPages useSimulation)
+  };
   const next = (to, opts) =>
-    fromGaps
-      ? navigate(
-          gap ?? (app.selection ? "/optimize/6" : "/optimize/5"),
-          gap ? { state: { from: "gaps" } } : {},
-        )
-      : navigate(fromReview ? "/optimize/7" : to, opts);
+    !fromGaps
+      ? navigate(fromReview ? "/optimize/7" : to, opts)
+      : gap
+        ? navigate(gap, { state: { from: "gaps" } })
+        : app.selection
+          ? navigate("/optimize/6")
+          : Object.keys(validateGoal(app.data.goal ?? {})).length
+            ? navigate("/optimize/5")
+            : toPrograms();
   const props = { app, clock: snap.clock, config: snap.config, setApp, next, navigate, fromReview };
   const PN = modeName(app.optimizationMode);
   const back = {
@@ -836,13 +840,15 @@ function OldLoanStep({ app, clock, setApp, next }) {
 }
 
 // ---------- Step 5 ----------
-function GoalStep({ app, clock, setApp, navigate, fromReview }) {
+// Take Over or Top-up was picked on the way in (?mode=), so this step only asks the priorities or the funds needed.
+function GoalStep({ app, setApp, navigate, fromReview }) {
   const g = app.data.goal ?? {};
+  const mode = app.optimizationMode;
   const form = useForm(
     {
-      mode: g.mode ?? app.optimizationMode ?? "",
+      mode,
       goal: g.goal ?? "",
-      tenorMonths: g.tenorMonths ? String(g.tenorMonths) : "",
+      tenorMonths: String(g.tenorMonths ?? (mode === "topup" ? 240 : 180)),
       maxPayment: moneyInput(g.maxPayment),
       requestedTopup: moneyInput(g.requestedTopup || null),
       purpose: g.purpose ?? "",
@@ -850,23 +856,9 @@ function GoalStep({ app, clock, setApp, navigate, fromReview }) {
     },
     validateGoal,
   );
-  const [confirmSwitch, setConfirmSwitch] = useState(null);
   const { saving, error, save } = useStepSave(app, 5, setApp);
   const [simError, setSimError] = useState("");
   const v = form.values;
-  const setMode = (mode) => {
-    if (
-      v.mode === "topup" &&
-      mode === "takeover" &&
-      (v.requestedTopup || v.purpose)
-    )
-      return setConfirmSwitch(mode);
-    form.setValues({
-      ...v,
-      mode,
-      tenorMonths: v.tenorMonths || (mode === "topup" ? "240" : "180"),
-    });
-  };
   const onSubmit = form.submit(async (x) => {
     setSimError("");
     const saved = await save({
@@ -900,72 +892,6 @@ function GoalStep({ app, clock, setApp, navigate, fromReview }) {
   });
   const needsValue =
     v.mode === "topup" && !(app.data.property?.estimatedValue > 0);
-  const c = goalConditions(app.data, clock);
-  const r = c.rate;
-  const options = [
-    {
-      mode: "takeover",
-      title: "Tanpa dana tambahan",
-      rows: [
-        { k: "Plafon baru ≈ sisa pokok", v: rupiah(c.outstanding) },
-        { k: "Biaya keluar bank lama (est.)", v: rupiah(c.exitCosts) },
-        {
-          k: "Rasio cicilan saat ini",
-          v: percentRatio(c.dtiRatio),
-          tone: dtiTone(c.dtiRatio),
-        },
-      ],
-      tip:
-        r.mode === "floating"
-          ? "Bunga kamu sudah floating: pindah ke fixed baru bisa menurunkan cicilan."
-          : r.mode === "warning"
-            ? `Masa fixed berakhir ${r.daysUntilFixedEnd} hari lagi: saat yang tepat membandingkan program.`
-            : "Biaya bank baru (provisi, notaris, appraisal) dihitung per program.",
-    },
-    {
-      mode: "topup",
-      title: "+ Dana tambahan",
-      rows: [
-        {
-          k: "Batas pinjaman (LTV 70%)",
-          v:
-            c.maxLoanByCollateral == null
-              ? "Isi nilai properti"
-              : rupiah(c.maxLoanByCollateral),
-        },
-        {
-          k: "Top-up kotor maksimum",
-          v: rupiah(c.maxGrossTopup),
-          tone:
-            c.maxGrossTopup == null
-              ? undefined
-              : c.maxGrossTopup > 0
-                ? "ok"
-                : "bad",
-        },
-        {
-          k: "Cicilan aman maks (35%)",
-          v: c.safePayment == null ? rupiah(null) : `${rupiah(c.safePayment)}/bln`,
-        },
-        {
-          k: "Ruang cicilan tambahan",
-          v:
-            c.paymentRoom == null
-              ? rupiah(null)
-              : c.paymentRoom > 0
-                ? `${rupiah(c.paymentRoom)}/bln`
-                : "Tidak ada",
-          tone:
-            c.paymentRoom == null ? undefined : c.paymentRoom > 0 ? "ok" : "bad",
-        },
-      ],
-      warn: c.paymentRoom != null && c.paymentRoom <= 0,
-      tip:
-        c.paymentRoom != null && c.paymentRoom <= 0
-          ? "Cicilan sekarang sudah di atas batas aman 35%, jadi Top-up berisiko ditolak."
-          : "Biaya dipotong dari pencairan. Nilai rumah final mengikuti appraisal bank.",
-    },
-  ];
   return (
     <FormLayout
       onSubmit={onSubmit}
@@ -984,53 +910,6 @@ function GoalStep({ app, clock, setApp, navigate, fromReview }) {
         show={form.showSummary}
         count={Object.keys(form.errors).length}
       />
-      <Group
-        icon={TargetIcon}
-        title="Apa tujuan kamu?"
-        desc="Menentukan jalur perhitungan. Data lain tetap sama."
-      >
-        <RadioCards
-          label="Tujuan pengajuan"
-          layout="column"
-          options={[
-            {
-              value: "takeover",
-              label: "Pindah KPR tanpa dana tambahan",
-              description: "Cari bunga, cicilan, atau tenor baru.",
-            },
-            {
-              value: "topup",
-              label: "Pindah KPR + dana tambahan",
-              description: "Lunasi KPR lama dan terima Top-up.",
-            },
-          ]}
-          {...form.bind("mode")}
-          onChange={setMode}
-        />
-        <div className="@container flex flex-col gap-2.5">
-          <h3 className="text-[13px] font-extrabold text-ink-3">
-            Kondisi keuangan kamu per pilihan
-          </h3>
-          <div className="grid grid-cols-1 gap-3 @lg:grid-cols-2">
-            {options.map((o) => (
-              <section
-                key={o.mode}
-                aria-label={`Kondisi keuangan: ${o.title}`}
-                className={cn(
-                  "flex flex-col gap-2.5 rounded-2xl border bg-card px-4 py-3.5",
-                  v.mode === o.mode ? "border-primary" : "border-border",
-                )}
-              >
-                <span className="text-sm font-extrabold">{o.title}</span>
-                <SummaryRows size="sm" rows={o.rows} />
-                <Notice tone={o.warn ? "warn" : "muted"} className="mt-auto">
-                  {o.tip}
-                </Notice>
-              </section>
-            ))}
-          </div>
-        </div>
-      </Group>
       {v.mode === "takeover" && (
         <Group
           icon={ListOrderedIcon}
@@ -1044,16 +923,6 @@ function GoalStep({ app, clock, setApp, navigate, fromReview }) {
               span
               options={GOALS}
               {...form.bind("goal")}
-              onChange={(x) =>
-                form.setValues({
-                  ...v,
-                  goal: x,
-                  tenorMonths:
-                    x === "shorter_tenor" && !v.tenorMonths
-                      ? "120"
-                      : v.tenorMonths,
-                })
-              }
             />
             <SelectField
               label="Tenor baru yang diinginkan"
@@ -1133,24 +1002,6 @@ function GoalStep({ app, clock, setApp, navigate, fromReview }) {
           {error || simError}
         </Notice>
       )}
-      <ConfirmDialog
-        open={!!confirmSwitch}
-        onOpenChange={(o) => !o && setConfirmSwitch(null)}
-        destructive={false}
-        title="Ganti ke Take Over tanpa dana tambahan?"
-        body="Jumlah dana tambahan dan tujuan penggunaannya akan dihapus."
-        confirmLabel="Ya, Ganti"
-        onConfirm={async () =>
-          form.setValues({
-            ...v,
-            mode: confirmSwitch,
-            requestedTopup: "",
-            purpose: "",
-            purposeOther: "",
-            tenorMonths: v.tenorMonths || "180",
-          })
-        }
-      />
     </FormLayout>
   );
 }
@@ -1352,7 +1203,7 @@ function PropertyStep({ app, clock, config, setApp, next }) {
             options={PROPERTY_TYPES}
             {...form.bind("propertyType")}
           />
-          <SelectField
+          <ComboboxField
             label="Kota / Kabupaten"
             options={CITIES}
             {...form.bind("city")}

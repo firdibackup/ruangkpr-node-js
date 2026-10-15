@@ -1308,9 +1308,10 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           fail('ACTIVE_MORTGAGE_EXISTS', 'Versi ini mendukung satu KPR aktif per akun.', 409)
         }
         if (productType === 'takeover' && mortgageId) {
-          // Take Over from a monitored KPR with skipped data: prefilled, so it opens the missing forms and then Tujuan.
-          const m = findMortgage(db, mortgageId)
-          const app = newApplication(db, { productType, mode, source: 'mortgage', mortgageId: m.id, data: takeoverDataFromMortgage(mortgageAsOf(m, db.clock), { personal: prefilledPersonal(db), employment: prefilledEmployment(db), goal: { mode: mode ?? null } }) })
+          // Take Over from a monitored KPR with skipped data: prefilled with Peluang's default goal, so it opens the missing
+          // forms and then the bank list.
+          const m = mortgageAsOf(findMortgage(db, mortgageId), db.clock)
+          const app = newApplication(db, { productType, mode, source: 'mortgage', mortgageId: m.id, data: takeoverDataFromMortgage(m, { personal: prefilledPersonal(db), employment: prefilledEmployment(db), goal: defaultTakeoverGoal(m, mode ?? 'takeover') }) })
           app.currentStep = 5
           return app
         }
@@ -1838,7 +1839,16 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         ),
       },
       products: {
-        list: call('admin.products.list', (db, { status } = {}) => catalogOf(db).filter((p) => !status || p.status === status).map((p) => productRow(db, p)), { admin: true }),
+        list: call(
+          'admin.products.list',
+          (db, { status, bankId, query = '' } = {}) => {
+            const q = query.trim().toLowerCase()
+            return catalogOf(db)
+              .filter((p) => (!status || p.status === status) && (!bankId || p.bank?.id === bankId) && (!q || `${p.name} ${p.bank?.name ?? ''}`.toLowerCase().includes(q)))
+              .map((p) => productRow(db, p))
+          },
+          { admin: true },
+        ),
         get: call('admin.products.get', (db, id) => productDetail(db, findProduct(db, id)), { admin: true }),
         create: call(
           'admin.products.create',

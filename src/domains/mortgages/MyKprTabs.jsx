@@ -1,20 +1,24 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowRightIcon, CircleCheckIcon, CircleIcon, CircleAlertIcon, PaperclipIcon, PencilIcon, RefreshCwIcon } from 'lucide-react'
+import { ArrowRightIcon, CircleCheckIcon, CircleIcon, CircleAlertIcon, ExternalLinkIcon, MapPinIcon, PaperclipIcon, PencilIcon, RefreshCwIcon } from 'lucide-react'
 import { api } from '@/data/api'
 import { uploadHint } from '@/data/documentRules'
 import { addDays, daysUntil } from '@/calculations/dates'
 import { useForm } from '@/lib/hooks'
-import { CERTIFICATES, CITIES, PROPERTY_TYPES, dateLong, dateShort, daysLabel, intInput, labelOf, moneyInput, monthName, monthYear, percentBps, percentProgress, percentRatio, rupiah, signedRupiah, tenorLabel, toInt, toMoney } from '@/lib/format'
+import { CERTIFICATES, PROPERTY_TYPES, dateLong, dateShort, daysLabel, intInput, labelOf, moneyInput, monthName, monthYear, percentBps, percentProgress, percentRatio, rupiah, signedRupiah, tenorLabel, toInt, toMoney } from '@/lib/format'
+import { CITIES } from '@/lib/regions'
+import { GEOAPIFY_KEY, googleMapsUrl, pointLabel, staticMapUrl } from '@/lib/geo'
 import { Button } from '@/components/ui/button'
-import { DateField, FormGrid, MoneyField, NumberField, RadioCards, SelectField, TextField } from '@/components/shared/fields'
+import { ComboboxField, DateField, FieldShell, FormGrid, MoneyField, NumberField, RadioCards, SelectField, TextField } from '@/components/shared/fields'
 import { FormDialog } from '@/components/shared/dialogs'
 import { UploadRow } from '@/components/shared/UploadRow'
 import { Timeline } from '@/components/shared/progress'
-import { Disclaimer, EstimateTag, Notice, Panel, ProgressBar, Spinner, SummaryRows } from '@/components/shared/ui'
+import { Disclaimer, EstimateTag, Notice, Panel, ProgressBar, Skeleton, Spinner, SummaryRows } from '@/components/shared/ui'
 import { progressGap, rateTypeLabel } from './setupMeta'
 import { filledOnly, validatePropertyStep } from './validation'
+
+const LocationPicker = lazy(() => import('./LocationPicker'))
 
 export function OverviewTab() {
   const { m, d, snap } = useOutletContext()
@@ -367,6 +371,35 @@ export function PropertyTab() {
         {hasValue && d.property.equity < 0 && <Notice tone="warn">Sisa pokok lebih besar dari estimasi nilai rumah (equity negatif).</Notice>}
       </div>
       <div className="flex min-w-0 flex-col gap-3.5">
+        {p.location ? (
+          <div className="flex flex-col gap-1">
+            {GEOAPIFY_KEY && <img src={staticMapUrl(p.location)} alt="Peta lokasi properti" loading="lazy" width={600} height={300} className="aspect-[2/1] w-full rounded-2xl bg-muted object-cover" />}
+            <div className="flex flex-wrap items-center justify-between gap-x-3">
+              <a href={googleMapsUrl(p.location)} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center gap-1.5 text-sm font-bold text-primary underline">
+                Buka di Google Maps
+                <ExternalLinkIcon className="size-4" aria-hidden />
+              </a>
+              {GEOAPIFY_KEY && (
+                <span className="text-[11px] text-muted-foreground">
+                  <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer" className="underline">Powered by Geoapify</a> · ©{' '}
+                  <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">OpenStreetMap</a>
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          GEOAPIFY_KEY && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-border py-2 pr-2 pl-4">
+              <span className="flex items-center gap-2 text-sm text-ink-3">
+                <MapPinIcon className="size-4 shrink-0" aria-hidden />
+                Lokasi di peta belum ditandai.
+              </span>
+              <Button variant="ghost" size="sm" onClick={() => setEditing('location')}>
+                Tandai Lokasi
+              </Button>
+            </div>
+          )
+        )}
         <span className="text-[13px] text-ink-3">{hasValue ? `Nilai diperbarui ${dateShort(p.valueAsOf)}` : 'Nilai properti belum diisi.'}</span>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" size="md" onClick={() => setOpen(true)}>
@@ -398,6 +431,7 @@ export function PropertyTab() {
         <PropertyDialog
           m={m}
           clock={snap.clock}
+          startPicking={editing === 'location'}
           onClose={() => setEditing(false)}
           onSaved={(saved) => {
             setMortgage(saved)
@@ -421,7 +455,7 @@ const validateProperty = (v) => {
 }
 
 // Data properti of an active KPR, not asked in the setup. Opened from Home (Peluang) and from this tab.
-export function PropertyDialog({ m, clock, onClose, onSaved }) {
+export function PropertyDialog({ m, clock, onClose, onSaved, startPicking = false }) {
   const p = m.property ?? {}
   const form = useForm(
     {
@@ -434,9 +468,11 @@ export function PropertyDialog({ m, clock, onClose, onSaved }) {
       certificateOwner: p.certificateOwner ?? '',
       estimatedValue: moneyInput(p.estimatedValue),
       disputed: p.disputed ? 'yes' : 'no',
+      location: p.location ?? null,
     },
     validateProperty,
   )
+  const [picking, setPicking] = useState(startPicking)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const v = form.values
@@ -458,6 +494,7 @@ export function PropertyDialog({ m, clock, onClose, onSaved }) {
           valueAsOf: value === p.estimatedValue ? p.valueAsOf : clock,
           valueLater: false,
           disputed: y.disputed === 'yes',
+          location: y.location,
         },
       })
       toast('Data properti tersimpan.')
@@ -472,8 +509,41 @@ export function PropertyDialog({ m, clock, onClose, onSaved }) {
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         <FormGrid>
           <SelectField label="Jenis properti" options={PROPERTY_TYPES} {...form.bind('type')} />
-          <SelectField label="Kota / Kabupaten" options={CITIES} {...form.bind('city')} />
+          <ComboboxField label="Kota / Kabupaten" options={CITIES} {...form.bind('city')} />
           <TextField label="Alamat" placeholder="Griya Asri Blok C2 No. 8" span {...form.bind('address')} />
+          {GEOAPIFY_KEY && (
+            <FieldShell id="property-location" label="Titik lokasi di peta" optional span labelFor={false}>
+              {picking ? (
+                <Suspense fallback={<Skeleton className="h-[420px] rounded-2xl" />}>
+                  <LocationPicker
+                    value={v.location}
+                    city={v.city}
+                    onPick={(point) => {
+                      form.set('location', point)
+                      setPicking(false)
+                    }}
+                    onCancel={() => setPicking(false)}
+                  />
+                </Suspense>
+              ) : v.location ? (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-field py-1.5 pr-1.5 pl-[18px]">
+                  <MapPinIcon className="size-4 shrink-0 text-primary" aria-hidden />
+                  <span className="mr-auto text-[15px] font-medium tabular">{pointLabel(v.location)}</span>
+                  <Button variant="ghost" size="sm" onClick={() => setPicking(true)}>
+                    Ubah
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => form.set('location', null)}>
+                    Hapus
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="outline" size="md" className="self-start" onClick={() => setPicking(true)}>
+                  <MapPinIcon aria-hidden />
+                  Tandai di peta
+                </Button>
+              )}
+            </FieldShell>
+          )}
           <NumberField label="Luas tanah" suffix="m²" {...form.bind('landArea')} />
           <NumberField label="Luas bangunan" suffix="m²" {...form.bind('buildingArea')} />
           <SelectField label="Status sertifikat" options={CERTIFICATES} {...form.bind('certificateType')} />

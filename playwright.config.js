@@ -12,5 +12,5 @@ export default defineConfig({
   use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
   // E2E runs the localStorage demo; never reuse a dev server that may be on real data.
-  webServer: { command: `npm run dev -- --port ${PORT} --strictPort`, url: `http://localhost:${PORT}`, reuseExistingServer: false, timeout: 60_000, env: { VITE_DATA_SOURCE: 'mock' } },
+  webServer: { command: `npm run dev -- --port ${PORT} --strictPort`, url: `http://localhost:${PORT}`, reuseExistingServer: false, timeout: 60_000, env: { VITE_DATA_SOURCE: 'mock', VITE_GEOAPIFY_KEY: 'e2e' } }, // Geoapify calls are stubbed per test
 })

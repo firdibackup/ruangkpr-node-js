@@ -140,6 +140,21 @@ test('monitoring: 2-step setup (Data KPR → Reminder) → locked widgets unlock
   await page.getByRole('button', { name: 'Lengkapi Data Properti' }).click() // same pop-up as on Home
   await expect(page.getByRole('dialog', { name: 'Data properti' }).getByLabel('Estimasi nilai saat ini')).toHaveValue('850.000.000')
   await page.keyboard.press('Escape')
+
+  // Titik lokasi: pasting coordinates needs no search call; Geoapify tiles and the static map are stubbed.
+  await page.route('**/*.geoapify.com/**', (route) => route.fulfill({ contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64') }))
+  await page.getByRole('button', { name: 'Tandai Lokasi' }).click()
+  const located = page.getByRole('dialog', { name: 'Data properti' })
+  await located.getByLabel('Kota / Kabupaten').fill('kota bek')
+  await page.keyboard.press('Escape') // closes only the list
+  await expect(located).toBeVisible()
+  await located.getByLabel('Cari lokasi').fill('-6.2383, 106.9756')
+  await located.getByRole('button', { name: 'Pakai titik ini' }).click()
+  await expect(located.getByText('-6.238300, 106.975600')).toBeVisible()
+  await located.getByRole('button', { name: 'Simpan Data Properti' }).click()
+  await expect(located).toBeHidden()
+  await expect(page.getByRole('img', { name: 'Peta lokasi properti' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Buka di Google Maps' })).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=-6.238300,106.975600')
   await page.goto('/my-kpr')
   await expect(page).toHaveURL(/my-kpr\/overview/) // no application was created
   await page.getByRole('tab', { name: 'Payment' }).click()
@@ -196,19 +211,17 @@ test('penghasilan from the Home pop-up fills Take Over; data the setup no longer
   await expect(page).toHaveURL(/optimize\/4$/) // Data KPR lama is known from the monitored KPR
   await expect(page.getByText('Lengkapi data pengajuan', { exact: true })).toBeVisible()
   await page.getByLabel('Jenis properti').selectOption('landed_house')
-  await page.getByLabel('Kota / Kabupaten').selectOption('Kota Bekasi')
+  await page.getByLabel('Kota / Kabupaten').fill('bekasi')
+  await page.getByRole('option', { name: /^Kota Bekasi/ }).click()
   await page.getByLabel('Alamat', { exact: true }).fill('Griya Asri Blok C2 No. 8')
   await page.getByLabel('Luas tanah').fill('72')
   await page.getByLabel('Luas bangunan').fill('45')
   await page.getByLabel('Status sertifikat').selectOption('shm')
   await save(page)
-  await expect(page).toHaveURL(/optimize\/5$/) // Tujuan, then the bank choices
-  await page.getByRole('radio', { name: /Pindah KPR tanpa dana tambahan/ }).click()
-  await page.getByRole('radio', { name: 'Cicilan bulanan lebih ringan' }).click()
-  await page.getByLabel('Tenor baru yang diinginkan').selectOption('180')
-  await page.getByRole('button', { name: 'Lihat Kondisi KPR' }).click()
-  await expect(page).toHaveURL(/optimize\/baseline/)
-  await page.getByRole('button', { name: 'Bandingkan Program' }).click()
+  // No Tujuan step: the goal Peluang suggested opens the bank list, as when nothing was missing.
+  await expect(page).toHaveURL(/optimize\/programs$/)
+  await expect(page.getByRole('heading', { name: 'Pilihan Take Over' })).toBeVisible()
+  await expect(page.getByText('Rekomendasi dari kami').first()).toBeVisible()
   await page.getByRole('button', { name: 'Lihat Detail' }).first().click()
   await page.getByRole('button', { name: /^Ajukan / }).click()
   await page.getByRole('button', { name: 'Lanjut Dokumen' }).click()

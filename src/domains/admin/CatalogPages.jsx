@@ -42,11 +42,17 @@ function CatalogTabs() {
 }
 
 export function ProductListPage() {
-  const [status, setStatus] = useState('published')
+  const [f, setF] = useState({ query: '', bankId: '', status: 'published' })
   const [selected, setSelected] = useState([])
   const [bulk, setBulk] = useState(null)
   const [reason, setReason] = useState('')
-  const { data, error, reload } = useResource(() => api.admin.products.list({ status: status || undefined }), [status])
+  // A filter change drops the selection so hidden rows never ride along in a bulk action.
+  const set = (k) => (v) => {
+    setF((x) => ({ ...x, [k]: v }))
+    setSelected([])
+  }
+  const { data, error, reload } = useResource(() => api.admin.products.list({ query: f.query, bankId: f.bankId || undefined, status: f.status || undefined }), [JSON.stringify(f)])
+  const { data: banks } = useResource(() => api.admin.banks.list(), [])
   const picked = data?.filter((p) => selected.includes(p.id)) ?? []
   const targets = { publish: picked.filter((p) => p.status === 'draft' || p.hasPendingRevision), archive: picked.filter((p) => p.status !== 'archived') }
   const toggle = (id) => (on) => setSelected((s) => (on ? [...s, id] : s.filter((x) => x !== id)))
@@ -81,17 +87,10 @@ export function ProductListPage() {
         }
       />
       <CatalogTabs />
-      <div className="max-w-xs">
-        <SelectField
-          label="Status"
-          placeholder="Semua"
-          value={status}
-          onChange={(v) => {
-            setStatus(v)
-            setSelected([])
-          }}
-          options={Object.entries(PRODUCT_STATUS).map(([value, [label]]) => ({ value, label }))}
-        />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <TextField label="Cari produk" type="search" placeholder="Nama produk atau bank" value={f.query} onChange={set('query')} />
+        <SelectField label="Bank" placeholder="Semua" value={f.bankId} onChange={set('bankId')} options={(banks ?? []).map((b) => ({ value: b.id, label: b.name }))} />
+        <SelectField label="Status" placeholder="Semua" value={f.status} onChange={set('status')} options={Object.entries(PRODUCT_STATUS).map(([value, [label]]) => ({ value, label }))} />
       </div>
       {!data && error && <ErrorPanel onRetry={reload} />}
       {!data && !error && <PageSkeleton />}
@@ -118,7 +117,7 @@ export function ProductListPage() {
             )}
           </div>
           {data.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Tidak ada produk dengan status ini.</p>
+            <p className="text-sm text-muted-foreground">Tidak ada produk yang cocok.</p>
           ) : (
             <Table aria-label="Daftar produk">
               <TableHeader>

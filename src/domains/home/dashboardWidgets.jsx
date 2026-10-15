@@ -12,11 +12,9 @@ import {
 } from "lucide-react";
 import { PiLockSimpleFill, PiSparkleFill } from "react-icons/pi";
 import {
-  CITIES,
   dateLong,
   dateShort,
   daysLabel,
-  labelOf,
   monthName,
   monthYear,
   percentBps,
@@ -602,9 +600,7 @@ function MyKprWidget({ m, d }) {
           },
           {
             k: "Lokasi properti",
-            v: m.property?.city
-              ? labelOf(CITIES, m.property.city)
-              : "Belum diisi",
+            v: m.property?.city || "Belum diisi",
           },
         ]}
       />

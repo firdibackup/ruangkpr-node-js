@@ -70,7 +70,12 @@ export function FormDialog({ open, onOpenChange, title, description, children, c
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={overlay} />
-        <DialogPrimitive.Content className={cn(content, 'max-w-[480px]', className)} {...(!description && { 'aria-describedby': undefined })}>
+        <DialogPrimitive.Content
+          className={cn(content, 'max-w-[480px]', className)}
+          // Escape in an open combobox list closes only the list.
+          onEscapeKeyDown={(e) => e.target.getAttribute?.('aria-expanded') === 'true' && e.preventDefault()}
+          {...(!description && { 'aria-describedby': undefined })}
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-col gap-1.5">
               <DialogPrimitive.Title className="text-xl font-extrabold">{title}</DialogPrimitive.Title>

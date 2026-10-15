@@ -140,7 +140,6 @@ export const CERTIFICATES = [
   { value: 'strata', label: 'Strata Title (SHMSRS)' },
   { value: 'other', label: 'Girik / lainnya' },
 ]
-export const CITIES = ['Kota Bekasi', 'Kab. Bekasi', 'Kota Depok', 'Kota Tangerang', 'Kota Tangerang Selatan', 'Kab. Bogor', 'Kota Bogor', 'Jakarta Selatan', 'Jakarta Timur', 'Jakarta Barat', 'Jakarta Utara', 'Jakarta Pusat', 'Kota Bandung', 'Kota Surabaya', 'Lainnya'].map((c) => ({ value: c, label: c }))
 export const BANKS = ['Bank ABC', 'BCA', 'Bank Mandiri', 'BRI', 'BNI', 'BTN', 'CIMB Niaga', 'Bank lainnya'].map((b) => ({ value: b, label: b }))
 export const PURPOSES = [
   { value: 'renovation', label: 'Renovasi Rumah' },

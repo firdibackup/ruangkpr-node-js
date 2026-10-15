@@ -80,6 +80,19 @@ test('admin selects several products and publishes or archives them at once', as
   await expect(page.getByRole('row', { name: /KPR Uji Massal/ }).getByText('Diarsipkan')).toBeVisible()
 })
 
+test('admin narrows the product list by bank and search', async ({ page }) => {
+  await useScenario(page, 'admin_ops', '/admin/products')
+  await page.getByLabel('Status').selectOption({ label: 'Semua' })
+  await page.getByLabel('Bank', { exact: true }).selectOption({ label: 'Bank XYZ' })
+  await expect(page.getByRole('row', { name: /Bank XYZ/ })).toHaveCount(2)
+  await expect(page.getByRole('row', { name: /Bank DEF/ })).toHaveCount(0)
+  await page.getByLabel('Cari produk').fill('take over')
+  await expect(page.getByText('1 produk', { exact: true })).toBeVisible()
+  await expect(page.getByRole('row', { name: /Take Over Fixed 5 Tahun/ })).toBeVisible()
+  await page.getByLabel('Cari produk').fill('tidak ada')
+  await expect(page.getByText('Tidak ada produk yang cocok.')).toBeVisible()
+})
+
 test('a bank is switched off with a reason and shows as inactive', async ({ page }) => {
   await useScenario(page, 'admin_ops', '/admin/banks')
   const row = page.getByRole('row', { name: /Bank GHI/ })

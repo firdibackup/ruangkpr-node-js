@@ -166,6 +166,108 @@ export function SelectField({ label, name, value, onChange, onBlur, error, hint,
   )
 }
 
+const SHOWN = 50
+
+// Type-to-search select (ARIA 1.2 combobox) for long lists such as the 514 kota/kabupaten. Only an option can become
+// the value: typed text that matches none goes back to the saved value on blur. `o.hint` shows on the right.
+export function ComboboxField({ label, name, value, onChange, onBlur, error, hint, optional, required, span, placeholder = 'Ketik untuk mencari…', options, highlight }) {
+  const id = useId()
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState(null) // null until the user types; the field shows the value meanwhile
+  const [active, setActive] = useState(0)
+  const q = (query ?? '').trim().toLowerCase()
+  const matches = open ? options.filter((o) => `${o.label} ${o.hint ?? ''}`.toLowerCase().includes(q)) : []
+  const shown = matches.slice(0, SHOWN)
+  const optId = (i) => `${id}-opt-${i}`
+  const close = () => {
+    setOpen(false)
+    setQuery(null)
+  }
+  const pick = (o) => {
+    onChange(o.value)
+    close()
+  }
+  const move = (step) => {
+    const next = Math.max(0, Math.min(shown.length - 1, active + step))
+    setActive(next)
+    document.getElementById(optId(next))?.scrollIntoView?.({ block: 'nearest' })
+  }
+  const onKeyDown = (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (open) move(e.key === 'ArrowDown' ? 1 : -1)
+      else setOpen(true)
+    } else if (e.key === 'Enter' && open) {
+      e.preventDefault()
+      if (shown[active]) pick(shown[active])
+    } else if (e.key === 'Escape' && open) {
+      close() // FormDialog keeps the dialog open while the list is (aria-expanded)
+    }
+  }
+  return (
+    <FieldShell id={id} label={label} hint={hint} error={error} optional={optional} required={required} span={span}>
+      <div className="relative">
+        <input
+          id={id}
+          name={name}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={`${id}-list`}
+          aria-activedescendant={open && shown[active] ? optId(active) : undefined}
+          aria-required={required || undefined}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={describedBy(id, hint, error)}
+          autoComplete="off"
+          value={query ?? options.find((o) => o.value === value)?.label ?? value ?? ''}
+          placeholder={placeholder}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setActive(0)
+            setOpen(true)
+          }}
+          // Whole value selected until typing starts, so typing replaces it instead of appending.
+          onClick={(e) => {
+            setOpen(true)
+            if (query === null) e.target.select()
+          }}
+          onFocus={(e) => e.target.select()}
+          onBlur={() => {
+            close()
+            onBlur?.()
+          }}
+          onKeyDown={onKeyDown}
+          className={cn('h-[54px] w-full rounded-lg border bg-field pr-11 pl-[18px] text-[15px] font-medium outline-none placeholder:text-[#8a93a3] focus:border-primary focus:ring-3 focus:ring-ring/15', tone(error, highlight))}
+        />
+        <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-4 size-[18px] -translate-y-1/2 text-muted-foreground" aria-hidden />
+        {open && (
+          // mousedown would blur the input (closing the list) before the click lands on an option.
+          <div onMouseDown={(e) => e.preventDefault()} className="absolute inset-x-0 top-full z-50 mt-1.5 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-pop">
+            <ul id={`${id}-list`} role="listbox" aria-label={label} className="max-h-72 overflow-y-auto py-1">
+              {shown.map((o, i) => (
+                <li
+                  key={o.value}
+                  id={optId(i)}
+                  role="option"
+                  aria-selected={o.value === value}
+                  onClick={() => pick(o)}
+                  onMouseMove={() => i !== active && setActive(i)}
+                  className={cn('flex min-h-11 cursor-pointer items-center justify-between gap-3 px-[18px] py-2 text-[15px]', i === active && 'bg-muted', o.value === value && 'font-bold text-primary')}
+                >
+                  <span className="min-w-0">{o.label}</span>
+                  {o.hint && <span className="shrink-0 text-[13px] font-medium text-muted-foreground">{o.hint}</span>}
+                </li>
+              ))}
+            </ul>
+            {!shown.length && <p className="px-[18px] py-3 text-sm text-muted-foreground">Tidak ditemukan. Coba kata lain.</p>}
+            {matches.length > SHOWN && <p className="border-t border-border px-[18px] py-2.5 text-xs text-muted-foreground">Ketik untuk mempersempit pilihan.</p>}
+          </div>
+        )}
+      </div>
+    </FieldShell>
+  )
+}
+
 const OTHER = '__other'
 
 // Radio options rendered as cards (artifact "radio" pattern) with Radix keyboard semantics.

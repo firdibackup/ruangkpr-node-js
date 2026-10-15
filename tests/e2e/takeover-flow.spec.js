@@ -3,6 +3,7 @@ import { useScenario } from './helpers'
 
 async function openFirstProgram(page, mode) {
   await page.goto(`/optimize/start?mode=${mode}`)
+  await expect(page.getByRole('radio', { name: /^Pindah KPR/ })).toHaveCount(0) // the mode comes from the link
   await page.getByRole('button', { name: 'Lihat Kondisi KPR' }).click()
   await expect(page).toHaveURL(/optimize\/baseline/)
   await expect(page.getByText('Estimasi biaya keluar dari bank lama')).toBeVisible()
@@ -102,10 +103,9 @@ test('cold-entry take over: 5 data steps (official figures) → baseline → pro
   await expect(page.getByText('Isi estimasi nilai')).toBeHidden() // LTV follows the typed property value
   await save()
   await expect(page).toHaveURL(/optimize\/5/) // Tujuan: last data step, runs the simulation
-  await expect(page.getByRole('region', { name: 'Kondisi keuangan: Tanpa dana tambahan' })).toContainText('Biaya keluar bank lama')
-  await expect(page.getByRole('region', { name: 'Kondisi keuangan: Tanpa dana tambahan' })).not.toContainText('Dana kamu untuk biaya') // never asked, so not shown
-  await expect(page.getByRole('region', { name: 'Kondisi keuangan: + Dana tambahan' })).toContainText('Top-up kotor maksimum')
-  await page.getByRole('radio', { name: /Pindah KPR tanpa dana tambahan/ }).click()
+  // Take Over was picked at the start, so Tujuan opens on the priorities without asking it again.
+  await expect(page.getByRole('radio', { name: /Pindah KPR tanpa dana tambahan/ })).toHaveCount(0)
+  await expect(page.getByLabel('Tenor baru yang diinginkan')).toHaveValue('180')
   await page.getByRole('radio', { name: 'Cicilan bulanan lebih ringan' }).click()
   await page.getByLabel('Tenor baru yang diinginkan').selectOption('180')
   await page.getByRole('button', { name: 'Lihat Kondisi KPR' }).click()

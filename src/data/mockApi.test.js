@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { addDays } from '@/calculations/dates'
 import { calculateMaxPrincipal } from '@/calculations/finance'
 import { selectHomeState } from '@/domains/home/selectHomeState'
-import { takeoverGaps } from '@/domains/optimize/validation'
+import { defaultTakeoverGoal, takeoverGaps } from '@/domains/optimize/validation'
 import { deriveMortgage } from '@/domains/mortgages/derive'
 import { remainingFromStart } from '@/domains/mortgages/validation'
 import { createMockApi, mockControls } from './mockApi'
@@ -536,6 +536,16 @@ describe('admin catalog', () => {
     await asFirdi()
     expect(await compareIds()).not.toContain('bpr_abc_primary_fix5_v4')
   })
+
+  it('the product list filters by bank and searches product and bank names', async () => {
+    mockControls.reset('upload_failure')
+    await asAdmin()
+    const names = async (q) => (await api.admin.products.list(q)).map((p) => `${p.bankName} · ${p.name}`)
+    expect(await names({ bankId: 'bnk_xyz' })).toEqual(['Bank XYZ · KPR Fixed 3 Tahun', 'Bank XYZ · Take Over Fixed 5 Tahun'])
+    expect(await names({ query: '  bank def ' })).toEqual(['Bank DEF · KPR Fixed 10 Tahun', 'Bank DEF · Take Over Fixed 3 Tahun'])
+    expect(await names({ query: 'take over', bankId: 'bnk_ghi' })).toEqual(['Bank GHI · Take Over Fixed 10 Tahun'])
+    expect(await names({ query: 'tidak ada' })).toEqual([])
+  })
 })
 
 describe('admin articles', () => {
@@ -1034,11 +1044,12 @@ describe('take over simulation', () => {
     expect(await api.applications.create({ productType: 'primary' })).toMatchObject({ documents: {}, data: { loan: {} } })
   })
 
-  it('a draft created from a monitored KPR is prefilled and opens on Tujuan with only the missing forms left', async () => {
+  it('a draft created from a monitored KPR is prefilled, with Peluang default goal, so only the missing forms are left', async () => {
     mockControls.reset('mortgage_active_floating')
     const { mortgages: [m], clock } = await api.dashboard.getSnapshot()
     const app = await api.applications.create({ productType: 'takeover', mode: 'takeover', mortgageId: m.id })
     expect(app).toMatchObject({ source: 'mortgage', mortgageId: m.id, currentStep: 5, selection: null, data: { oldLoan: { bankName: m.bankName, outstanding: m.outstandingPrincipal } } })
+    expect(app.data.goal).toEqual(defaultTakeoverGoal(m)) // the bank list opens on it, no Tujuan step
     expect(takeoverGaps(app.data, { today: clock, mode: 'takeover' })).toEqual([]) // nothing left to ask
   })
 })

@@ -15,8 +15,8 @@ const TENORS = [5, 10, 15, 20, 25].map((y) => ({ value: String(y * 12), label: `
 // Forms the KPR setup can skip.
 const SKIPPABLE = { '/optimize/1': 'data pribadi', '/optimize/1/pekerjaan': 'pekerjaan', '/optimize/2': 'data KPR lama', '/optimize/4': 'data properti' }
 
-// Entry from Explore with an active mortgage: reuse its data, ask only the goal (no duplicate wizard), or first the
-// forms its setup skipped.
+// Entry from Explore with an active mortgage: reuse its data, ask only the priorities or funds of the chosen ?mode (no
+// duplicate wizard), or first the forms its setup skipped.
 export function GoalStartPage() {
   const [params] = useSearchParams()
   const initialMode = params.get('mode') === 'topup' ? 'topup' : 'takeover'
@@ -53,7 +53,7 @@ export function GoalStartPage() {
   const v = form.values
   const missing = mortgageTakeoverGaps(m, snap, initialMode).filter((p) => SKIPPABLE[p])
 
-  // Bank choices need the data skipped in the KPR setup: a prefilled draft opens only those forms, then Tujuan.
+  // Bank choices need the data skipped in the KPR setup: a prefilled draft opens only those forms, then the bank list.
   const completeData = async () => {
     setPending(true)
     setApiError('')
@@ -76,7 +76,7 @@ export function GoalStartPage() {
         >
           {existing
             ? `Masih ada pengajuan ${productName(existing)}. Lanjutkan atau hapus dulu.`
-            : `Data KPR kamu belum lengkap: ${missing.map((p) => SKIPPABLE[p]).join(', ')}. Isi dulu, lalu kondisi KPR dan pilihan bank ditampilkan. Data yang sudah ada tidak perlu diisi ulang.`}
+            : `Data KPR kamu belum lengkap: ${missing.map((p) => SKIPPABLE[p]).join(', ')}. Isi dulu, lalu pilihan bank ditampilkan. Data yang sudah ada tidak perlu diisi ulang.`}
         </Notice>
         {apiError && <Notice tone="bad" role="alert">{apiError}</Notice>}
         {!existing && (
@@ -120,17 +120,6 @@ export function GoalStartPage() {
           Data diambil dari KPR yang kamu pantau: {m.bankName} · sisa pokok {rupiah(m.outstandingPrincipal)} · {m.remainingTenorMonths} bulan.
         </div>
         <ErrorSummary show={form.showSummary} count={Object.keys(form.errors).length} />
-        <Panel className="gap-5 sm:p-7">
-          <RadioCards
-            label="Tujuan simulasi"
-            layout="column"
-            options={[
-              { value: 'takeover', label: 'Pindah KPR tanpa dana tambahan', description: 'Cari bunga, cicilan, atau tenor baru.' },
-              { value: 'topup', label: 'Pindah KPR + dana tambahan', description: 'Lunasi KPR lama dan terima Top-up.' },
-            ]}
-            {...form.bind('mode')}
-          />
-        </Panel>
         <Panel className="gap-5 sm:p-7">
           <div className="flex items-center gap-3">
             <IconBox icon={v.mode === 'topup' ? HandCoinsIcon : ListOrderedIcon} />
