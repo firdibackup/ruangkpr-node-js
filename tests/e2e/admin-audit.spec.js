@@ -22,6 +22,24 @@ test('the audit log shows who changed what and why, with the before and after va
   await expect(entry.getByRole('row', { name: /Ukuran maksimal/ })).toHaveText(/Ukuran maksimal\s*5\s*2/)
 })
 
+test('the overview activity feed unfolds a change, opens its record, and leads to the full log', async ({ page }) => {
+  await useScenario(page, 'admin_ops', '/admin/configuration')
+  await saveUploadLimit(page, '2', 'Batas bank mitra')
+
+  await page.getByRole('link', { name: 'Overview' }).click()
+  const entry = page.getByRole('list', { name: 'Aktivitas admin terbaru' }).getByRole('listitem').first()
+  await expect(entry).toContainText('Ubah konfigurasi · Unggah dokumen')
+  await entry.getByText('Lihat detail').click()
+  await expect(entry.getByRole('row', { name: /Ukuran maksimal/ })).toHaveText(/Ukuran maksimal\s*5\s*2/)
+  await entry.getByRole('link', { name: 'Buka konfigurasi' }).click()
+  await expect(page).toHaveURL(/\/admin\/configuration$/)
+
+  await page.getByRole('link', { name: 'Overview' }).click()
+  await page.getByRole('link', { name: 'Lihat semua log' }).click()
+  await expect(page).toHaveURL(/\/admin\/audit-log$/)
+  await expect(page.getByRole('list', { name: 'Log audit' }).getByRole('listitem')).toHaveCount(1)
+})
+
 test('with two super admins, each change carries who made it and the log filters by admin', async ({ page }) => {
   await useScenario(page, 'admin_ops', '/admin/configuration')
   await saveUploadLimit(page, '2', 'Batas bank mitra')

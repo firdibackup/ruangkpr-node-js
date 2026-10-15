@@ -40,6 +40,12 @@ test('admin opens a KPR from the user profile and sees its full detail', async (
   for (const name of ['Ringkasan', 'Bunga', 'Jadwal amortisasi', 'KPR Health', 'Keuangan & DTI', 'Properti', 'Pembayaran', 'Reminder']) {
     await expect(page.getByRole('heading', { level: 2, name, exact: true })).toBeVisible()
   }
+  // The user's own dashboard widgets and gauges, drawn from the same data.
+  await expect(page.getByRole('img', { name: /^KPR Health \d+ dari 100/ })).toBeVisible()
+  await expect(page.getByRole('img', { name: /^Rasio cicilan \d+%/ })).toBeVisible()
+  for (const name of ['Perjalanan KPR', 'Proyeksi Sisa Pokok', 'Komposisi Cicilan', 'Dampak Floating', 'Grafik Amortisasi']) {
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+  }
   await expect(page.getByRole('table', { name: 'Jadwal amortisasi per tahun' })).toBeVisible()
   await expect(page.getByText('Jl. Contoh No. 5, Kota Bekasi')).toBeVisible()
   const kprHistory = page.getByRole('list', { name: 'Riwayat perubahan KPR' })

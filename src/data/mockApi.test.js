@@ -199,6 +199,11 @@ describe('accounts and admin access', () => {
       ['Sari Wulandari', 'bank_processing', 1],
       ['Rina Hartati', 'submitted', 1],
     ])
+    // Two weeks day by day up to the clock (28 Sep): seven submitted in them, one (Agus, 10 Sep) the two weeks before.
+    const { trend } = o.applications
+    expect([trend.length, trend[0].from, trend.at(-1).to]).toEqual([14, '2026-09-15', '2026-09-28'])
+    expect(trend.reduce((n, d) => n + d.submitted, 0)).toBe(7)
+    expect(o.applications.previousSubmitted).toBe(1)
     expect(o.products).toMatchObject({ active: 6, expired: 0, stale: 1 })
     expect(o.products.nearestExpiry[0]).toMatchObject({ effectiveUntil: '2026-12-31', daysLeft: 94 })
     expect(o.products.nearestExpiry.find((p) => p.bankName === 'Bank GHI')).toMatchObject({ stale: true })
@@ -1108,6 +1113,15 @@ describe('admin reports', () => {
       ['akad', 1, 5000, 1],
       ['disbursed', 1, 10000, null],
     ])
+    // The 30 days before hold nothing yet; the trend splits the period into days that add up to the totals.
+    expect(r.previous).toMatchObject({ from: '2026-07-31', to: '2026-08-29', users: { registered: 0 }, applications: { submitted: 0, approved: 0 } })
+    expect(r.trend).toHaveLength(30)
+    expect(r.trend.filter((d) => d.approved).map((d) => d.from)).toEqual(['2026-09-14', '2026-09-20'])
+    expect(r.trend.reduce((n, d) => n + d.submitted, 0)).toBe(8)
+    // Past a month the buckets grow to weeks, then 30-day blocks, the last one cut at the period's end.
+    expect((await api.admin.reports.get({ from: '2026-08-01', to: '2026-09-28' })).trend.map((b) => b.from).slice(-2)).toEqual(['2026-09-19', '2026-09-26'])
+    const long = await api.admin.reports.get({ from: '2026-06-10', to: '2026-09-28' })
+    expect(long.trend.map((b) => [b.from, b.to])).toEqual([['2026-06-10', '2026-07-09'], ['2026-07-10', '2026-08-08'], ['2026-08-09', '2026-09-07'], ['2026-09-08', '2026-09-28']])
     expect(r.products.map((p) => [p.id, p.count])).toEqual([
       ['bpr_abc_primary_fix5_v4', 4],
       ['bpr_xyz_primary_fix3_v3', 2],

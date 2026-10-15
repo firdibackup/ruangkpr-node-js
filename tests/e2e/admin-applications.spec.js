@@ -31,6 +31,11 @@ test('admin reviews each document, sends the rejected one with its reason, and f
   await dialog.getByRole('button', { name: 'Simpan penolakan' }).click()
   await expect(page.getByText('Ditolak · belum dikirim')).toBeVisible()
   await expect(page.getByText('4 dari 4 dokumen wajib diperiksa · 1 ditolak')).toBeVisible()
+  // The document ring's legend and the tracker diagram follow the review.
+  const docs = page.getByRole('list', { name: 'Status dokumen wajib' })
+  await expect(docs.getByRole('listitem').filter({ hasText: 'Terverifikasi' })).toContainText('3')
+  await expect(docs.getByRole('listitem').filter({ hasText: 'Perlu diperbarui' })).toContainText('1')
+  await expect(page.getByRole('list', { name: 'Tahapan pengajuan' }).getByRole('listitem').nth(1)).toHaveAttribute('aria-current', 'step')
   await expect(page.getByRole('button', { name: 'Teruskan ke bank' })).toBeDisabled()
   await move(page, 'Kirim permintaan revisi ke user', 'NPWP buram', async (d) => {
     await expect(d.getByRole('list', { name: 'Dokumen yang ditolak' })).toContainText('NPWP — Buram / tidak terbaca: angka NPWP tidak terbaca')

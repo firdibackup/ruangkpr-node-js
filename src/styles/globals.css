@@ -91,6 +91,8 @@
   /* Chart colours for Recharts, which reads them from SVG attributes rather than utilities. */
   --chart-principal: #003da5;
   --chart-interest: #9db6e3;
+  /* Admin counts: the step-current blue, the lighter series beside --chart-principal (passes the CVD check). */
+  --chart-step: #6e93d6;
   --chart-ok: #1b8a5a;
   --chart-warn: #e0a100;
   --chart-warn-text: #9a5b00;

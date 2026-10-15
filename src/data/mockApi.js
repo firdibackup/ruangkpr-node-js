@@ -858,6 +858,21 @@ const articleRow = ({ id, title, slug, tag, minutes, status, rev, updatedAt }) =
 const articleDetail = (db, a) => ({ article: articleRow(a), content: pickFields(a, ARTICLE_KEYS), issues: articleIssues(db, a, true) })
 const articleAudit = (db, a, action, extra = {}) => audit(db, { action, resource: { type: 'article', id: a.id, label: a.title }, ...extra })
 
+// Whether a timestamp or date falls on a day in [from, to] (ISO dates, both inclusive).
+const onDays = (iso, from, to) => !!iso && iso.slice(0, 10) >= from && iso.slice(0, 10) <= to
+// Chart buckets over [from, to]: single days up to a month, then weeks, then 30-day blocks; the last one may be short.
+// ponytail: fixed-length blocks, not calendar weeks or months; switch if reports need calendar alignment.
+function dateBuckets(from, to) {
+  const span = daysUntil({ fromDate: from, targetDate: to }) + 1
+  const step = span <= 31 ? 1 : span <= 92 ? 7 : 30
+  const buckets = []
+  for (let d = from; d <= to; d = addDays(d, step)) {
+    const end = addDays(d, step - 1)
+    buckets.push({ from: d, to: end < to ? end : to })
+  }
+  return buckets
+}
+
 // Backend-shaped aggregates for the admin overview (admin plan §4.1); the UI only renders them.
 function adminOverview(db) {
   const accounts = userAccounts(db)
@@ -870,6 +885,9 @@ function adminOverview(db) {
     .sort(longestWaitingFirst)
   const products = productsOf(db)
   const live = products.filter((p) => isAvailable(p, db.clock))
+  // Two weeks of incoming applications day by day, plus the two weeks before them for comparison.
+  const since = addDays(db.clock, -13)
+  const submittedIn = (from, to) => apps.filter(({ app }) => onDays(app.submittedAt, from, to)).length
   return {
     asOf: db.clock,
     recentActivity: (db.auditLog ?? []).slice(0, 5),
@@ -880,6 +898,8 @@ function adminOverview(db) {
       waitingOnUser: count(['additional_docs_requested']),
       atBank: count(AT_BANK),
       funnel: { submitted: reached('submitted'), approved: reached('approved'), disbursed: reached('disbursed') },
+      trend: dateBuckets(since, db.clock).map(({ from, to }) => ({ from, to, submitted: submittedIn(from, to) })),
+      previousSubmitted: submittedIn(addDays(since, -14), addDays(since, -1)),
       queue,
     },
     products: {
@@ -917,7 +937,7 @@ function reportScope(db, { from, to, productType, bankName } = {}) {
   if (!parseIsoDate(filters.to)) e.to = 'Pilih tanggal akhir.'
   else if (!e.from && filters.from > filters.to) e.to = 'Tanggal akhir tidak boleh sebelum tanggal mulai.'
   failOnFields(e, 'Periksa rentang tanggal.')
-  const inPeriod = (iso) => !!iso && iso.slice(0, 10) >= filters.from && iso.slice(0, 10) <= filters.to
+  const inPeriod = (iso) => onDays(iso, filters.from, filters.to)
   const matches = (app) => (!filters.productType || app.productType === filters.productType) && (!filters.bankName || app.selection?.bankName === filters.bankName)
   const accounts = userAccounts(db)
   const apps = accounts.flatMap((a) => a.applications).filter(matches)
@@ -925,10 +945,22 @@ function reportScope(db, { from, to, productType, bankName } = {}) {
   return { filters, inPeriod, matches, accounts, apps, cohort }
 }
 
-function adminReport(db, params) {
-  const { filters, inPeriod, matches, accounts, apps, cohort } = reportScope(db, params)
+const reachedIn = (app, status, inRange) => app.statusHistory.some((h) => h.status === status && inRange(h.at))
+function periodTotals({ inPeriod, matches, accounts, apps, cohort }) {
   const registered = accounts.filter((a) => inPeriod(a.user.createdAt))
-  const reached = (status) => apps.filter((app) => app.statusHistory.some((h) => h.status === status && inPeriod(h.at))).length
+  const reached = (status) => apps.filter((app) => reachedIn(app, status, inPeriod)).length
+  return {
+    users: { registered: registered.length, withApplication: registered.filter((a) => a.applications.some(matches)).length },
+    applications: { created: apps.filter((app) => inPeriod(app.createdAt)).length, submitted: cohort.length, approved: reached('approved'), rejected: reached('rejected'), disbursed: reached('disbursed') },
+  }
+}
+
+function adminReport(db, params) {
+  const scope = reportScope(db, params)
+  const { filters, inPeriod, accounts, apps, cohort } = scope
+  // The same number of days right before the period, so each total can say how it moved.
+  const span = daysUntil({ fromDate: filters.from, targetDate: filters.to }) + 1
+  const previous = reportScope(db, { ...filters, from: addDays(filters.from, -span), to: addDays(filters.from, -1) })
   const days = (from, to) => (Date.parse(to) - Date.parse(from)) / 86_400_000
   const stages = REPORT_STAGES.map((status, i) => {
     const entered = cohort.filter((app) => enteredAt(app, status))
@@ -946,8 +978,12 @@ function adminReport(db, params) {
     asOf: db.clock,
     filters,
     banks: [...new Set(accounts.flatMap((a) => a.applications).map((app) => app.selection?.bankName).filter(Boolean))].sort(),
-    users: { registered: registered.length, withApplication: registered.filter((a) => a.applications.some(matches)).length },
-    applications: { created: apps.filter((app) => inPeriod(app.createdAt)).length, submitted: cohort.length, approved: reached('approved'), rejected: reached('rejected'), disbursed: reached('disbursed') },
+    ...periodTotals(scope),
+    previous: { from: previous.filters.from, to: previous.filters.to, ...periodTotals(previous) },
+    trend: dateBuckets(filters.from, filters.to).map(({ from, to }) => {
+      const inBucket = (iso) => onDays(iso, from, to)
+      return { from, to, submitted: apps.filter((app) => inBucket(app.submittedAt)).length, approved: apps.filter((app) => reachedIn(app, 'approved', inBucket)).length }
+    }),
     stages: stages.map((s, i) => ({ ...s, conversionBps: i && stages[i - 1].count ? Math.round((s.count * 10_000) / stages[i - 1].count) : null })),
     products: [...picked.values()].sort((a, b) => b.count - a.count || a.productName.localeCompare(b.productName)),
   }

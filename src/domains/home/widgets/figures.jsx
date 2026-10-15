@@ -68,10 +68,7 @@ const DTI_ZONE = {
 const GAUGE_MAX = 0.6;
 
 export function DtiWidget({ d }) {
-  const { dtiRatio, totalMonthlyDebt } = d.dti;
-  const tone = dtiTone(dtiRatio);
-  const [zone, color] = DTI_ZONE[tone];
-  const fill = (Math.min(dtiRatio / GAUGE_MAX, 1) * 50).toFixed(2);
+  const tone = dtiTone(d.dti.dtiRatio);
   return (
     <Panel
       as={Link}
@@ -80,8 +77,27 @@ export function DtiWidget({ d }) {
     >
       <span className="flex items-center justify-between gap-2 text-[13px] font-extrabold text-ink-3">
         Rasio Cicilan
-        <Chip tone={tone}>{zone}</Chip>
+        <Chip tone={tone}>{DTI_ZONE[tone][0]}</Chip>
       </span>
+      <DtiGauge d={d} />
+    </Panel>
+  );
+}
+
+// The gauge and its caption, without the widget's link (the admin KPR page shows it too, with `showZone` since it
+// has no header chip).
+export function DtiGauge({ d, showZone = false }) {
+  const { dtiRatio, totalMonthlyDebt } = d.dti;
+  const tone = dtiTone(dtiRatio);
+  const [zone, color] = DTI_ZONE[tone];
+  const fill = (Math.min(dtiRatio / GAUGE_MAX, 1) * 50).toFixed(2);
+  return (
+    <>
+      {showZone && (
+        <Chip tone={tone} className="mx-auto">
+          {zone}
+        </Chip>
+      )}
       <span
         role="img"
         aria-label={`Rasio cicilan ${percentRatio(dtiRatio, 0)}, ${zone.toLowerCase()}`}
@@ -102,6 +118,6 @@ export function DtiWidget({ d }) {
         Cicilan + utang {rupiahShort(totalMonthlyDebt)} dari penghasilan{" "}
         {rupiahShort(d.income)}
       </span>
-    </Panel>
+    </>
   );
 }

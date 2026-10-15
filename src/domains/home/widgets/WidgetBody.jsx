@@ -6,8 +6,8 @@ import { WIDGET_VIEWS } from ".";
 import { LockedWidget } from "./LockedWidget";
 import { widgetLock } from "./widgetData";
 
-// A widget that throws shows a small retry card instead of taking the whole Home page down.
-class WidgetBoundary extends Component {
+// A widget that throws shows a small retry card instead of taking the whole page down (Home, admin KPR detail).
+export class WidgetBoundary extends Component {
   state = { failed: false };
 
   static getDerivedStateFromError() {

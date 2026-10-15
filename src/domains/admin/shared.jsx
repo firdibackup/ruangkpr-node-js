@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeftIcon } from 'lucide-react'
+import { ArrowLeftIcon, ArrowRightIcon, ChartColumnIcon, ChevronDownIcon, FileStackIcon, LandmarkIcon, MinusIcon, NewspaperIcon, ScrollTextIcon, SlidersHorizontalIcon, TrendingDownIcon, TrendingUpIcon, UsersIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { dateShort } from '@/lib/format'
 import { Button } from '@/components/ui/button'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ErrorSummary, TextAreaField } from '@/components/shared/fields'
 import { FormDialog } from '@/components/shared/dialogs'
-import { Chip, Notice, Spinner } from '@/components/shared/ui'
+import { Chip, IconBox, Notice, Skeleton, Spinner } from '@/components/shared/ui'
 import { STATUS_LABEL } from '@/domains/applications/meta'
 import { ACTION_LABEL, FIELD_LABEL, at, fieldList, formatValue } from './labels'
 
@@ -20,13 +21,81 @@ export function StatusChip({ status }) {
   )
 }
 
-export function Kpi({ label, value, hint }) {
+// Signed move against the period named in `vs`: an arrow and the sign carry the direction, the tone says whether
+// that direction is good news.
+export function Change({ value, vs, upIsGood = true }) {
+  const Icon = value > 0 ? TrendingUpIcon : value < 0 ? TrendingDownIcon : MinusIcon
+  const good = value === 0 ? null : value > 0 === upIsGood
+  return (
+    <span className={cn('inline-flex flex-wrap items-center gap-x-1 text-xs font-bold', good === null ? 'text-ink-3' : good ? 'text-success' : 'text-danger')}>
+      <Icon className="size-3.5 shrink-0" aria-hidden />
+      {value > 0 ? `+${value}` : value < 0 ? `−${-value}` : '0'}
+      <span className="font-semibold text-muted-foreground">vs {vs}</span>
+    </span>
+  )
+}
+
+// `change` (with `vs`, `upIsGood`) adds the move against the comparison period.
+export function Kpi({ label, value, hint, change, vs, upIsGood }) {
   return (
     <div className="flex flex-col gap-1.5 rounded-card bg-card p-5 shadow-card">
       <dt className="text-[13px] font-semibold text-ink-3">{label}</dt>
       <dd className="text-[30px] leading-none font-extrabold">{value}</dd>
+      {change != null && (
+        <dd>
+          <Change value={change} vs={vs} upIsGood={upIsGood} />
+        </dd>
+      )}
       {hint && <dd className="text-xs text-muted-foreground">{hint}</dd>}
     </div>
+  )
+}
+
+export function Swatch({ color, children }) {
+  return (
+    <span className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-3">
+      <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: color }} aria-hidden />
+      {children}
+    </span>
+  )
+}
+
+// Legend beside a donut: the status icon in the slice colour is the key; `share` adds each part's percentage.
+export function DonutLegend({ parts, label, share }) {
+  return (
+    <ul aria-label={label} className="flex min-w-40 flex-1 flex-col gap-3">
+      {parts.map((p) => (
+        <li key={p.name} className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-1.5 text-[13px] font-semibold whitespace-nowrap text-ink-3">
+            <p.icon className="size-4 shrink-0" style={{ color: p.color }} aria-hidden />
+            {p.name}
+          </span>
+          <span className="text-sm font-extrabold tabular">
+            {p.value}
+            {share && <span className="ml-1.5 font-semibold text-muted-foreground">{share(p.value)}</span>}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// Recharts arrives with the first chart (as on the home dashboard), so the admin pages load without it.
+const chart = (name) => lazy(() => import('./charts').then((m) => ({ default: m[name] })))
+const LazyCountChart = chart('CountChart')
+const LazyOutcomeDonut = chart('OutcomeDonut')
+export function CountChart(props) {
+  return (
+    <Suspense fallback={<Skeleton className="h-56 rounded-2xl" />}>
+      <LazyCountChart {...props} />
+    </Suspense>
+  )
+}
+export function OutcomeDonut(props) {
+  return (
+    <Suspense fallback={<Skeleton className="size-36 shrink-0 rounded-full" />}>
+      <LazyOutcomeDonut {...props} />
+    </Suspense>
   )
 }
 
@@ -120,6 +189,110 @@ export function AuditList({ events, label, subject = resourceLabel, values = fal
         )
       })}
     </ul>
+  )
+}
+
+const PUBLISHING = { published: 'Terbit', archived: 'Diarsipkan' }
+// Values arrive already masked (NIK); this only makes them readable.
+function readable(key, v) {
+  if (v === null || v === undefined || v === '') return '—'
+  if (typeof v === 'boolean') return v ? 'Ya' : 'Tidak'
+  if (typeof v === 'number') return v.toLocaleString('id-ID')
+  if (key === 'status') return STATUS_LABEL[v] ?? PUBLISHING[v] ?? v
+  if (key === 'formats') return v.map((f) => f.toUpperCase()).join(', ')
+  if (key === 'schedule') return formatValue(key, v)
+  if (Array.isArray(v) && v.every((x) => typeof x !== 'object')) return v.join(', ')
+  return typeof v === 'string' ? v : JSON.stringify(v)
+}
+
+// One event's before and after values, folded behind "Lihat detail".
+function AuditChanges({ e }) {
+  const keys = [...new Set([...Object.keys(e.before ?? {}), ...Object.keys(e.after ?? {})])]
+  const head = 'text-xs font-bold text-ink-3'
+  return (
+    <details className="group">
+      <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-1.5 text-sm font-bold text-primary [&::-webkit-details-marker]:hidden">
+        Lihat detail
+        <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" aria-hidden />
+      </summary>
+      <div className="flex flex-col gap-2 pt-1">
+        {keys.length > 0 && (
+          <Table aria-label={`Perubahan ${e.id}`}>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className={head}>Data</TableHead>
+                <TableHead className={head}>Sebelum</TableHead>
+                <TableHead className={head}>Sesudah</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {keys.map((k) => (
+                <TableRow key={k}>
+                  <TableCell className="py-2 font-semibold text-ink-2">{FIELD_LABEL[k] ?? k}</TableCell>
+                  <TableCell className="max-w-64 py-2 break-words whitespace-normal text-ink-2">{readable(k, e.before?.[k])}</TableCell>
+                  <TableCell className="max-w-64 py-2 break-words whitespace-normal text-ink-2">{readable(k, e.after?.[k])}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <span className="text-xs text-muted-foreground tabular">
+          ID {e.id} · request {e.requestId}
+        </span>
+      </div>
+    </details>
+  )
+}
+
+// Where each audited record lives in the admin (icons follow the admin navigation).
+const RESOURCE = {
+  application: { icon: FileStackIcon, open: 'Buka pengajuan', to: (id) => `/admin/applications/${id}` },
+  user: { icon: UsersIcon, open: 'Buka user', to: (id) => `/admin/users/${id}` },
+  product: { icon: LandmarkIcon, open: 'Buka produk', to: (id) => `/admin/products/${id}` },
+  bank: { icon: LandmarkIcon, open: 'Buka daftar bank', to: () => '/admin/banks' },
+  article: { icon: NewspaperIcon, open: 'Buka artikel', to: (id) => `/admin/articles/${id}` },
+  report: { icon: ChartColumnIcon, open: 'Buka laporan', to: () => '/admin/reports' },
+  config: { icon: SlidersHorizontalIcon, open: 'Buka konfigurasi', to: () => '/admin/configuration' },
+  health_config: { icon: SlidersHorizontalIcon, open: 'Buka formula', to: () => '/admin/configuration/health' },
+}
+
+// Recent admin changes as a timeline, newest first: each one opens its record, and its before/after values unfold
+// in place.
+export function ActivityFeed({ events, label, empty }) {
+  if (!events.length) return <p className="text-sm text-muted-foreground">{empty}</p>
+  return (
+    <ol aria-label={label} className="flex flex-col">
+      {events.map((e) => {
+        const r = RESOURCE[e.resource.type]
+        const detail = auditDetail(e)
+        return (
+          <li key={e.id} className="relative flex gap-4 pb-5 last:pb-0 not-last:before:absolute not-last:before:top-12 not-last:before:bottom-2 not-last:before:left-5 not-last:before:w-px not-last:before:bg-border">
+            <IconBox icon={r?.icon ?? ScrollTextIcon} />
+            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+              <div className="flex min-w-0 flex-col gap-0.5 pt-0.5">
+                <span className="text-[15px] font-bold">
+                  {ACTION_LABEL[e.action] ?? e.action}
+                  {e.resource.label && <span className="font-semibold text-ink-3"> · {e.resource.label}</span>}
+                </span>
+                {e.reason && <span className="text-sm text-ink-2">“{e.reason}”</span>}
+                <span className="text-xs text-muted-foreground">
+                  {detail && `${detail} · `}oleh {e.actor.name} · <span className="tabular">{at(e.occurredAt)} WIB</span>
+                </span>
+                {(e.before || e.after) && <AuditChanges e={e} />}
+              </div>
+              {r && (
+                <Button asChild size="sm" variant="neutral" className="self-start">
+                  <Link to={r.to(e.resource.id)}>
+                    {r.open}
+                    <ArrowRightIcon aria-hidden />
+                  </Link>
+                </Button>
+              )}
+            </div>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 

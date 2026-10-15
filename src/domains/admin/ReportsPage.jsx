@@ -1,24 +1,60 @@
 import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { DownloadIcon } from 'lucide-react'
+import { DownloadIcon, HourglassIcon } from 'lucide-react'
 import { api } from '@/data/api'
 import { useResource } from '@/lib/hooks'
+import { daysUntil } from '@/calculations/dates'
+import { dateShort } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { DateField, SelectField } from '@/components/shared/fields'
-import { ErrorPanel, PageSkeleton, Panel, PanelTitle, Spinner } from '@/components/shared/ui'
+import { Chip, ErrorPanel, PageSkeleton, Panel, PanelTitle, Spinner } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { STATUS_LABEL, productName } from '@/domains/applications/meta'
 import { PRODUCT_TYPES } from './labels'
-import { AdminHeader, Kpi, Meter } from './shared'
+import { AdminHeader, CountChart, Kpi, Meter, Swatch } from './shared'
 
 const head = 'text-xs font-bold text-ink-3'
 const percent = (bps) => (bps === null ? '—' : `${Math.round(bps / 100)}%`)
 const dayCount = (n) => (n === null ? '—' : `${n.toLocaleString('id-ID')} hari`)
+const span = ({ from, to }) => daysUntil({ fromDate: from, targetDate: to }) + 1
+const BUCKET = { 1: 'hari', 7: 'minggu', 30: '30 hari' }
+const TREND = [
+  { key: 'submitted', name: 'Diajukan', color: 'var(--chart-step)' },
+  { key: 'approved', name: 'Disetujui', color: 'var(--chart-principal)' },
+]
 
+function TrendPanel({ trend, filters }) {
+  const total = (key) => trend.reduce((sum, b) => sum + b[key], 0)
+  const empty = !total('submitted') && !total('approved')
+  return (
+    <Panel>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <PanelTitle sub={`Per ${BUCKET[span(trend[0])] ?? 'periode'}, ${dateShort(filters.from)} – ${dateShort(filters.to)}.`}>Tren pengajuan</PanelTitle>
+        {!empty && (
+          <span className="flex gap-4 pt-1">
+            {TREND.map((s) => (
+              <Swatch key={s.key} color={s.color}>
+                {s.name}
+              </Swatch>
+            ))}
+          </span>
+        )}
+      </div>
+      {empty ? (
+        <p className="text-sm text-muted-foreground">Belum ada pengajuan yang diajukan atau disetujui di periode ini.</p>
+      ) : (
+        <CountChart data={trend} series={TREND} desc={`${total('submitted')} pengajuan diajukan dan ${total('approved')} disetujui, ${dateShort(filters.from)} sampai ${dateShort(filters.to)}.`} />
+      )}
+    </Panel>
+  )
+}
+
+// Centred bars narrow stage by stage into a funnel; the stage that holds applications longest gets a flag.
 function StagesPanel({ stages }) {
   const titleId = useId()
   const submitted = stages[0].count
+  const slowest = Math.max(0, ...stages.map((s) => s.avgDays ?? 0))
   return (
     <Panel>
       <PanelTitle sub="Pengajuan yang diajukan di periode ini, dan sejauh mana prosesnya sampai hari ini.">
@@ -42,12 +78,23 @@ function StagesPanel({ stages }) {
                 <TableCell className="py-3 font-semibold text-ink-2">{STATUS_LABEL[s.status]}</TableCell>
                 <TableCell className="py-3">
                   <span className="flex items-center gap-3">
-                    <Meter value={s.count} max={submitted} className="hidden w-40 shrink-0 sm:block" />
+                    <span className="hidden h-6 w-40 shrink-0 justify-center sm:flex lg:w-56" aria-hidden>
+                      {s.count > 0 && <span className="h-full rounded-[4px] bg-primary" style={{ width: `${(s.count / submitted) * 100}%` }} />}
+                    </span>
                     <span className="font-bold tabular">{s.count}</span>
                   </span>
                 </TableCell>
                 <TableCell className="py-3 text-right text-ink-2 tabular">{percent(s.conversionBps)}</TableCell>
-                <TableCell className="py-3 text-right text-ink-2 tabular">{dayCount(s.avgDays)}</TableCell>
+                <TableCell className="py-3 text-right text-ink-2 tabular">
+                  <span className="flex items-center justify-end gap-2">
+                    {s.avgDays === slowest && slowest > 0 && (
+                      <Chip tone="warn" icon={HourglassIcon}>
+                        Terlama
+                      </Chip>
+                    )}
+                    {dayCount(s.avgDays)}
+                  </span>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -87,7 +134,12 @@ function ProductsPanel({ products }) {
                   </span>
                 </TableCell>
                 <TableCell className="hidden py-3 text-ink-2 sm:table-cell">{productName(p)}</TableCell>
-                <TableCell className="py-3 text-right font-bold tabular">{p.count}</TableCell>
+                <TableCell className="py-3 text-right font-bold tabular">
+                  <span className="flex items-center justify-end gap-3">
+                    <Meter value={p.count} max={products[0].count} className="hidden w-32 sm:block" />
+                    {p.count}
+                  </span>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -106,6 +158,8 @@ export function ReportsPage() {
   const fieldError = Object.fromEntries((error?.fieldErrors ?? []).map((x) => [x.field, x.message]))
   const ready = data && !error
   const narrowed = ready && (data.filters.productType || data.filters.bankName)
+  const vs = ready && `${span(data.previous)} hari sebelumnya`
+  const change = (key) => ({ change: data.applications[key] - data.previous.applications[key], vs })
 
   const download = async () => {
     setExporting(true)
@@ -146,13 +200,14 @@ export function ReportsPage() {
       {ready && (
         <>
           <dl className="grid grid-cols-2 gap-4 md:grid-cols-3">
-            <Kpi label="Pendaftar baru" value={data.users.registered} hint={`${data.users.withApplication} ${narrowed ? 'mengajukan produk sesuai filter' : 'sudah membuat pengajuan'}`} />
-            <Kpi label="Pengajuan dibuat" value={data.applications.created} hint="Termasuk draft" />
-            <Kpi label="Diajukan" value={data.applications.submitted} />
-            <Kpi label="Disetujui" value={data.applications.approved} />
-            <Kpi label="Ditolak" value={data.applications.rejected} />
-            <Kpi label="Cair" value={data.applications.disbursed} />
+            <Kpi label="Pendaftar baru" value={data.users.registered} change={data.users.registered - data.previous.users.registered} vs={vs} hint={`${data.users.withApplication} ${narrowed ? 'mengajukan produk sesuai filter' : 'sudah membuat pengajuan'}`} />
+            <Kpi label="Pengajuan dibuat" value={data.applications.created} {...change('created')} hint="Termasuk draft" />
+            <Kpi label="Diajukan" value={data.applications.submitted} {...change('submitted')} />
+            <Kpi label="Disetujui" value={data.applications.approved} {...change('approved')} />
+            <Kpi label="Ditolak" value={data.applications.rejected} {...change('rejected')} upIsGood={false} />
+            <Kpi label="Cair" value={data.applications.disbursed} {...change('disbursed')} />
           </dl>
+          <TrendPanel trend={data.trend} filters={data.filters} />
           <StagesPanel stages={data.stages} />
           <ProductsPanel products={data.products} />
         </>

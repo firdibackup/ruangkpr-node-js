@@ -1,18 +1,21 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { CircleCheckIcon, CircleDashedIcon, ClockIcon, TriangleAlertIcon } from 'lucide-react'
 import { api, isMock } from '@/data/api'
 import { useResource } from '@/lib/hooks'
+import { daysUntil } from '@/calculations/dates'
 import { EMPTY, OCCUPATIONS, bpsInput, dateLong, dateShort, labelOf, percentBps, rupiah, tenorLabel, toBps, toInt, toMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { DOC_REJECT_REASONS, rejectMessage } from '@/data/documentRules'
 import { CheckboxField, DateField, FormGrid, MoneyField, NumberField, RateField, SelectField, TextAreaField, TextField } from '@/components/shared/fields'
 import { FormDialog } from '@/components/shared/dialogs'
+import { StatusStepper } from '@/components/shared/progress'
 import { Chip, ErrorPanel, Notice, PageSkeleton, Panel, PanelTitle, Spinner, SummaryRows } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { STAGE_NOTE_STATUSES, STATUS_LABEL, productName } from '@/domains/applications/meta'
+import { STAGE_NOTE_STATUSES, STATUS_LABEL, productName, trackerSteps } from '@/domains/applications/meta'
 import { PRODUCT_TYPES } from './labels'
-import { AdminHeader, StatusChip } from './shared'
+import { AdminHeader, DonutLegend, OutcomeDonut, StatusChip } from './shared'
 
 const STATUSES = ['submitted', 'docs_verification', 'additional_docs_requested', 'bank_processing', 'appraisal', 'approved', 'old_mortgage_settlement', 'akad', 'disbursed', 'rejected']
 const head = 'text-xs font-bold text-ink-3'
@@ -102,6 +105,15 @@ const row = 'flex items-center justify-between gap-3 border-b border-line py-3 f
 // The Button's `disabled:` look for an aria-disabled button (it stays focusable), as PrimaryWizard does.
 const looksDisabled = 'border-transparent bg-border text-ink-3 hover:bg-border'
 
+// Required documents by where they stand, for the ring at the top of the documents panel.
+const DOC_PARTS = [
+  { key: 'verified', name: 'Terverifikasi', color: 'var(--chart-ok)', icon: CircleCheckIcon },
+  { key: 'waiting', name: 'Menunggu dicek', color: 'var(--chart-step)', icon: ClockIcon },
+  { key: 'fix', name: 'Perlu diperbarui', color: 'var(--chart-warn)', icon: TriangleAlertIcon },
+  { key: 'missing', name: 'Belum diunggah', color: 'var(--muted-foreground)', icon: CircleDashedIcon },
+]
+const docState = (f) => (!f ? 'missing' : f.review || f.status === 'needs_update' ? 'fix' : f.status === 'verified' ? 'verified' : 'waiting')
+
 // [label, chip tone]; a drafted rejection outranks the stored status until it is sent.
 const docChip = (f) => (!f ? ['Belum ada', 'mute'] : f.review ? ['Ditolak · belum dikirim', 'bad'] : (DOC_STATUS[f.status] ?? [f.status, 'mute']))
 
@@ -115,6 +127,7 @@ function DocumentsPanel({ data, onSaved, onReload, onSend }) {
   const required = app.documents.filter((d) => d.required)
   const checked = required.filter((d) => d.file?.status === 'verified' || d.file?.review).length
   const drafts = app.documents.filter((d) => d.file?.review).length
+  const parts = DOC_PARTS.map((p) => ({ ...p, value: required.filter((d) => docState(d.file) === p.key).length }))
   const approve = async (d) => {
     if (busy || d.file.status === 'verified') return
     setBusy(d.type)
@@ -130,6 +143,12 @@ function DocumentsPanel({ data, onSaved, onReload, onSend }) {
   return (
     <Panel>
       <PanelTitle sub={isMock ? 'Mode demo menyimpan metadata saja, tanpa file.' : 'Unduh file untuk verifikasi.'}>Dokumen</PanelTitle>
+      {required.length > 0 && (
+        <div className="flex flex-wrap items-center gap-5">
+          <OutcomeDonut parts={parts} total={`${parts[0].value}/${required.length}`} unit="terverifikasi" desc={`Dokumen wajib: ${parts.map((p) => `${p.name} ${p.value}`).join(', ')}.`} />
+          <DonutLegend parts={parts} label="Status dokumen wajib" />
+        </div>
+      )}
       <ul className="flex flex-col">
         {app.documents.map((d) => {
           const [chip, tone] = docChip(d.file)
@@ -263,6 +282,62 @@ function DownloadDocument({ applicationId, documentType, label }) {
   )
 }
 
+const TERMINAL = ['disbursed', 'rejected']
+const span = (n) => (n === 0 ? '< 1 hari' : `${n} hari`)
+const dayOf = (iso) => iso.slice(0, 10)
+
+// The tracker diagram the user sees, plus how long the whole application has taken.
+function StagesPanel({ app, asOf }) {
+  const closed = TERMINAL.includes(app.status)
+  const n = app.submittedAt && daysUntil({ fromDate: dayOf(app.submittedAt), targetDate: closed ? dayOf(app.statusHistory.at(-1).at) : asOf })
+  return (
+    <Panel>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+        <PanelTitle sub="Diagram yang sama dengan tracker di aplikasi user.">Tahapan pengajuan</PanelTitle>
+        {n != null && (
+          <span className="text-sm font-bold text-ink-3 tabular">
+            {closed ? `${span(n)} sampai ${STATUS_LABEL[app.status].toLowerCase()}` : `${span(n)} sejak diajukan`}
+          </span>
+        )}
+      </div>
+      <StatusStepper steps={trackerSteps(app)} />
+    </Panel>
+  )
+}
+
+// Each status with how long the application stayed in it; the one still running counts up to today and stands out.
+function HistoryPanel({ app, asOf }) {
+  const spans = app.statusHistory.map((h, i) => {
+    const next = app.statusHistory[i + 1]
+    const open = !next && !TERMINAL.includes(h.status)
+    return { ...h, open, days: next || open ? daysUntil({ fromDate: dayOf(h.at), targetDate: next ? dayOf(next.at) : asOf }) : null }
+  })
+  const max = Math.max(1, ...spans.map((x) => x.days ?? 0))
+  return (
+    <Panel>
+      <PanelTitle sub="Lama di tiap status; yang sedang berjalan dihitung sampai hari ini.">Riwayat status</PanelTitle>
+      <ol aria-label="Riwayat status" className="flex flex-col gap-3.5">
+        {spans.map((x) => (
+          <li key={`${x.status}-${x.at}`} className="flex flex-col gap-1.5">
+            <span className="flex items-baseline justify-between gap-3">
+              <span className={x.open ? 'text-sm font-extrabold' : 'text-sm font-semibold text-ink-2'}>{STATUS_LABEL[x.status] ?? x.status}</span>
+              <span className="text-xs text-muted-foreground tabular">
+                {dateShort(x.at)}
+                {x.days != null && <span className={x.open ? 'font-bold text-primary' : undefined}> · {x.open ? `berjalan ${span(x.days)}` : span(x.days)}</span>}
+              </span>
+            </span>
+            {x.days != null && (
+              <span className="h-2 rounded-r-[4px] bg-secondary" aria-hidden>
+                {x.days > 0 && <span className={`block h-full rounded-r-[4px] ${x.open ? 'bg-primary' : 'bg-step-current'}`} style={{ width: `${(x.days / max) * 100}%` }} />}
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </Panel>
+  )
+}
+
 export function ApplicationDetailPage() {
   const { applicationId } = useParams()
   const { data, error, reload, setData } = useResource(() => api.admin.applications.get(applicationId), [applicationId])
@@ -281,6 +356,7 @@ export function ApplicationDetailPage() {
     <>
       <AdminHeader title={user.name} subtitle={`${program({ ...app, bankName: s.bankName, productName: s.productName })} · ${app.id}`} back="/admin/applications" actions={<StatusChip status={app.status} />} />
       <NextStep data={data} onMove={setMoving} />
+      <StagesPanel app={app} asOf={data.asOf} />
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">
           <Panel>
@@ -326,17 +402,7 @@ export function ApplicationDetailPage() {
         <div className="flex min-w-0 flex-col gap-6">
           {/* Keyed on the saved note too: after a reload with another admin's note, the form starts from that note. */}
           {STAGE_NOTE_STATUSES.includes(app.status) && <StageNotePanel key={`${app.status}:${app.stageNotes[app.status]?.updatedAt ?? ''}`} data={data} onSaved={setData} onReload={reload} />}
-          <Panel>
-            <PanelTitle>Riwayat status</PanelTitle>
-            <ol aria-label="Riwayat status" className="flex flex-col">
-              {app.statusHistory.map((h, i) => (
-                <li key={`${h.status}-${h.at}`} className={row}>
-                  <span className={i === app.statusHistory.length - 1 ? 'text-sm font-extrabold' : 'text-sm font-semibold text-ink-2'}>{STATUS_LABEL[h.status] ?? h.status}</span>
-                  <span className="text-xs text-muted-foreground tabular">{dateShort(h.at)}</span>
-                </li>
-              ))}
-            </ol>
-          </Panel>
+          <HistoryPanel app={app} asOf={data.asOf} />
           <NotesPanel data={data} onSaved={setData} />
         </div>
       </div>

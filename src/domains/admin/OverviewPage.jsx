@@ -1,17 +1,22 @@
 import { useId } from 'react'
 import { Link } from 'react-router-dom'
-import { TriangleAlertIcon } from 'lucide-react'
+import { CircleCheckIcon, CircleXIcon, ClockIcon, ScrollTextIcon, TriangleAlertIcon } from 'lucide-react'
 import { api } from '@/data/api'
 import { useResource } from '@/lib/hooks'
-import { dateLong, dateShort } from '@/lib/format'
+import { dateLong, dateShort, dayMonth } from '@/lib/format'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import { Chip, ErrorPanel, PageSkeleton, Panel, PanelTitle, StatTile } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { STATUS_LABEL, productName } from '@/domains/applications/meta'
-import { AdminHeader, AuditList, Kpi, Meter, StatusChip } from './shared'
+import { ActivityFeed, AdminHeader, Change, CountChart, DonutLegend, Kpi, Meter, OutcomeDonut, StatusChip, Swatch } from './shared'
 
-// Queue stages in flow order, then the two outcomes.
-const PIPELINE = ['submitted', 'docs_verification', 'additional_docs_requested', 'bank_processing', 'appraisal', 'approved', 'old_mortgage_settlement', 'akad']
-const OUTCOMES = ['disbursed', 'rejected']
+// Stages still in process, in flow order, grouped by whose move it is; the colour marks the group in the share bar.
+const FLOW = [
+  { owner: 'Giliran tim', color: 'var(--chart-principal)', stages: ['submitted', 'docs_verification'] },
+  { owner: 'Giliran user', color: 'var(--chart-warn)', stages: ['additional_docs_requested'] },
+  { owner: 'Di bank', color: 'var(--chart-step)', stages: ['bank_processing', 'appraisal', 'approved', 'old_mortgage_settlement', 'akad'] },
+]
 const days = (n) => (n === 0 ? 'Hari ini' : `${n} hari`)
 const TYPE_LABEL = { primary: 'KPR Primary', takeover: 'Take Over', topup: 'Take Over + Top-up' }
 const productTypeLabel = (types) => types.map((t) => TYPE_LABEL[t]).join(', ')
@@ -28,6 +33,99 @@ function MeterRow({ label, value, max, note }) {
       </div>
       <Meter value={value} max={max} />
     </li>
+  )
+}
+
+function FlowPanel({ byStatus }) {
+  const n = (s) => byStatus[s] ?? 0
+  const groups = FLOW.map((g) => ({ ...g, total: g.stages.reduce((sum, s) => sum + n(s), 0) }))
+  const inProcess = groups.reduce((sum, g) => sum + g.total, 0)
+  return (
+    <Panel>
+      <PanelTitle sub="Pengajuan yang masih berjalan, per tahap dan menurut siapa yang perlu bergerak.">{inProcess} pengajuan sedang diproses</PanelTitle>
+      {inProcess > 0 && (
+        <div className="flex h-3 gap-0.5 overflow-hidden rounded-full" aria-hidden>
+          {groups
+            .filter((g) => g.total)
+            .map((g) => (
+              <span key={g.owner} style={{ flexGrow: g.total, background: g.color }} />
+            ))}
+        </div>
+      )}
+      <ul className="flex flex-wrap gap-5">
+        {groups.map((g) => (
+          <li key={g.owner} className="flex min-w-0 flex-col gap-2.5" style={{ flex: `${g.stages.length} 1 ${Math.max(150, g.stages.length * 112)}px` }}>
+            <Swatch color={g.color}>
+              <span className="font-bold text-foreground">{g.owner}</span>
+              <span className="tabular">· {g.total}</span>
+            </Swatch>
+            <ol aria-label={g.owner} className="grid grid-cols-[repeat(auto-fit,minmax(104px,1fr))] gap-2">
+              {g.stages.map((s) => (
+                <li key={s} className="flex flex-col-reverse justify-end gap-1.5 rounded-xl bg-muted px-3.5 py-3">
+                  <span className="text-xs leading-4 font-semibold text-ink-3">{STATUS_LABEL[s]}</span>
+                  <span className={cn('text-2xl leading-none font-extrabold', !n(s) && 'text-muted-foreground')}>{n(s)}</span>
+                </li>
+              ))}
+            </ol>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  )
+}
+
+function TrendPanel({ trend, previous }) {
+  const total = trend.reduce((sum, d) => sum + d.submitted, 0)
+  return (
+    <Panel>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <PanelTitle sub={`14 hari terakhir, ${dayMonth(trend[0].from)} – ${dateShort(trend.at(-1).to)}.`}>Pengajuan masuk</PanelTitle>
+        <span className="flex items-center gap-2.5">
+          <span className="text-[26px] leading-none font-extrabold">{total}</span>
+          <Change value={total - previous} vs="14 hari sebelumnya" />
+        </span>
+      </div>
+      {total === 0 ? (
+        <p className="text-sm text-muted-foreground">Belum ada pengajuan baru dalam 14 hari terakhir.</p>
+      ) : (
+        <CountChart className="h-auto min-h-56 flex-1" data={trend} series={[{ key: 'submitted', name: 'Diajukan', color: 'var(--chart-principal)' }]} desc={`${total} pengajuan masuk dalam 14 hari terakhir, ${previous} di 14 hari sebelumnya.`} />
+      )}
+    </Panel>
+  )
+}
+
+// Every submitted application by where it stands now, then how far the whole lot has come.
+function OutcomePanel({ byStatus, funnel }) {
+  const total = Object.values(byStatus).reduce((sum, v) => sum + v, 0)
+  const done = byStatus.disbursed ?? 0
+  const rejected = byStatus.rejected ?? 0
+  const parts = [
+    { name: 'Sedang diproses', value: total - done - rejected, color: 'var(--chart-step)', icon: ClockIcon },
+    { name: 'Selesai (cair)', value: done, color: 'var(--chart-ok)', icon: CircleCheckIcon },
+    { name: 'Ditolak', value: rejected, color: 'var(--chart-bad)', icon: CircleXIcon },
+  ]
+  const share = (v, of = total) => (of ? `${Math.round((v / of) * 100)}%` : '—')
+  const max = Math.max(1, funnel.submitted)
+  return (
+    <Panel>
+      <PanelTitle sub="Semua pengajuan yang pernah dikirim, menurut posisinya sekarang.">Hasil pengajuan</PanelTitle>
+      {total === 0 ? (
+        <p className="text-sm text-muted-foreground">Belum ada pengajuan yang dikirim.</p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-4">
+          <OutcomeDonut parts={parts} total={total} unit="diajukan" desc={parts.map((p) => `${p.name} ${p.value}`).join(', ')} />
+          <DonutLegend parts={parts} label="Hasil pengajuan" share={share} />
+        </div>
+      )}
+      <div className="flex flex-col gap-3.5 border-t border-line pt-4">
+        <h3 className="text-sm font-bold">Konversi</h3>
+        <ul className="flex flex-col gap-3.5">
+          <MeterRow label="Diajukan" value={funnel.submitted} max={max} />
+          <MeterRow label="Disetujui" value={funnel.approved} max={max} note={share(funnel.approved, funnel.submitted)} />
+          <MeterRow label="Selesai (cair)" value={funnel.disbursed} max={max} note={share(funnel.disbursed, funnel.submitted)} />
+        </ul>
+      </div>
+    </Panel>
   )
 }
 
@@ -131,8 +229,6 @@ function ProductsPanel({ products }) {
 export function OverviewPage() {
   const { data, error, reload } = useResource(() => api.admin.overview.get())
   const apps = data?.applications
-  const pipelineMax = apps ? Math.max(1, ...Object.values(apps.byStatus)) : 1
-  const pct = (n) => (apps?.funnel.submitted ? `${Math.round((n / apps.funnel.submitted) * 100)}%` : '—')
 
   return (
     <>
@@ -148,38 +244,27 @@ export function OverviewPage() {
             <Kpi label="User terdaftar" value={data.users.total} />
           </dl>
 
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
-            <div className="flex min-w-0 flex-col gap-6">
-              <QueuePanel queue={apps.queue} />
-              <Panel>
-                <PanelTitle sub="Dari semua pengajuan yang pernah diajukan.">Konversi</PanelTitle>
-                <ul className="flex flex-col gap-3.5">
-                  <MeterRow label="Diajukan" value={apps.funnel.submitted} max={Math.max(1, apps.funnel.submitted)} />
-                  <MeterRow label="Disetujui" value={apps.funnel.approved} max={Math.max(1, apps.funnel.submitted)} note={pct(apps.funnel.approved)} />
-                  <MeterRow label="Selesai (cair)" value={apps.funnel.disbursed} max={Math.max(1, apps.funnel.submitted)} note={pct(apps.funnel.disbursed)} />
-                </ul>
-              </Panel>
-            </div>
-            <div className="flex min-w-0 flex-col gap-6">
-              <Panel>
-                <PanelTitle sub="Semua pengajuan yang sudah dikirim, per tahap.">Pengajuan per tahap</PanelTitle>
-                <ul className="flex flex-col gap-3.5">
-                  {PIPELINE.map((s) => (
-                    <MeterRow key={s} label={STATUS_LABEL[s]} value={apps.byStatus[s] ?? 0} max={pipelineMax} />
-                  ))}
-                </ul>
-                <ul className="flex flex-col gap-3.5 border-t border-line pt-4">
-                  {OUTCOMES.map((s) => (
-                    <MeterRow key={s} label={STATUS_LABEL[s]} value={apps.byStatus[s] ?? 0} max={pipelineMax} />
-                  ))}
-                </ul>
-              </Panel>
-              <Panel>
-                <PanelTitle sub="Lima perubahan terakhir oleh admin.">Aktivitas admin terbaru</PanelTitle>
-                <AuditList events={data.recentActivity} label="Aktivitas admin terbaru" empty="Belum ada aktivitas admin. Perubahan data, status, dan konfigurasi akan tercatat di sini." />
-              </Panel>
-            </div>
+          <FlowPanel byStatus={apps.byStatus} />
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+            <TrendPanel trend={apps.trend} previous={apps.previousSubmitted} />
+            <OutcomePanel byStatus={apps.byStatus} funnel={apps.funnel} />
           </div>
+
+          <QueuePanel queue={apps.queue} />
+
+          <Panel>
+            <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+              <PanelTitle sub="Lima perubahan terakhir oleh admin. Buka datanya, atau lihat nilai sebelum dan sesudahnya di sini.">Aktivitas admin terbaru</PanelTitle>
+              <Button asChild size="sm" variant="neutral">
+                <Link to="/admin/audit-log">
+                  <ScrollTextIcon aria-hidden />
+                  Lihat semua log
+                </Link>
+              </Button>
+            </div>
+            <ActivityFeed events={data.recentActivity} label="Aktivitas admin terbaru" empty="Belum ada aktivitas admin. Perubahan data, status, dan konfigurasi akan tercatat di sini." />
+          </Panel>
 
           <ProductsPanel products={data.products} />
         </>

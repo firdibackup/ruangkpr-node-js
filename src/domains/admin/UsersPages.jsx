@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { Suspense, useCallback, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowRightIcon } from 'lucide-react'
@@ -7,7 +7,7 @@ import { useForm, useResource } from '@/lib/hooks'
 import { CERTIFICATES, EMPTY, GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES, dateLong, dateShort, daysLabel, labelOf, monthYear, percentBps, percentProgress, percentRatio, rupiah, signedRupiah, tenorLabel, toInt, toMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { DateField, FormGrid, SelectField, TextField } from '@/components/shared/fields'
-import { Chip, ErrorPanel, EstimateTag, Notice, PageSkeleton, Panel, PanelTitle, ProgressBar, StatTile, SummaryRows } from '@/components/shared/ui'
+import { Chip, ErrorPanel, EstimateTag, Notice, PageSkeleton, Panel, PanelTitle, ProgressBar, Skeleton, StatTile, SummaryRows } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { productName } from '@/domains/applications/meta'
 import { profileFormValues, toPersonal, validatePersonal } from '@/domains/applications/validation'
@@ -15,6 +15,12 @@ import { validateEmploymentBasic } from '@/domains/optimize/validation'
 import { filledOnly } from '@/domains/mortgages/validation'
 import { deriveMortgage } from '@/domains/mortgages/derive'
 import { rateTypeLabel } from '@/domains/mortgages/setupMeta'
+import { HealthRing } from '@/domains/home/dashboardWidgets'
+import { WIDGET } from '@/domains/home/dashboardLayout'
+import { WIDGET_VIEWS } from '@/domains/home/widgets'
+import { DtiGauge } from '@/domains/home/widgets/figures'
+import { WidgetBoundary } from '@/domains/home/widgets/WidgetBody'
+import { widgetLock } from '@/domains/home/widgets/widgetData'
 import { IncomeFields, JobFields, PersonalFields } from '@/domains/profile/ProfilePages'
 import { AdminHeader, AuditList, EditDialog, StatusChip } from './shared'
 import { formatValue } from './labels'
@@ -243,6 +249,21 @@ const months = (n) => (n ? `${n} bulan (${tenorLabel(n)})` : EMPTY)
 const link = 'text-primary underline-offset-4 hover:underline'
 
 // Read-only: everything the user entered for one KPR plus what My KPR derives from it, on the user's figures.
+// The user's own dashboard widgets (home/widgets), so admin and user read the KPR off the same charts. Only widgets
+// whose data exists show: filling a locked one is the user's move, not the admin's.
+function KprWidget({ id, widgetProps }) {
+  if (widgetLock(id, widgetProps.m, widgetProps.d)) return null
+  const View = WIDGET_VIEWS[id]
+  return (
+    <WidgetBoundary title={WIDGET[id].title}>
+      <Suspense fallback={<Skeleton className="h-64 rounded-card" />}>
+        <View {...widgetProps} />
+      </Suspense>
+    </WidgetBoundary>
+  )
+}
+const HEALTH_FILL = { ok: 'var(--chart-ok)', warn: 'var(--chart-warn)', bad: 'var(--chart-bad)' }
+
 export function UserMortgagePage() {
   const { userId, mortgageId } = useParams()
   const { data, error, reload } = useResource(() => api.admin.users.get(userId), [userId])
@@ -265,6 +286,7 @@ export function UserMortgagePage() {
   const r = m.reminders
   const fi = d.floatingImpact
   const history = data.audit.filter((e) => e.resource.type === 'mortgage' && e.resource.id === m.id)
+  const widgetProps = { m, d, clock: data.asOf }
   return (
     <>
       <AdminHeader title={mortgageName(m)} subtitle={`${data.user.name} · KPR ${m.scheme === 'sharia' ? 'Syariah' : 'Konvensional'}`} back={back} actions={<Chip tone={m.status === 'active' ? 'ok' : 'mute'}>{MORTGAGE_STATUS[m.status] ?? m.status}</Chip>} />
@@ -327,21 +349,40 @@ export function UserMortgagePage() {
               'Belum ada perubahan periode bunga.',
             )}
           </Panel>
+          <KprWidget id="journey" widgetProps={widgetProps} />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
           <Panel>
             <PanelTitle sub={`Formula versi ${d.health.version}. Bukan skor kredit bank.`}>KPR Health</PanelTitle>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[30px] font-extrabold tabular">
-                {d.health.score ?? '–'}
-                <span className="text-sm font-semibold text-ink-3"> / 100</span>
-              </span>
-              <Chip tone={d.health.tone}>{d.health.partial && d.health.score != null ? `${d.health.label} · parsial` : d.health.label}</Chip>
+            <div className="flex flex-wrap items-center gap-5">
+              {d.health.score != null && <HealthRing health={d.health} size={104} />}
+              <div className="flex min-w-48 flex-1 flex-col gap-3">
+                <Chip tone={d.health.tone}>{d.health.partial && d.health.score != null ? `${d.health.label} · parsial` : d.health.label}</Chip>
+                <ul aria-label="Komponen KPR Health" className="flex flex-col gap-2.5">
+                  {d.health.components.map((c) => (
+                    <li key={c.key} className="flex flex-col gap-1">
+                      <span className="flex justify-between gap-3 text-[13px]">
+                        <span className="font-semibold text-ink-2">{c.name}</span>
+                        <span className={c.score == null ? 'text-muted-foreground' : 'font-extrabold tabular'}>{c.score ?? 'Belum dapat dihitung'}</span>
+                      </span>
+                      {c.score != null && (
+                        <span className="h-1.5 rounded-full bg-[var(--chart-track)]" aria-hidden>
+                          <span className="block h-full rounded-full" style={{ width: `${c.score}%`, background: HEALTH_FILL[c.tone] }} />
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            <SummaryRows rows={d.health.components.map((c) => ({ k: c.name, v: c.score ?? 'Belum dapat dihitung', tone: c.tone }))} />
           </Panel>
           <Panel>
             <PanelTitle sub="Salinan keuangan di KPR ini; ikut berubah lewat Ubah keuangan di profil user.">Keuangan & DTI</PanelTitle>
+            {!widgetLock('dti', m, d) && (
+              <div className="flex flex-col gap-2">
+                <DtiGauge d={d} showZone />
+              </div>
+            )}
             <SummaryRows
               rows={[
                 { k: 'Penghasilan bulanan', v: rupiah(f.monthlyIncome) },
@@ -410,6 +451,12 @@ export function UserMortgagePage() {
           </Panel>
         </div>
       </div>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {['balanceProjection', 'paymentSplit', 'floatingImpact'].map((id) => (
+          <KprWidget key={id} id={id} widgetProps={widgetProps} />
+        ))}
+      </div>
+      <KprWidget id="amortizationChart" widgetProps={widgetProps} />
       <Panel>
         <PanelTitle sub="Proyeksi anuitas dari sisa pokok hari ini. Bunga floating selalu estimasi.">Jadwal amortisasi</PanelTitle>
         {s ? (
