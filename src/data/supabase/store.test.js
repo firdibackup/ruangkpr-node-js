@@ -27,6 +27,16 @@ describe('planWrites', () => {
     expect(planWrites(before, after, versions)).toEqual([])
   })
 
+  it('cover letters insert once, then update their doc', () => {
+    const before = base()
+    const after = structuredClone(before)
+    after.coverLetters = [{ id: 'app_1', salesOfficer: 'Hilda' }]
+    expect(planWrites(before, after, versions)).toEqual([{ op: 'insert', table: 'cover_letters', values: { id: 'app_1', doc: after.coverLetters[0] } }])
+    const later = structuredClone(after)
+    later.coverLetters[0].salesOfficer = 'Rudi'
+    expect(planWrites(after, later, versions)).toEqual([{ op: 'update', table: 'cover_letters', id: 'app_1', values: { doc: later.coverLetters[0] } }])
+  })
+
   it('new, changed and removed applications become insert, versioned update and delete', () => {
     const before = base()
     const after = structuredClone(before)

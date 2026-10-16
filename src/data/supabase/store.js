@@ -93,6 +93,7 @@ export function planWrites(before, after, versions) {
   ops.push(...diffList('health_configs', before.healthConfigs, after.healthConfigs, 'version', (x) => ({ doc: x })).filter((o) => o.op === 'insert'))
   ops.push(...diffList('audit_log', before.auditLog, after.auditLog).filter((o) => o.op === 'insert'))
   ops.push(...diffList('admin_notes', before.adminNotes, after.adminNotes, 'id', (x) => ({ id: x.id, application_id: x.applicationId, doc: x })).filter((o) => o.op === 'insert'))
+  ops.push(...diffList('cover_letters', before.coverLetters, after.coverLetters))
   return ops
 }
 
@@ -154,7 +155,7 @@ export function createSupabaseStore(client = supabase) {
 
     // Admin pages see every user account (RLS decides what a role may read).
     if (admin && role) {
-      const [profiles, roles, allApps, allMortgages, notes, audit, changes] = await Promise.all([
+      const [profiles, roles, allApps, allMortgages, notes, audit, changes, letters] = await Promise.all([
         must(sb.from('profiles').select('*').neq('id', uid)),
         must(sb.from('user_roles').select('user_id, role')),
         must(sb.from('applications').select('id, user_id, doc, version').neq('user_id', uid).order('created_at', { ascending: false })),
@@ -163,6 +164,7 @@ export function createSupabaseStore(client = supabase) {
         must(sb.from('audit_log').select('doc').order('occurred_at', { ascending: false })),
         // ponytail: every admin call reads the whole history; filter by user in the query once it grows large.
         must(sb.from('user_changes').select('id, user_id, doc, occurred_at').order('occurred_at', { ascending: false })),
+        must(sb.from('cover_letters').select('doc')),
       ])
       const roleOf = new Map(roles.map((r) => [r.user_id, r.role]))
       for (const r of allApps) versions.applications[r.id] = r.version
@@ -180,6 +182,7 @@ export function createSupabaseStore(client = supabase) {
         }
       })
       db.adminNotes = docs(notes)
+      db.coverLetters = docs(letters)
       db.auditLog = docs(audit)
       // Written by database triggers only (migration user_changes); planWrites never sends it back.
       db.userChanges = changes.map((r) => ({ ...r.doc, id: r.id, userId: r.user_id, occurredAt: r.occurred_at }))
