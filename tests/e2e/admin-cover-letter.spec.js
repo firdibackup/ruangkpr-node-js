@@ -47,3 +47,17 @@ test('an application not yet at the bank has no cover letter', async ({ page }) 
   await page.goto('/admin/applications/app_sample_01/surat-pengantar')
   await expect(page.getByText('Surat pengantar tersedia setelah pengajuan diteruskan ke bank.')).toBeVisible()
 })
+
+test('the saved toast never prints on the letter', async ({ page }) => {
+  await useScenario(page, 'admin_ops', '/admin/applications/app_sample_05/surat-pengantar')
+  await page.getByLabel('Nama Marketing Associate').fill('Like')
+  await page.getByLabel('No. ID RE/MAX').fill('R230021')
+  await page.getByLabel('Kantor RE/MAX').fill('RE/MAX Eagle Citraland')
+  await page.getByLabel('Nama Business Owner').fill('Budiono Yuwono')
+  await page.getByLabel('Rekening marketing fee').fill('Rek. Bank BCA 511.010.6060')
+  await page.getByRole('button', { name: 'Simpan' }).click()
+  const toast = page.getByText('Surat pengantar disimpan.')
+  await expect(toast).toBeVisible()
+  await page.emulateMedia({ media: 'print' })
+  await expect(toast).toBeHidden({ timeout: 1000 }) // well before the toast closes on its own
+})

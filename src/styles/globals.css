@@ -185,6 +185,13 @@
   margin: 10mm;
 }
 
+@media print {
+  /* A toast still on screen must not land on the letter. */
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
