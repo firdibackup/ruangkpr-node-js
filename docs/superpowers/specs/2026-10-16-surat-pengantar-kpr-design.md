@@ -150,7 +150,7 @@ Kunci baris yang tidak ada di varian surat diabaikan saat simpan (lihat §3.2).
 - Mengembalikan bentuk yang sama dengan §3.1.
 
 ### 3.3 Detail pengajuan
-`applicationDetail` tidak berubah. Halaman detail menampilkan tombol dari `app.status` dan `PRINTABLE_STATUSES` (diekspor dari `src/domains/applications/meta.js` agar UI dan API memakai daftar yang sama).
+`applicationDetail` tidak berubah. Halaman detail menampilkan tombol dari `app.status` dan `PRINTABLE_STATUSES`. Daftar itu, baris checklist, prefill, dan validasi tinggal di satu modul `src/domains/admin/coverLetter.js` yang dipakai `mockApi` dan UI.
 
 ## 4. Supabase
 
@@ -158,8 +158,7 @@ Kunci baris yang tidak ada di varian surat diabaikan saat simpan (lihat §3.2).
 ```sql
 create table public.cover_letters (
   id text primary key references public.applications (id) on delete cascade,
-  doc jsonb not null,
-  updated_at timestamptz not null default now()
+  doc jsonb not null
 );
 alter table public.cover_letters enable row level security;
 revoke all on public.cover_letters from anon, authenticated;
@@ -169,13 +168,12 @@ grant select, insert, update on public.cover_letters to authenticated;
 create policy cover_letters_select on public.cover_letters for select to authenticated
   using ((select private.has_role('super_admin')));
 create policy cover_letters_insert on public.cover_letters for insert to authenticated
-  with check ((select private.has_role('super_admin')) and private.cover_letter_printable(id));
-create policy cover_letters_update on public.cover_letters for update to authenticated
-  using ((select private.has_role('super_admin')))
-  with check ((select private.has_role('super_admin')) and private.cover_letter_printable(id));
+  with check ((select private.has_role('super_admin')) and exists (
+    select 1 from public.applications a where a.id = cover_letters.id
+       and a.status in ('bank_processing', 'appraisal', 'approved', 'old_mortgage_settlement', 'akad', 'disbursed')));
+-- cover_letters_update: using = super_admin, with check = sama dengan insert.
 ```
-- `private.cover_letter_printable(p_id text)` (security definer, `search_path = ''`): `exists` pengajuan dengan id itu yang status-nya ada di daftar `PRINTABLE_STATUSES`.
-- Trigger function kecil sendiri `private.cover_letters_touch()` (`before insert or update`): `updated_at = now()` dan `doc.id` disamakan dengan `id`. `promote_doc` yang ada tidak diubah.
+- Status dicek langsung di policy (tanpa function baru). Tanpa kolom `updated_at` dan tanpa trigger: `updatedAt` sudah ada di `doc`, dan store selalu mengirim `id` yang sama dengan `doc.id`.
 - `apply_writes` didefinisikan ulang (salin versi terakhir dari `20261014100000_kept_application_data.sql`) dengan tambahan `"cover_letters": ["id", "doc"]` di `v_allowed`. `cover_letters` tidak masuk `v_versioned`.
 
 ### 4.2 `src/data/supabase/store.js`
@@ -204,16 +202,9 @@ Di `AdminHeader` `actions` (sebelah `StatusChip`): `Button asChild variant="outl
 - Peringatan tinggalkan halaman tidak dibuat. Tombol Simpan aktif bila ada perubahan (pola `dirty` di ConfigurationPage) atau surat belum pernah disimpan (`saved: false`).
 - State: `PageSkeleton` saat memuat; `ErrorPanel` dengan pesan API untuk 404/409 (mis. "Surat pengantar tersedia setelah pengajuan diteruskan ke bank."); tombol disabled + `Spinner` saat menyimpan.
 
-### 5.3 Cetak (`src/styles/globals.css`)
-```css
-@media print {
-  @page { size: A4; margin: 10mm; }
-  body * { visibility: hidden; }
-  .print-sheet, .print-sheet * { visibility: visible; }
-  .print-sheet { position: absolute; inset: 0 auto auto 0; width: 100%; box-shadow: none; }
-}
-```
-- `CoverLetterSheet` memakai kelas `print-sheet`. Lembar memakai font sans (Arial/Helvetica) dan tabel serif seperti contoh, warna hitam di atas putih; ini dokumen cetak, bukan bagian dari visual language aplikasi.
+### 5.3 Cetak
+- `src/styles/globals.css`: `@page { size: A4; margin: 10mm; }`.
+- Bagian yang tidak ikut tercetak diberi `print:hidden` (varian Tailwind): sidebar, header mobile, dan bar akun di `AdminLayout`, juga header halaman dan panel form. `main` mendapat `print:p-0`. Cara ini dipilih daripada trik `visibility: hidden`, karena trik itu menyisakan halaman kosong di belakang surat. Lembar memakai font sans (Arial/Helvetica) dan tabel serif seperti contoh, warna hitam di atas putih; ini dokumen cetak, bukan bagian dari visual language aplikasi.
 - Di setiap sel checklist: checkbox ber-kelas `print:hidden`, dan `<span className="hidden print:inline">√</span>` yang dirender hanya bila sel itu tercentang.
 
 ### 5.4 Konfigurasi (`ConfigurationPage.jsx`)
