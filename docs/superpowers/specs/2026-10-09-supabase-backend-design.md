@@ -312,3 +312,18 @@ Keputusan user: admin juga melihat perubahan yang dibuat user sendiri, dengan ni
 | Mock | Tidak ada database, dan di demo user dan admin tidak pernah berbagi data. Skenario `admin_ops` menyiapkan dua contoh untuk Sari |
 
 Batas (`ponytail:`): setiap pemanggilan admin memuat seluruh `user_changes`. Upgrade: filter per user di query bila tabelnya membesar. Perubahan sebelum migration ini tidak tercatat. Password lain disimpan di `db.passwords`. Kode daftar tetap `148260` (`000000` salah, `999999` kedaluwarsa). Link reset: `openResetLink()` (tombol "Buka link reset (mode demo)") memakai `db.resetLink`. Versi skema mock naik ke 5.
+
+## Amandemen 5 (2026-10-16): demo untuk pengunjung
+
+Keputusan user: pengunjung bisa mencoba app tanpa akun. Ada dua simulasi, KPR Primary dan Take Over. Data demo hanya tersimpan di browser, dan form diisi lewat tombol "Isi data contoh". Keputusan ini menggantikan kalimat "Tombol Demo, kode demo, dan data dummy tidak pernah tampil di mode Supabase" di amandemen pertama.
+
+| Topik | Keputusan |
+|---|---|
+| Pintu masuk | Di `/login`, di bawah "Belum punya akun? Daftar", ada tombol "Demo KPR Primary" (ke `/apply/primary/1`) dan "Demo Take Over" (ke Home). Revisi user 2026-10-16: demo Take Over mulai dari KPR yang sudah dipantau dan sudah floating, jadi Home langsung menampilkan Peluang ("Ada ruang untuk cicilan lebih ringan") dan tile Potensi Take Over membuka daftar program bank |
+| Data | Mesin mock yang sama (`createMockApi` + `localStore`). KPR Primary memakai skenario `fresh` (user Firdi, belum punya KPR); Take Over memakai `mortgage_active_floating` (profil dan penghasilan lengkap, KPR Bank ABC floating 9%, nilai properti terisi). Tidak ada request ke Supabase selama demo, jadi laporan admin dan database asli tidak tersentuh |
+| Saklar | Flag `sessionStorage['ruangkpr:demo']` di `mockDb.js`. `api.js` membacanya saat dimuat (`isDemo`, yang ikut membuat `isMock` benar), sehingga masuk dan keluar demo memuat ulang halaman. Menutup tab mengakhiri demo |
+| Keluar | Notice "Mode demo" di atas setiap halaman B2C, dengan tombol "Keluar demo". "Keluar" di profil dan menu juga mengakhiri demo. Flag dan data mock dihapus, lalu app kembali ke `/login` asli |
+| Isi contoh | Tombol yang sebelumnya khusus dev juga tampil saat `isDemo`: "Isi data contoh" (Primary step 1–4, semua form Take Over termasuk Tujuan), "Isi contoh" dan "Unggah semua (demo)" untuk dokumen, serta "Simulasi respons bank" di tracker |
+| Dokumen dummy | Hanya metadata (`ktp-contoh.pdf`, ukuran, tipe), tanpa isi file, sama seperti mock. File yang dipilih pengunjung sendiri juga hanya dicatat nama dan ukurannya |
+
+Batas (`ponytail:`): kalau storage browser diblokir, flag tidak bertahan setelah reload, jadi pengunjung kembali ke login asli. Pantau KPR (`MortgageSetupWizard`) belum punya tombol isi contoh.

@@ -3,8 +3,10 @@ import { NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'rea
 import { DropdownMenu } from 'radix-ui'
 import { ActivityIcon, ArrowLeftIcon, BellIcon, ChevronDownIcon, CompassIcon, HouseIcon, LandmarkIcon, LogOutIcon, UserRoundIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { api } from '@/data/api'
+import { api, exitDemo, isDemo } from '@/data/api'
+import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/shared/dialogs'
+import { Notice } from '@/components/shared/ui'
 import { useSession } from '@/domains/session/SessionProvider'
 import { firstName, initials } from '@/lib/format'
 import { useRouteFocus } from '@/lib/hooks'
@@ -91,6 +93,19 @@ export function AppShell() {
         </header>
         <main id="main" tabIndex={-1} className="flex-1 px-4 pt-5 pb-[calc(96px+env(safe-area-inset-bottom))] outline-none sm:px-6 lg:px-10 lg:pt-8 lg:pb-24">
           <div className="mx-auto flex max-w-[1120px] flex-col gap-6">
+            {isDemo && (
+              <Notice
+                role="status"
+                title="Mode demo"
+                action={
+                  <Button variant="neutral" size="sm" onClick={exitDemo}>
+                    Keluar demo
+                  </Button>
+                }
+              >
+                Data contoh, hanya tersimpan di browser ini dan tidak dikirim ke bank.
+              </Notice>
+            )}
             <Outlet context={{ unread }} />
           </div>
         </main>

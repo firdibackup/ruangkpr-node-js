@@ -16,7 +16,7 @@ import {
   RulerIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { api, isMock } from "@/data/api";
+import { api, isDemo, isMock } from "@/data/api";
 import { mockControls } from "@/data/mockApi";
 import { DOC_LABELS } from "@/data/documentRules";
 import { useResource } from "@/lib/hooks";
@@ -615,8 +615,8 @@ function Tracker({ app, snap, onChange, reload }) {
             </Button>
           )}
         </div>
-        {import.meta.env.DEV &&
-          isMock &&
+        {isMock &&
+          (import.meta.env.DEV || isDemo) &&
           !["rejected", "disbursed"].includes(app.status) && (
             <DemoControls app={app} reload={reload} />
           )}
@@ -693,7 +693,7 @@ function DemoControls({ app, reload }) {
           <button
             type="button"
             onClick={act(mockControls.advanceApplication)}
-            className="h-10 rounded-full bg-foreground px-3.5 text-xs font-bold text-white"
+            className="h-11 rounded-full bg-foreground px-3.5 text-xs font-bold text-white"
           >
             Majukan ke: {STATUS_LABEL[flow[at + 1]]}
           </button>
@@ -703,7 +703,7 @@ function DemoControls({ app, reload }) {
           <button
             type="button"
             onClick={act(mockControls.rejectApplication)}
-            className="h-10 rounded-full border border-foreground px-3.5 text-xs font-bold"
+            className="h-11 rounded-full border border-foreground px-3.5 text-xs font-bold"
           >
             Simulasikan ditolak
           </button>
@@ -719,7 +719,7 @@ function DemoControls({ app, reload }) {
                   : "bank_statement",
               ),
             )}
-            className="h-10 rounded-full border border-foreground px-3.5 text-xs font-bold"
+            className="h-11 rounded-full border border-foreground px-3.5 text-xs font-bold"
           >
             Minta dokumen tambahan
           </button>

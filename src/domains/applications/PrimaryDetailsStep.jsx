@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { BriefcaseIcon, GaugeIcon, HandCoinsIcon, HouseIcon, InfoIcon, LockIcon, UserIcon } from 'lucide-react'
-import { api } from '@/data/api'
+import { api, isDemo } from '@/data/api'
 import { calculatePaymentCapacity } from '@/calculations/finance'
 import { useForm } from '@/lib/hooks'
 import { GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES, intInput, moneyInput, percentRatio, rupiah, toMoney } from '@/lib/format'
@@ -197,7 +197,7 @@ export function PrimaryDetailsStep({ step, app, snapshot, onCreated, onSaved, fr
           </Notice>
         )}
         <ErrorSummary show={form.showSummary} count={Object.keys(form.errors).length} />
-        {import.meta.env.DEV && (
+        {(import.meta.env.DEV || isDemo) && (
           <div className="flex justify-end">
             <button type="button" onClick={() => form.setValues({ ...v, ...SAMPLE, purchaseType: v.purchaseType || 'new_from_developer', amountEdited: false })} className="text-xs font-bold text-muted-foreground underline">
               Isi data contoh

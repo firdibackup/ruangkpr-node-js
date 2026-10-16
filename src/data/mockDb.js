@@ -40,3 +40,31 @@ export function resetDb(scenario) {
   saveDb(db)
   return db
 }
+
+// Visitor demo started from /login: a per-tab flag, so closing the tab ends it and a real user never stays stuck in it.
+// ponytail: with storage blocked the flag does not survive the reload, so the visitor lands on the real login again.
+const DEMO_KEY = 'ruangkpr:demo'
+
+export function demoActive() {
+  try {
+    return sessionStorage.getItem(DEMO_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+// A scenario starts the demo on a fresh copy of it; null ends the demo and drops its data.
+export function setDemo(scenario) {
+  try {
+    if (scenario) {
+      resetDb(scenario)
+      sessionStorage.setItem(DEMO_KEY, '1')
+    } else {
+      sessionStorage.removeItem(DEMO_KEY)
+      localStorage.removeItem(STORAGE_KEY)
+      memory = null
+    }
+  } catch {
+    // storage blocked: see the ponytail note above
+  }
+}

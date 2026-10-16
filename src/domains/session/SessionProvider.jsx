@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { api } from '@/data/api'
+import { api, exitDemo, isDemo } from '@/data/api'
 import { PageSkeleton } from '@/components/shared/ui'
 
 const SessionContext = createContext(null)
@@ -33,6 +33,8 @@ export function SessionProvider({ children }) {
   useEffect(() => api.auth.onChange?.(refresh), [refresh])
 
   const logout = useCallback(async () => {
+    // Leaving the demo goes back to the real sign-in page, not the mock one.
+    if (isDemo) return exitDemo()
     await api.auth.logout()
     await refresh()
   }, [refresh])

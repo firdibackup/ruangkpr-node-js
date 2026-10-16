@@ -1,6 +1,6 @@
 # RuangKPR
 
-Aplikasi web RuangKPR (React 19 + Vite + Tailwind CSS 4) dengan backend **Supabase self-hosted** (Auth, Database, Storage) di `https://ruang-kpr.firdiaudi.my.id`. Data yang tampil adalah data asli. Tidak ada data demo.
+Aplikasi web RuangKPR (React 19 + Vite + Tailwind CSS 4) dengan backend **Supabase self-hosted** (Auth, Database, Storage) di `https://ruang-kpr.firdiaudi.my.id`. Data yang tampil adalah data asli. Pengunjung bisa mencoba **mode demo** dari halaman login (KPR Primary atau Take Over); datanya hanya tersimpan di browser dan tidak pernah dikirim ke Supabase.
 
 Desain backend: `docs/superpowers/specs/2026-10-09-supabase-backend-design.md`. Runbook server (env, migration, super admin): `supabase/README.md`.
 
@@ -50,7 +50,7 @@ Di Vercel, isi env `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY`. Kare
 
 - `src/app`: routing, layout, shell aplikasi
 - `src/domains`: fitur per domain (applications, mortgages, optimize, admin, dll.)
-- `src/data/api.js`: satu-satunya pintu data untuk UI. Default Supabase; mock hanya untuk test
+- `src/data/api.js`: satu-satunya pintu data untuk UI. Default Supabase; mock untuk test dan mode demo
 - `src/data/mockApi.js`: logika aplikasi (dipakai Supabase dan test) di atas sebuah *store*
 - `src/data/supabase/`: auth, store Supabase (`store.js`), Storage, dan pemetaan error
 - `supabase/`: migration SQL, test pgTAP, template email OTP, runbook server

@@ -23,7 +23,7 @@ import {
   UserRoundIcon,
   WalletIcon,
 } from "lucide-react";
-import { api, isMock } from "@/data/api";
+import { api, isDemo, isMock } from "@/data/api";
 import { uploadHint } from "@/data/documentRules";
 import { calculateTopupScenario } from "@/calculations/finance";
 import { useForm } from "@/lib/hooks";
@@ -273,7 +273,7 @@ function FormLayout({ children, aside, onSubmit, cta, saving, onDemo }) {
       <div className="flex min-w-0 flex-col gap-5">
         {children}
         <div className="flex flex-wrap items-center justify-between gap-4">
-          {import.meta.env.DEV && onDemo ? (
+          {(import.meta.env.DEV || isDemo) && onDemo ? (
             <button
               type="button"
               onClick={onDemo}
@@ -892,11 +892,20 @@ function GoalStep({ app, setApp, navigate, fromReview }) {
   });
   const needsValue =
     v.mode === "topup" && !(app.data.property?.estimatedValue > 0);
+  // Same defaults as GoalStartPage.
+  const demo = () =>
+    form.setValues({
+      ...v,
+      ...(v.mode === "topup"
+        ? { requestedTopup: "100000000", purpose: "renovation" }
+        : { goal: "lower_payment" }),
+    });
   return (
     <FormLayout
       onSubmit={onSubmit}
       saving={saving}
       cta={fromReview ? "Simpan & kembali ke Review" : "Lihat Kondisi KPR"}
+      onDemo={demo}
       aside={
         <Aside
           icon={ListOrderedIcon}
@@ -1366,7 +1375,7 @@ function TakeoverDocsStep({ app, config, setApp, next, fromReview }) {
           Dokumen KPR lama dan properti diperlukan untuk Take Over, berbeda dari
           KPR baru. {uploadHint(config.upload)}. Setiap file tersimpan otomatis.
         </p>
-        {import.meta.env.DEV && isMock && !complete && (
+        {isMock && (import.meta.env.DEV || isDemo) && !complete && (
           <button
             type="button"
             onClick={uploadAll}

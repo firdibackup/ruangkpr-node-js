@@ -106,7 +106,8 @@ test('cold-entry take over: 5 data steps (official figures) → baseline → pro
   // Take Over was picked at the start, so Tujuan opens on the priorities without asking it again.
   await expect(page.getByRole('radio', { name: /Pindah KPR tanpa dana tambahan/ })).toHaveCount(0)
   await expect(page.getByLabel('Tenor baru yang diinginkan')).toHaveValue('180')
-  await page.getByRole('radio', { name: 'Cicilan bulanan lebih ringan' }).click()
+  await page.getByRole('button', { name: 'Isi contoh data' }).click() // the sample picks the same goal
+  await expect(page.getByRole('radio', { name: 'Cicilan bulanan lebih ringan' })).toBeChecked()
   await page.getByLabel('Tenor baru yang diinginkan').selectOption('180')
   await page.getByRole('button', { name: 'Lihat Kondisi KPR' }).click()
 

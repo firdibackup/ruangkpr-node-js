@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeftIcon, CircleAlertIcon } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
-import { api, isMock } from "@/data/api";
+import { api, exitDemo, isDemo, isMock, startDemo } from "@/data/api";
 import { DEMO_PASSWORD } from "@/data/seed";
 import { useCountdown, useForm } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
@@ -421,7 +421,37 @@ export function LoginPage() {
         </SubmitButton>
       </form>
       <SwitchLine question="Belum punya akun?" to="/register" label="Daftar" />
+      <DemoEntry />
     </AuthLayout>
+  );
+}
+
+// Visitor demo (spec Amandemen 5): the mock in this browser tab. Primary starts with no KPR; Take Over starts from a
+// monitored KPR already on floating, so Home shows its Peluang.
+function DemoEntry() {
+  // A demo that reaches sign-in (account deleted, signed out) is over: back to the real login.
+  useEffect(() => {
+    if (isDemo) exitDemo();
+  }, []);
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3 text-xs font-semibold text-muted-foreground">
+        <span className="h-px flex-1 bg-border" aria-hidden />
+        atau coba dulu tanpa akun
+        <span className="h-px flex-1 bg-border" aria-hidden />
+      </div>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <Button type="button" variant="neutral" size="md" onClick={() => startDemo("fresh", "/apply/primary/1")}>
+          Demo KPR Primary
+        </Button>
+        <Button type="button" variant="neutral" size="md" onClick={() => startDemo("mortgage_active_floating", "/")}>
+          Demo Take Over
+        </Button>
+      </div>
+      <p className="text-center text-xs text-muted-foreground">
+        Data contoh, hanya tersimpan di browser ini dan tidak dikirim ke bank.
+      </p>
+    </div>
   );
 }
 
