@@ -17,6 +17,7 @@ import { ApiError } from './apiError'
 import { ARTICLES } from './articles'
 import { BANK_PRODUCTS } from './catalog'
 import { DEFAULT_UPLOAD, DOC_LABELS, DOC_REJECT_REASONS, UPLOAD_FORMATS, rejectMessage, requiredDocuments, uploadProblem } from './documentRules'
+import { DEFAULT_SUPPORT, supportInput, supportIssues } from './support'
 import { loadDb, resetDb, saveDb } from './mockDb'
 import { ACCOUNT_KEYS, DEFAULT_REMINDERS, DEMO_PASSWORD, GOOGLE_DEMO, SCENARIOS, createSeed, newAccount, pickAccount, staffAccount } from './seed'
 import { STAFF, canOpen } from './roles'
@@ -685,7 +686,7 @@ function adminApplications(db, { status, productType, bankName, pendingAction, q
     .filter(({ app }) => (!status || app.status === status) && (!productType || app.productType === productType) && (!bankName || app.selection?.bankName === bankName))
     .filter(({ app }) => pendingAction === undefined || app.pendingActions.length > 0 === pendingAction)
     .filter(({ app }) => (!from || app.submittedAt?.slice(0, 10) >= from) && (!to || app.submittedAt?.slice(0, 10) <= to))
-    .filter(({ app, user }) => !q || user.name.toLowerCase().includes(q) || app.id.toLowerCase().includes(q))
+    .filter(({ app, user }) => !q || [user.name, user.contact, app.id].some((s) => s?.toLowerCase().includes(q)))
     .map(({ app, user }) => queueRow(db, app, user))
     .sort(longestWaitingFirst)
   return { items, banks: [...new Set(all.map(({ app }) => app.selection?.bankName).filter(Boolean))].sort() }
@@ -1034,19 +1035,21 @@ function csvCell(value) {
 // ---- admin configuration (admin plan §4.7) ----
 // Settings start at the values the app shipped with; the first admin save copies them into db.config. Reminder
 // defaults only shape KPRs set up later: reminders a user already saved are theirs.
-const DEFAULT_CONFIG = { version: 1, reminders: DEFAULT_REMINDERS, upload: DEFAULT_UPLOAD, coverLetter: DEFAULT_OFFICE }
+const DEFAULT_CONFIG = { version: 1, reminders: DEFAULT_REMINDERS, upload: DEFAULT_UPLOAD, coverLetter: DEFAULT_OFFICE, support: DEFAULT_SUPPORT }
 // A configuration saved before a section existed reads that section's defaults.
 const configOf = (db) => ({ ...DEFAULT_CONFIG, ...db.config })
-const CONFIG_LABEL = { reminders: 'Pengingat default', upload: 'Unggah dokumen', coverLetter: 'Surat pengantar' }
+const CONFIG_LABEL = { reminders: 'Pengingat default', upload: 'Unggah dokumen', coverLetter: 'Surat pengantar', support: 'Layanan CS' }
 
 function configInput(section, v = {}) {
   if (section === 'coverLetter') return officeInput(v)
+  if (section === 'support') return supportInput(v)
   const desc = (list) => [...new Set(list ?? [])].sort((a, b) => b - a)
   if (section === 'reminders') return { payment: desc(v.payment), fixedExpiry: desc(v.fixedExpiry), channels: { inApp: !!v.channels?.inApp, email: !!v.channels?.email, whatsapp: !!v.channels?.whatsapp } }
   return { maxFileMb: v.maxFileMb, formats: Object.keys(UPLOAD_FORMATS).filter((f) => v.formats?.includes(f)) }
 }
 function configIssues(section, v) {
   if (section === 'coverLetter') return officeIssues(v)
+  if (section === 'support') return supportIssues(v)
   if (section === 'reminders') {
     const e = validateReminders(v)
     if (v.payment.some((n) => ![7, 3, 1, 0].includes(n))) e.payment = 'Pilih dari H-7, H-3, H-1, atau Hari-H.'
@@ -1332,8 +1335,8 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         unreadActivities: db.activities.filter((a) => !a.readAt).length,
         dashboardLayout: savedLayout(db),
         toursSeen: db.toursSeen ?? [],
-        // What pages need from admin configuration: the live KPR Health version, reminder defaults, upload limits.
-        config: { health: (({ version, params }) => ({ version, params }))(activeHealth(db)), reminders: configOf(db).reminders, upload: configOf(db).upload },
+        // What pages need from admin configuration: the live KPR Health version, reminder defaults, upload limits, CS contact.
+        config: { health: (({ version, params }) => ({ version, params }))(activeHealth(db)), reminders: configOf(db).reminders, upload: configOf(db).upload, support: (({ whatsapp, bookingUrl }) => ({ whatsapp, bookingUrl }))(configOf(db).support) },
       })),
       // null restores the default board; a missing field means the user never customised it.
       saveLayout: call('dashboard.saveLayout', (db, layout) => {

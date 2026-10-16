@@ -8,6 +8,7 @@ import { remainingFromStart } from '@/domains/mortgages/validation'
 import { createMockApi, mockControls } from './mockApi'
 import { DEFAULT_REMINDERS, DEMO_PASSWORD, SCENARIOS, createSeed } from './seed'
 import { loadDb, saveDb } from './mockDb'
+import { DEFAULT_SUPPORT, bookingLink, calendarEmbedLink, whatsappLink } from './support'
 
 const api = createMockApi({ latencyMs: 0 })
 const file = (name, size = 200_000, type = 'image/jpeg') => ({ name, size, type })
@@ -421,6 +422,7 @@ describe('admin applications', () => {
     expect(await ids({ pendingAction: true })).toEqual(['app_sample_02'])
     expect(await ids({ bankName: 'Bank DEF' })).toEqual(['app_sample_03'])
     expect(await ids({ query: 'rina' })).toEqual(['app_sample_01'])
+    expect(await ids({ query: 'Firdi.Audi@email.com' })).toEqual(['app_01J8Z19RZ4VE4Q2AB7M5N8XKCF']) // the email CS gets on WhatsApp / cal.com
     expect((await api.admin.applications.list()).items).toHaveLength(8)
   })
 
@@ -1331,6 +1333,39 @@ describe('admin configuration', () => {
     await expect(upload(file('slip.jpg', 3 * 1024 * 1024))).rejects.toMatchObject({ code: 'FILE_TOO_LARGE', message: 'Ukuran file lebih dari 2MB. Kompres dulu, lalu coba lagi.' })
     await expect(upload(file('slip.pdf', 100_000, 'application/pdf'))).rejects.toMatchObject({ code: 'FILE_TYPE_UNSUPPORTED', message: 'Format tidak didukung. Gunakan JPG atau PNG.' })
     expect((await upload(file('slip.png', 1024 * 1024, 'image/png'))).status).toBe('docs_verification')
+  })
+
+  it('CS contact: one WhatsApp number and booking page for every user, normalised, https only, audited; the calendar stays with admins', async () => {
+    mockControls.reset('admin_ops')
+    const { config } = await api.admin.config.get()
+    expect(config.support).toEqual(DEFAULT_SUPPORT)
+    const save = (values) => api.admin.config.update('support', { values, reason: 'Nomor CS baru', expectedVersion: config.version })
+    await expectCode(save({ whatsapp: '0812', bookingUrl: DEFAULT_SUPPORT.bookingUrl }), 'VALIDATION_FAILED')
+    await expectCode(save({ whatsapp: '0812-3456-7890', bookingUrl: 'javascript:alert(1)' }), 'VALIDATION_FAILED')
+    await expectCode(save({ whatsapp: '', bookingUrl: '', calendarId: 'kalender tim' }), 'VALIDATION_FAILED')
+    const d = await save({ whatsapp: '+62 812-3456-7890', bookingUrl: ' https://cal.com/tim/konsultasi ', calendarId: ' tim.cs@gmail.com ' })
+    expect(d.config.support).toEqual({ whatsapp: '6281234567890', bookingUrl: 'https://cal.com/tim/konsultasi', calendarId: 'tim.cs@gmail.com' })
+    expect((await api.admin.audit.list()).items[0]).toMatchObject({ action: 'config.update', resource: { id: 'support', label: 'Layanan CS' } })
+    await asFirdi()
+    expect((await api.dashboard.getSnapshot()).config.support).toEqual({ whatsapp: '6281234567890', bookingUrl: 'https://cal.com/tim/konsultasi' })
+  })
+
+  it('CS links carry who is asking and open nothing but wa.me or an https page', () => {
+    expect(whatsappLink('6281234567890', 'Halo, saya Firdi. ID: app_1')).toBe('https://wa.me/6281234567890?text=Halo%2C%20saya%20Firdi.%20ID%3A%20app_1')
+    expect(whatsappLink('', 'x')).toBeNull()
+    expect(whatsappLink('12', 'x')).toBeNull()
+    expect(bookingLink('https://cal.com/tim/konsultasi', { name: 'Firdi Audi', email: 'firdi@x.com', notes: 'ID pengajuan: app_1' })).toBe(
+      'https://cal.com/tim/konsultasi?name=Firdi+Audi&email=firdi%40x.com&notes=ID+pengajuan%3A+app_1',
+    )
+    expect(bookingLink('https://cal.com/tim/konsultasi', {})).toBe('https://cal.com/tim/konsultasi')
+    expect(bookingLink('javascript:alert(1)', {})).toBeNull()
+    expect(bookingLink('', {})).toBeNull()
+    const embed = new URL(calendarEmbedLink('tim.cs@gmail.com'))
+    expect(embed.origin + embed.pathname).toBe('https://calendar.google.com/calendar/embed')
+    expect(embed.searchParams.get('src')).toBe('tim.cs@gmail.com')
+    expect(embed.searchParams.get('ctz')).toBe('Asia/Jakarta')
+    expect(calendarEmbedLink('x')).toBeNull()
+    expect(calendarEmbedLink('')).toBeNull()
   })
 
   it('a KPR Health formula is previewed on fixtures, published as the version users get, and rolled back as a new version', async () => {

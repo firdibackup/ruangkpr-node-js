@@ -169,6 +169,40 @@ function CoverLetterPanel({ data, onSaved }) {
   )
 }
 
+function SupportPanel({ data, onSaved }) {
+  const [saved, setSaved] = useState(data.config.support)
+  const [value, setValue] = useState(saved)
+  const [errors, setErrors] = useState({})
+  const [confirming, setConfirming] = useState(false)
+  const dirty = JSON.stringify(value) !== JSON.stringify(saved)
+  const set = (k) => (v) => setValue((x) => ({ ...x, [k]: v }))
+  const save = async (reason) => {
+    try {
+      const d = await api.admin.config.update('support', { values: value, reason, expectedVersion: data.config.version })
+      onSaved(d)
+      setSaved(d.config.support)
+      setValue(d.config.support)
+      setErrors({})
+      toast('Kontak CS tersimpan.')
+    } catch (e) {
+      setErrors(asErrors(e))
+      throw e
+    }
+  }
+  return (
+    <Panel>
+      <PanelTitle sub="Tampil di tombol Hubungi CS pada tracker pengajuan dan Profile user.">Layanan CS</PanelTitle>
+      <TextField label="Nomor WhatsApp CS" type="tel" inputMode="tel" value={value.whatsapp} onChange={set('whatsapp')} error={errors.whatsapp} hint="Mis. 0812 3456 7890. Kosongkan untuk menyembunyikan tombol WhatsApp." />
+      <TextField label="Link konsultasi live" type="url" inputMode="url" value={value.bookingUrl} onChange={set('bookingUrl')} error={errors.bookingUrl} hint="Halaman booking cal.com. Slot yang tampil mengikuti kalender tim marketing." />
+      <TextField label="Calendar ID Google" value={value.calendarId} onChange={set('calendarId')} error={errors.calendarId} hint="Kalender Google yang tersambung ke cal.com: Setelan kalender → Integrasikan kalender → ID kalender. Hanya tampil di halaman Jadwal admin." />
+      <Button className="w-fit" disabled={!dirty} onClick={() => setConfirming(true)}>
+        Simpan kontak CS
+      </Button>
+      <ReasonDialog open={confirming} onOpenChange={setConfirming} title="Simpan kontak CS?" body="Langsung dipakai di tombol Hubungi CS semua user." confirmLabel="Ya, simpan" onConfirm={save} />
+    </Panel>
+  )
+}
+
 // Settings that apply to every user (admin plan §4.7). KPR Health has its own versioned editor.
 export function ConfigurationPage() {
   const { data, error, reload, setData } = useResource(() => api.admin.config.get())
@@ -183,6 +217,7 @@ export function ConfigurationPage() {
           <div className="flex min-w-0 flex-col gap-6">
             <UploadPanel data={data} onSaved={setData} />
             <CoverLetterPanel data={data} onSaved={setData} />
+            <SupportPanel data={data} onSaved={setData} />
             <Panel>
               <PanelTitle sub="Ambang dan bobot skor. Setiap perubahan terbit sebagai versi baru, jadi versi lama bisa dipulihkan.">KPR Health</PanelTitle>
               <p className="text-sm text-ink-2">

@@ -1,5 +1,5 @@
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ChartColumnIcon, FileStackIcon, KeyRoundIcon, LandmarkIcon, LayoutDashboardIcon, LogOutIcon, NewspaperIcon, ScrollTextIcon, ShieldAlertIcon, SlidersHorizontalIcon, UsersIcon } from 'lucide-react'
+import { CalendarDaysIcon, ChartColumnIcon, FileStackIcon, KeyRoundIcon, LandmarkIcon, LayoutDashboardIcon, LogOutIcon, NewspaperIcon, ScrollTextIcon, ShieldAlertIcon, SlidersHorizontalIcon, UsersIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { initials } from '@/lib/format'
 import { useRouteFocus } from '@/lib/hooks'
@@ -14,6 +14,7 @@ const NAV = [
   { to: '/admin', module: 'overview', label: 'Overview', icon: LayoutDashboardIcon },
   { to: '/admin/users', module: 'users', label: 'Users', icon: UsersIcon },
   { to: '/admin/applications', module: 'applications', label: 'Applications', icon: FileStackIcon },
+  { to: '/admin/schedule', module: 'schedule', label: 'Jadwal', icon: CalendarDaysIcon },
   { to: '/admin/products', module: 'catalog', label: 'Banks & Products', icon: LandmarkIcon, match: (p) => p.startsWith('/admin/products') || p.startsWith('/admin/banks') },
   { to: '/admin/articles', module: 'articles', label: 'Articles', icon: NewspaperIcon },
   { to: '/admin/reports', module: 'reports', label: 'Reports', icon: ChartColumnIcon },

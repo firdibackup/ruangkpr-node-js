@@ -1,14 +1,14 @@
 import { useCallback, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { BellIcon, BriefcaseIcon, KeyRoundIcon, LogOutIcon, PencilIcon, ShieldCheckIcon, Trash2Icon, UserIcon } from 'lucide-react'
+import { BellIcon, BriefcaseIcon, HeadsetIcon, KeyRoundIcon, LogOutIcon, PencilIcon, ShieldCheckIcon, Trash2Icon, UserIcon } from 'lucide-react'
 import { api } from '@/data/api'
 import { useForm, useResource } from '@/lib/hooks'
 import { GENDERS, MARITAL, OCCUPATIONS, dateLong, initials, labelOf, maskNik, rupiah, toMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { LogoutDialog, PageHeader } from '@/components/layout/AppShell'
 import { CheckboxField, DateField, ErrorSummary, FormGrid, MoneyField, NumberField, RadioCards, SelectField, TextAreaField, TextField } from '@/components/shared/fields'
-import { ConfirmDialog, FormDialog, UnsavedChangesGuard } from '@/components/shared/dialogs'
+import { ConfirmDialog, ContactCsDialog, FormDialog, UnsavedChangesGuard } from '@/components/shared/dialogs'
 import { WizardProgress } from '@/components/shared/progress'
 import { Disclaimer, ErrorPanel, IconBox, Notice, Panel, PageSkeleton, Spinner, SummaryRows } from '@/components/shared/ui'
 import { useSession } from '@/domains/session/SessionProvider'
@@ -17,6 +17,7 @@ import { ReminderSettingsForm, reminderSummary } from '@/domains/mortgages/Remin
 import { filledOnly, validateReminders } from '@/domains/mortgages/validation'
 import { validateEmploymentBasic } from '@/domains/optimize/validation'
 import { profileFormValues, validatePersonal } from '@/domains/applications/validation'
+import { productName } from '@/domains/applications/meta'
 
 export function ProfilePage() {
   const navigate = useNavigate()
@@ -25,6 +26,7 @@ export function ProfilePage() {
   const [confirm, setConfirm] = useState(false)
   const [del, setDel] = useState(false)
   const [agreed, setAgreed] = useState(false)
+  const [cs, setCs] = useState(false)
   if (!snap) return error ? <ErrorPanel onRetry={reload} /> : <PageSkeleton />
   const p = snap.profile ?? {}
   const f = snap.finance ?? {}
@@ -32,7 +34,7 @@ export function ProfilePage() {
   const r = m ? reminderSummary(m.reminders, m.currentRateType === 'fixed' && m.fixedUntil > snap.clock) : null
   const incomplete = !p.nik || !p.birthDate || !p.occupation
   // Same rule as auth.deleteAccount: an application at the bank can't lose its account.
-  const blocked = snap.applications.some((a) => IN_PROCESS.includes(a.status))
+  const inProcess = snap.applications.find((a) => IN_PROCESS.includes(a.status))
 
   return (
     <>
@@ -107,6 +109,17 @@ export function ProfilePage() {
           </Panel>
           <Panel className="gap-2.5 sm:p-7">
             <div className="flex items-center gap-3">
+              <IconBox icon={HeadsetIcon} />
+              <h2 className="text-[17px] font-extrabold">Bantuan</h2>
+            </div>
+            <p className="text-sm leading-[21px] text-ink-3">Tanya soal KPR atau pengajuan kamu lewat WhatsApp, atau jadwalkan konsultasi live dengan tim RuangKPR.</p>
+            <Button variant="outline" size="md" className="mt-1 w-fit" onClick={() => setCs(true)}>
+              <HeadsetIcon aria-hidden />
+              Hubungi CS
+            </Button>
+          </Panel>
+          <Panel className="gap-2.5 sm:p-7">
+            <div className="flex items-center gap-3">
               <IconBox icon={ShieldCheckIcon} />
               <h2 className="text-[17px] font-extrabold">Privasi & persetujuan</h2>
             </div>
@@ -142,7 +155,15 @@ export function ProfilePage() {
         </div>
       </div>
       <LogoutDialog open={confirm} onOpenChange={setConfirm} />
-      {blocked ? (
+      <ContactCsDialog
+        open={cs}
+        onOpenChange={setCs}
+        support={snap.config.support}
+        name={p.fullName || snap.user?.name}
+        email={p.email || snap.user?.contact}
+        topic={inProcess && `pengajuan ${productName(inProcess)} di ${inProcess.selection?.bankName}`}
+      />
+      {inProcess ? (
         <ConfirmDialog
           open={del}
           onOpenChange={setDel}

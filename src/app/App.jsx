@@ -30,6 +30,7 @@ import { BankListPage, ProductFormPage, ProductListPage } from '@/domains/admin/
 import { ArticleFormPage, ArticleListPage } from '@/domains/admin/ArticlesPages'
 import { ReportsPage } from '@/domains/admin/ReportsPage'
 import { ConfigurationPage, HealthConfigPage } from '@/domains/admin/ConfigurationPage'
+import { SchedulePage } from '@/domains/admin/SchedulePage'
 import { AuditLogPage } from '@/domains/admin/AuditLogPage'
 import { NotFoundPage } from './NotFoundPage'
 import { DevPanel } from './DevPanel'
@@ -84,6 +85,7 @@ const router = createBrowserRouter([
           { path: 'applications', element: <ApplicationListPage /> },
           { path: 'applications/:applicationId', element: <ApplicationDetailPage /> },
           { path: 'applications/:applicationId/surat-pengantar', element: <CoverLetterPage /> },
+          { path: 'schedule', element: <SchedulePage /> },
           { path: 'products', element: <ProductListPage /> },
           { path: 'products/new', element: <ProductFormPage /> },
           { path: 'products/:productId', element: <ProductFormPage /> },

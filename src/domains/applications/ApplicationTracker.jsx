@@ -24,7 +24,7 @@ import { dateLong, dateShort, percentBps, rupiah, tenorLabel } from "@/lib/forma
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/AppShell";
-import { FormDialog } from "@/components/shared/dialogs";
+import { ContactCsDialog } from "@/components/shared/dialogs";
 import { StatusStepper, Timeline } from "@/components/shared/progress";
 import { UploadRow } from "@/components/shared/UploadRow";
 import {
@@ -634,20 +634,14 @@ function Tracker({ app, snap, onChange, reload }) {
           navigate("/", { replace: true });
         }}
       />
-      <FormDialog
+      <ContactCsDialog
         open={cs}
         onOpenChange={setCs}
-        title="Hubungi CS RuangKPR"
-        description="Senin–Jumat, 08.00–17.00 WIB."
-      >
-        <p className="text-sm leading-[21px] text-ink-3">
-          Email: <b>cs@ruangkpr.id</b>. Sertakan ID pengajuan <b>{app.id}</b>.
-          Layanan chat langsung belum tersedia pada versi prototipe ini.
-        </p>
-        <Button variant="neutral" size="md" onClick={() => setCs(false)}>
-          Tutup
-        </Button>
-      </FormDialog>
+        support={snap.config.support}
+        name={snap.profile?.fullName || snap.user?.name}
+        email={snap.profile?.email || snap.user?.contact}
+        topic={`pengajuan ${productName(app)} di ${s?.bankName}`}
+      />
     </div>
   );
 }

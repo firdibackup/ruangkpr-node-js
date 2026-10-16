@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useBlocker } from 'react-router-dom'
 import { AlertDialog as AlertDialogPrimitive, Dialog as DialogPrimitive } from 'radix-ui'
-import { CircleCheckIcon, Trash2Icon, XIcon } from 'lucide-react'
+import { CalendarClockIcon, CircleCheckIcon, MessageCircleIcon, Trash2Icon, XIcon } from 'lucide-react'
 import confetti from 'canvas-confetti'
+import { bookingLink, whatsappLink } from '@/data/support'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Spinner } from './ui'
@@ -89,6 +90,44 @@ export function FormDialog({ open, onOpenChange, title, description, children, c
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
+  )
+}
+
+// WhatsApp chat and live-consultation booking with the CS team (admin configuration `support`). Both open in a
+// new tab with the user's name and account email filled in: the email is what the team searches in admin.
+// `topic` is what the user is asking about, e.g. "pengajuan KPR Primary di Bank ABC".
+export function ContactCsDialog({ open, onOpenChange, support, name, email, topic }) {
+  const wa = whatsappLink(support?.whatsapp, [`Halo CS RuangKPR, saya ${name}.`, email && `Email akun: ${email}`, `Saya ingin bertanya tentang ${topic || 'KPR'}.`].filter(Boolean).join('\n'))
+  const booking = bookingLink(support?.bookingUrl, { name, email, notes: topic && `Konsultasi ${topic}.` })
+  return (
+    <FormDialog open={open} onOpenChange={onOpenChange} title="Hubungi CS RuangKPR" description="Senin–Jumat, 08.00–17.00 WIB.">
+      {wa && (
+        <Button asChild size="md">
+          <a href={wa} target="_blank" rel="noopener noreferrer">
+            <MessageCircleIcon aria-hidden />
+            Chat WhatsApp
+          </a>
+        </Button>
+      )}
+      {booking && (
+        <div className="flex flex-col gap-1.5">
+          <Button asChild variant="outline" size="md">
+            <a href={booking} target="_blank" rel="noopener noreferrer">
+              <CalendarClockIcon aria-hidden />
+              Jadwalkan Konsultasi Live
+            </a>
+          </Button>
+          <p className="text-xs leading-[18px] text-muted-foreground">Pilih jam yang masih kosong. Jadwal yang tampil sudah menyesuaikan kesibukan tim marketing.</p>
+        </div>
+      )}
+      <p className="text-sm leading-[21px] text-ink-3">
+        Atau email <b>cs@ruangkpr.id</b>
+        {email ? <> dari {email}, supaya tim langsung menemukan data kamu.</> : '.'}
+      </p>
+      <Button variant="neutral" size="md" onClick={() => onOpenChange(false)}>
+        Tutup
+      </Button>
+    </FormDialog>
   )
 }
 

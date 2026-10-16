@@ -35,7 +35,7 @@ export function ApplicationListPage() {
       <AdminHeader title="Applications" subtitle="Pengajuan yang sudah dikirim user, terlama menunggu di atas." />
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]">
-          <TextField label="Cari pengajuan" type="search" placeholder="Nama pemohon atau ID pengajuan" value={f.query} onChange={set('query')} />
+          <TextField label="Cari pengajuan" type="search" placeholder="Nama, email, atau ID pengajuan" value={f.query} onChange={set('query')} />
           <SelectField label="Status" placeholder="Semua" value={f.status} onChange={set('status')} options={STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))} />
           <SelectField label="Jenis" placeholder="Semua" value={f.productType} onChange={set('productType')} options={PRODUCT_TYPES} />
           <SelectField label="Bank" placeholder="Semua" value={f.bankName} onChange={set('bankName')} options={(data?.banks ?? []).map((b) => ({ value: b, label: b }))} />
