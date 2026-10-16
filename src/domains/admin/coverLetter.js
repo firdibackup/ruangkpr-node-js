@@ -64,7 +64,7 @@ const allRows = (variant) => {
   return [...r.applicant, ...r.house, ...r.second.rows]
 }
 
-// The day the application went to the bank, in WIB.
+// The day the application (this submission: the last time) went to the bank, in WIB.
 const wibDate = (iso) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date(iso))
 
 // A letter nobody saved yet: the application's own data (the submitted snapshot) and the office defaults.
@@ -74,7 +74,7 @@ export function prefillLetter({ app, data, userName, office }) {
   const verified = (type) => app.documents?.[type]?.status === 'verified'
   const loanAmount = app.selection?.loanAmount ?? null
   const outstanding = data.oldLoan?.outstanding ?? 0
-  const forwarded = app.statusHistory?.find((h) => h.status === 'bank_processing')?.at
+  const forwarded = app.statusHistory?.findLast((h) => h.status === 'bank_processing')?.at
   return {
     ...officeInput(office),
     customerName: data.personal?.fullName || userName,

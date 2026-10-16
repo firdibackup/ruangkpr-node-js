@@ -526,6 +526,24 @@ describe('admin cover letter', () => {
     expect((await api.admin.audit.list()).items).toHaveLength(before)
   })
 
+  it('a new submission of the same application starts a new letter dated by its latest move to the bank', async () => {
+    mockControls.reset('admin_ops')
+    const d0 = await api.admin.applications.coverLetter(FIRDI)
+    await api.admin.applications.saveCoverLetter(FIRDI, { values: { ...d0.letter, ...office, salesOfficer: 'Hilda' } })
+    // What retrySameBank + a new submit leave behind: same id, a new submittedAt, a later trip to the bank.
+    const db = loadDb()
+    const app = db.accounts.flatMap((a) => a.applications).find((a) => a.id === FIRDI)
+    app.submittedAt = '2026-10-08T02:00:00.000Z'
+    app.statusHistory.push({ status: 'rejected', at: '2026-10-01T02:00:00.000Z' }, { status: 'draft', at: '2026-10-07T02:00:00.000Z' }, { status: 'submitted', at: '2026-10-08T02:00:00.000Z' }, { status: 'bank_processing', at: '2026-10-10T02:00:00.000Z' })
+    saveDb(db)
+    let d = await api.admin.applications.coverLetter(FIRDI)
+    expect(d.saved).toBe(false)
+    expect(d.letter).toMatchObject({ submittedDate: '2026-10-10', salesOfficer: '' })
+    // saving the fresh prefill unchanged still stores it for this submission
+    d = await api.admin.applications.saveCoverLetter(FIRDI, { values: { ...d.letter, ...office } })
+    expect(d).toMatchObject({ saved: true, letter: { submittedDate: '2026-10-10' } })
+  })
+
   it('only super admins open it, and the applicant never receives it', async () => {
     mockControls.reset('admin_ops')
     const d = await api.admin.applications.coverLetter(FIRDI)

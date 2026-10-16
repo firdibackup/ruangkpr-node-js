@@ -730,6 +730,8 @@ function applicationDetail(db, owner, app) {
 }
 
 // Surat pengantar (spec 2026-10-16) lives in db.coverLetters, never on the application: the applicant reads that.
+// A letter belongs to one submission: after a retry at the same bank (same id, new submittedAt) it starts over.
+const currentLetter = (db, app) => (db.coverLetters ?? []).find((l) => l.id === app.id && l.submittedAt === app.submittedAt) ?? null
 function printableApp(db, id) {
   const found = findUserApp(db, id)
   if (!PRINTABLE_STATUSES.includes(found.app.status)) fail('INVALID_STATE_TRANSITION', 'Surat pengantar tersedia setelah pengajuan diteruskan ke bank.', 409)
@@ -738,7 +740,7 @@ function printableApp(db, id) {
 function coverLetterView(db, id) {
   const { owner, app } = printableApp(db, id)
   const variant = variantOf(app)
-  const saved = (db.coverLetters ?? []).find((l) => l.id === id)
+  const saved = currentLetter(db, app)
   return {
     application: { id: app.id, status: app.status, productType: app.productType, optimizationMode: app.optimizationMode, userName: owner.user.name },
     variant,
@@ -2201,9 +2203,10 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
             failOnFields(letterIssues(next), 'Periksa kembali isian surat.')
             const letters = (db.coverLetters ??= [])
             const i = letters.findIndex((l) => l.id === id)
-            const diff = changes(letters[i] ?? {}, next, Object.keys(next))
-            if (!diff) return coverLetterView(db, id) // printing an unchanged letter writes nothing
-            const saved = { id, ...next, updatedAt: nowIso(db), updatedBy: { id: db.user.id, name: db.user.name } }
+            const current = currentLetter(db, app)
+            const diff = changes(current ?? {}, next, Object.keys(next))
+            if (current && !diff) return coverLetterView(db, id) // printing an unchanged letter writes nothing
+            const saved = { id, submittedAt: app.submittedAt, ...next, updatedAt: nowIso(db), updatedBy: { id: db.user.id, name: db.user.name } }
             if (i >= 0) letters[i] = saved
             else letters.push(saved)
             audit(db, { action: 'application.cover_letter', resource: { type: 'application', id, label: owner.user.name }, ...diff })
