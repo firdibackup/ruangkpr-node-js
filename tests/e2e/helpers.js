@@ -28,8 +28,7 @@ export async function signIn(page, name, email) {
   await page.waitForURL((url) => !/\/login$/.test(url.pathname))
   if (new URL(page.url()).pathname === '/welcome') {
     await page.getByLabel('Nama Lengkap').fill(name)
-    await page.getByRole('checkbox', { name: /Syarat & Ketentuan/ }).check()
-    await page.getByRole('checkbox', { name: /Kebijakan Privasi/ }).check()
+    await page.getByRole('checkbox', { name: /Syarat & Ketentuan dan Kebijakan Privasi/ }).check()
     await page.getByRole('button', { name: 'Mulai pakai RuangKPR' }).click()
     await expect(page).not.toHaveURL(/\/welcome$/)
   }
@@ -41,8 +40,7 @@ export async function register(page, { name, email, password = 'rumah2026' }) {
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByLabel('Ulangi password', { exact: true }).fill(password)
-  await page.getByRole('checkbox', { name: /Syarat & Ketentuan/ }).check()
-  await page.getByRole('checkbox', { name: /Kebijakan Privasi/ }).check()
+  await page.getByRole('checkbox', { name: /Syarat & Ketentuan dan Kebijakan Privasi/ }).check()
   await page.getByRole('button', { name: 'Daftar', exact: true }).click()
 }
 

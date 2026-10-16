@@ -203,35 +203,39 @@ function GoogleSignIn({ onError }) {
   );
 }
 
-// The two agreements (registration and /welcome), each with its text one tap away.
+// One checkbox for both agreements (registration and /welcome); each text opens from its link. Both consents are
+// still recorded separately.
 function ConsentFields({ form }) {
   const [legal, setLegal] = useState(null);
+  // preventDefault: opening a text must not tick the checkbox the link sits in.
+  const legalLink = (doc) => (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        setLegal(doc);
+      }}
+      className="font-bold text-primary underline underline-offset-2"
+    >
+      {LEGAL[doc].title}
+    </button>
+  );
   return (
     <>
-      {[
-        ["acceptTerms", "terms"],
-        ["acceptPrivacy", "privacy"],
-      ].map(([field, doc]) => (
-        <div
-          key={field}
-          className="flex flex-col gap-1 [&_label]:-my-[11px] [&_label]:min-h-0 [&_label]:py-[11px]"
-        >
-          <CheckboxField
-            label={`Saya setuju dengan ${LEGAL[doc].title} RuangKPR.`}
-            checked={form.values[field]}
-            onChange={(v) => form.set(field, v)}
-            error={form.error(field)}
-            name={field}
-          />
-          <button
-            type="button"
-            onClick={() => setLegal(doc)}
-            className="ml-[34px] w-fit text-[13px] font-bold text-primary hover:underline"
-          >
-            Baca {LEGAL[doc].title}
-          </button>
-        </div>
-      ))}
+      <CheckboxField
+        label={
+          <span>
+            Saya setuju dengan {legalLink("terms")} dan {legalLink("privacy")}{" "}
+            RuangKPR.
+          </span>
+        }
+        checked={form.values.acceptTerms && form.values.acceptPrivacy}
+        onChange={(v) =>
+          form.setValues((s) => ({ ...s, acceptTerms: v, acceptPrivacy: v }))
+        }
+        error={form.error("acceptTerms") || form.error("acceptPrivacy")}
+        name="acceptTerms"
+      />
       <FormDialog
         open={!!legal}
         onOpenChange={(o) => !o && setLegal(null)}
