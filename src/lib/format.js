@@ -156,3 +156,23 @@ export const GOALS = [
 ]
 
 export const labelOf = (list, value) => list.find((x) => x.value === value)?.label ?? (value || EMPTY)
+
+// Whole Rupiah in words for letters ("Empat Ratus Juta Rupiah"); '' when there is no valid amount.
+const UNITS = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas']
+const SCALES = [
+  [1e12, 'Triliun'],
+  [1e9, 'Miliar'],
+  [1e6, 'Juta'],
+  [1e3, 'Ribu'],
+]
+function words(n) {
+  if (n < 12) return UNITS[n]
+  if (n < 20) return `${UNITS[n - 10]} Belas`
+  if (n < 100) return `${UNITS[Math.floor(n / 10)]} Puluh ${words(n % 10)}`.trim()
+  if (n < 200) return `Seratus ${words(n - 100)}`.trim()
+  if (n < 1000) return `${UNITS[Math.floor(n / 100)]} Ratus ${words(n % 100)}`.trim()
+  if (n < 2000) return `Seribu ${words(n - 1000)}`.trim()
+  const [size, name] = SCALES.find(([s]) => n >= s)
+  return `${words(Math.floor(n / size))} ${name} ${words(n % size)}`.trim()
+}
+export const terbilang = (n) => (Number.isInteger(n) && n >= 0 ? `${n === 0 ? 'Nol' : words(n)} Rupiah` : '')
