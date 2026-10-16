@@ -68,7 +68,7 @@ export function AdminLayout() {
       <a href="#main" className="sr-only z-50 rounded-full bg-primary px-4 py-2 text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3">
         Lewati ke konten
       </a>
-      <aside className="sticky top-0 hidden h-dvh w-[264px] shrink-0 flex-col gap-[34px] overflow-y-auto border-r border-border bg-card px-[26px] py-7 lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-[264px] shrink-0 flex-col gap-[34px] overflow-y-auto border-r border-border bg-card px-[26px] py-7 lg:flex print:hidden">
         <Brand tagline={staff.label} />
         <nav aria-label="Navigasi admin" className="flex flex-col gap-1.5">
           {mine.map((item) => (
@@ -78,7 +78,7 @@ export function AdminLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur lg:hidden print:hidden">
           <div className="flex items-center justify-between px-4 py-3">
             <Brand compact tagline={staff.label} />
             <div className="flex gap-2">
@@ -96,9 +96,9 @@ export function AdminLayout() {
             ))}
           </nav>
         </header>
-        <main id="main" tabIndex={-1} className="flex-1 px-4 pt-5 pb-16 outline-none sm:px-6 lg:px-10 lg:pt-6">
+        <main id="main" tabIndex={-1} className="flex-1 px-4 pt-5 pb-16 outline-none sm:px-6 lg:px-10 lg:pt-6 print:p-0!">
           <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
-            <div className="hidden items-center justify-end gap-4 lg:flex">
+            <div className="hidden items-center justify-end gap-4 lg:flex print:hidden">
               <span className="flex items-center gap-2.5">
                 <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-white" aria-hidden>
                   {initials(name)}

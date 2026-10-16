@@ -25,6 +25,7 @@ import { AdminLayout, ForbiddenPage } from '@/domains/admin/AdminLayout'
 import { OverviewPage as AdminOverviewPage } from '@/domains/admin/OverviewPage'
 import { UserDetailPage, UserHistoryPage, UserListPage, UserMortgagePage } from '@/domains/admin/UsersPages'
 import { ApplicationDetailPage, ApplicationListPage } from '@/domains/admin/ApplicationsPages'
+import { CoverLetterPage } from '@/domains/admin/CoverLetterPage'
 import { BankListPage, ProductFormPage, ProductListPage } from '@/domains/admin/CatalogPages'
 import { ArticleFormPage, ArticleListPage } from '@/domains/admin/ArticlesPages'
 import { ReportsPage } from '@/domains/admin/ReportsPage'
@@ -82,6 +83,7 @@ const router = createBrowserRouter([
           { path: 'users/:userId/riwayat', element: <UserHistoryPage /> },
           { path: 'applications', element: <ApplicationListPage /> },
           { path: 'applications/:applicationId', element: <ApplicationDetailPage /> },
+          { path: 'applications/:applicationId/surat-pengantar', element: <CoverLetterPage /> },
           { path: 'products', element: <ProductListPage /> },
           { path: 'products/new', element: <ProductFormPage /> },
           { path: 'products/:productId', element: <ProductFormPage /> },

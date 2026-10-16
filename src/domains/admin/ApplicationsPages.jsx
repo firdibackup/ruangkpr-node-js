@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CircleCheckIcon, CircleDashedIcon, ClockIcon, TriangleAlertIcon } from 'lucide-react'
+import { CircleCheckIcon, CircleDashedIcon, ClockIcon, PrinterIcon, TriangleAlertIcon } from 'lucide-react'
 import { api, isMock } from '@/data/api'
 import { useResource } from '@/lib/hooks'
 import { daysUntil } from '@/calculations/dates'
@@ -14,6 +14,7 @@ import { StatusStepper } from '@/components/shared/progress'
 import { Chip, ErrorPanel, Notice, PageSkeleton, Panel, PanelTitle, Spinner, SummaryRows } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { STAGE_NOTE_STATUSES, STATUS_LABEL, productName, trackerSteps } from '@/domains/applications/meta'
+import { PRINTABLE_STATUSES } from './coverLetter'
 import { PRODUCT_TYPES } from './labels'
 import { AdminHeader, DonutLegend, OutcomeDonut, StatusChip } from './shared'
 
@@ -354,7 +355,24 @@ export function ApplicationDetailPage() {
   const s = app.selection ?? {}
   return (
     <>
-      <AdminHeader title={user.name} subtitle={`${program({ ...app, bankName: s.bankName, productName: s.productName })} · ${app.id}`} back="/admin/applications" actions={<StatusChip status={app.status} />} />
+      <AdminHeader
+        title={user.name}
+        subtitle={`${program({ ...app, bankName: s.bankName, productName: s.productName })} · ${app.id}`}
+        back="/admin/applications"
+        actions={
+          <>
+            {PRINTABLE_STATUSES.includes(app.status) && (
+              <Button asChild size="sm" variant="outline">
+                <Link to={`/admin/applications/${app.id}/surat-pengantar`}>
+                  <PrinterIcon aria-hidden />
+                  Surat pengantar
+                </Link>
+              </Button>
+            )}
+            <StatusChip status={app.status} />
+          </>
+        }
+      />
       <NextStep data={data} onMove={setMoving} />
       <StagesPanel app={app} asOf={data.asOf} />
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">

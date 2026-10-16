@@ -1,5 +1,6 @@
 // Display names for admin audit events and edited fields (data keys stay in the data layer's vocabulary).
 import { CERTIFICATES, GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES, dateShort, labelOf, percentBps, rupiah } from '@/lib/format'
+import { APPLICANT_COLUMNS } from './coverLetter'
 
 export const ACTION_LABEL = {
   // A user's own edits (user_changes, written by database triggers).
@@ -15,6 +16,7 @@ export const ACTION_LABEL = {
   'application.note': 'Catatan internal',
   'application.document_review': 'Periksa dokumen',
   'application.stage_note': 'Info untuk user',
+  'application.cover_letter': 'Surat pengantar',
   'product.create': 'Buat draft produk',
   'product.update': 'Ubah produk',
   'product.publish': 'Terbitkan produk',
@@ -116,6 +118,20 @@ export const FIELD_LABEL = {
   result: 'Hasil',
   message: 'Pesan',
   schedule: 'Jadwal',
+  officeName: 'Kantor RE/MAX',
+  maName: 'Marketing Associate',
+  maId: 'No. ID RE/MAX',
+  boName: 'Business Owner',
+  feeAccount: 'Rekening marketing fee',
+  customerName: 'Nama nasabah',
+  propertyAddress: 'Alamat properti',
+  loanAmount: 'Besarnya KPR',
+  takeoverAmount: 'Take over KPR lama',
+  topupAmount: 'Top-up',
+  submittedDate: 'Tanggal pengajuan',
+  salesOfficer: 'Sales Officer',
+  applicantColumn: 'Kolom pemohon',
+  checked: 'Checklist dokumen',
 }
 
 // Times read in WIB (open question §12 Q5 recommends Asia/Jakarta for the backend too).
@@ -123,8 +139,8 @@ export const at = (iso) => new Date(iso).toLocaleString('id-ID', { day: 'numeric
 
 export const CHANNEL_LABEL ={ inApp: 'In-app', email: 'Email', whatsapp: 'WhatsApp' }
 
-const MONEY = ['monthlyIncome', 'partnerIncome', 'vehicleDebt', 'cardDebt', 'otherDebt', 'originalPrincipal', 'currentPayment', 'outstandingPrincipal', 'property.estimatedValue', 'amount']
-const DATES = ['birthDate', 'startDate', 'fixedUntil', 'property.valueAsOf', 'dueDate', 'paidAt']
+const MONEY = ['monthlyIncome', 'partnerIncome', 'vehicleDebt', 'cardDebt', 'otherDebt', 'originalPrincipal', 'currentPayment', 'outstandingPrincipal', 'property.estimatedValue', 'amount', 'loanAmount', 'takeoverAmount', 'topupAmount']
+const DATES = ['birthDate', 'startDate', 'fixedUntil', 'property.valueAsOf', 'dueDate', 'paidAt', 'submittedDate']
 const CHOICES = {
   gender: GENDERS,
   maritalStatus: MARITAL,
@@ -133,6 +149,7 @@ const CHOICES = {
   'property.certificateType': CERTIFICATES,
   scheme: [{ value: 'conventional', label: 'Konvensional' }, { value: 'sharia', label: 'Syariah' }],
   currentRateType: [{ value: 'fixed', label: 'Fixed' }, { value: 'floating', label: 'Floating' }],
+  applicantColumn: APPLICANT_COLUMNS,
 }
 const UNIT = { originalTenorMonths: 'bulan', remainingTenorMonths: 'bulan', workYears: 'tahun', workMonths: 'bulan', 'property.landArea': 'm²', 'property.buildingArea': 'm²' }
 
@@ -148,6 +165,7 @@ export function formatValue(key, v) {
   if (key === 'schedule') return `${dateShort(v.date)} ${v.time} · ${v.location}`
   if (key === 'reminders.payment' || key === 'reminders.fixedExpiry') return v.length ? v.map((d) => `H-${d}`).join(', ') : 'Tidak ada'
   if (key === 'reminders.channels') return Object.keys(CHANNEL_LABEL).filter((k) => v[k]).map((k) => CHANNEL_LABEL[k]).join(', ') || 'Tidak ada'
+  if (key === 'checked') return `${v.length} baris`
   if (typeof v === 'boolean') return v ? 'Ya' : 'Tidak'
   return String(v)
 }
