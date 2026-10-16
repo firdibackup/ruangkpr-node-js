@@ -8,7 +8,7 @@ import { useResource } from '@/lib/hooks'
 import { dateLong, dateShort, intInput, toInt } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CheckboxField, FieldError, NumberField, TextAreaField } from '@/components/shared/fields'
+import { CheckboxField, FieldError, NumberField, TextAreaField, TextField } from '@/components/shared/fields'
 import { ConfirmDialog } from '@/components/shared/dialogs'
 import { Chip, ErrorPanel, PageSkeleton, Panel, PanelTitle, Spinner } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -127,6 +127,47 @@ function UploadPanel({ data, onSaved }) {
   )
 }
 
+const OFFICE_LABELS = [
+  ['officeName', 'Kantor RE/MAX'],
+  ['maName', 'Nama MA default'],
+  ['maId', 'No. ID RE/MAX MA default'],
+  ['boName', 'Nama Business Owner'],
+  ['feeAccount', 'Rekening marketing fee'],
+]
+
+function CoverLetterPanel({ data, onSaved }) {
+  const [saved, setSaved] = useState(data.config.coverLetter)
+  const [value, setValue] = useState(saved)
+  const [errors, setErrors] = useState({})
+  const [confirming, setConfirming] = useState(false)
+  const dirty = JSON.stringify(value) !== JSON.stringify(saved)
+  const save = async (reason) => {
+    try {
+      const d = await api.admin.config.update('coverLetter', { values: value, reason, expectedVersion: data.config.version })
+      onSaved(d)
+      setSaved(d.config.coverLetter)
+      setValue(d.config.coverLetter)
+      setErrors({})
+      toast('Default surat pengantar tersimpan.')
+    } catch (e) {
+      setErrors(asErrors(e))
+      throw e
+    }
+  }
+  return (
+    <Panel>
+      <PanelTitle sub="Isian awal surat pengantar baru. Surat yang sudah disimpan tidak ikut berubah.">Surat pengantar</PanelTitle>
+      {OFFICE_LABELS.map(([k, label]) => (
+        <TextField key={k} label={label} value={value[k]} onChange={(v) => setValue((x) => ({ ...x, [k]: v }))} error={errors[k]} maxLength={160} />
+      ))}
+      <Button className="w-fit" disabled={!dirty} onClick={() => setConfirming(true)}>
+        Simpan default surat
+      </Button>
+      <ReasonDialog open={confirming} onOpenChange={setConfirming} title="Simpan default surat pengantar?" body="Dipakai untuk surat yang dibuat setelah ini." confirmLabel="Ya, simpan" onConfirm={save} />
+    </Panel>
+  )
+}
+
 // Settings that apply to every user (admin plan §4.7). KPR Health has its own versioned editor.
 export function ConfigurationPage() {
   const { data, error, reload, setData } = useResource(() => api.admin.config.get())
@@ -140,6 +181,7 @@ export function ConfigurationPage() {
           <RemindersPanel data={data} onSaved={setData} />
           <div className="flex min-w-0 flex-col gap-6">
             <UploadPanel data={data} onSaved={setData} />
+            <CoverLetterPanel data={data} onSaved={setData} />
             <Panel>
               <PanelTitle sub="Ambang dan bobot skor. Setiap perubahan terbit sebagai versi baru, jadi versi lama bisa dipulihkan.">KPR Health</PanelTitle>
               <p className="text-sm text-ink-2">
