@@ -452,7 +452,7 @@ describe('admin applications', () => {
 
 describe('admin cover letter', () => {
   const FIRDI = 'app_01J8Z19RZ4VE4Q2AB7M5N8XKCF' // KPR Primary at the bank: Bank ABC, Rp400 jt
-  const office = { officeName: 'RE/MAX Eagle Citraland', maName: 'Like', maId: 'R230021', boName: 'Budiono Yuwono', feeAccount: 'Rek. Bank BCA 511.010.6060 a/n PT. BUANA JAYA MAPAN' }
+  const office = { officeName: 'RE/MAX Eagle Citraland', logoLabel: 'Eagle', maName: 'Like', maId: 'R230021', boName: 'Budiono Yuwono', feeAccount: 'Rek. Bank BCA 511.010.6060 a/n PT. BUANA JAYA MAPAN' }
   const saveOffice = async (values = office, reason = 'Data kantor RE/MAX') => api.admin.config.update('coverLetter', { values, reason, expectedVersion: (await api.admin.config.get()).config.version })
 
   it('prefills from the application and the office defaults, only once the application is at the bank', async () => {
@@ -561,7 +561,7 @@ describe('admin cover letter', () => {
     db.config = { version: 2, reminders: DEFAULT_REMINDERS, upload: { maxFileMb: 5, formats: ['jpg', 'png', 'pdf'] } }
     saveDb(db)
     const { config } = await api.admin.config.get()
-    expect(config.coverLetter).toEqual({ officeName: '', maName: '', maId: '', boName: '', feeAccount: '' })
+    expect(config.coverLetter).toEqual({ officeName: '', logoLabel: '', maName: '', maId: '', boName: '', feeAccount: '' })
     await expectCode(api.admin.config.update('coverLetter', { values: { ...office, feeAccount: 'x'.repeat(161) }, reason: 'Data kantor', expectedVersion: 2 }), 'VALIDATION_FAILED')
     const d = await api.admin.config.update('coverLetter', { values: { ...office, maName: '  Like  ' }, reason: 'Data kantor', expectedVersion: 2 })
     expect(d.config.coverLetter).toEqual(office)

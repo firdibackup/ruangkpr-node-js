@@ -4,6 +4,7 @@ import { useScenario } from './helpers'
 test('admin sets office defaults, then prints a prefilled cover letter for an application at the bank', async ({ page }) => {
   await useScenario(page, 'admin_ops', '/admin/configuration')
   await page.getByLabel('Kantor RE/MAX').fill('RE/MAX Eagle Citraland')
+  await page.getByLabel('Nama di bawah logo').fill('Eagle')
   await page.getByLabel('Nama MA default').fill('Like')
   await page.getByLabel('No. ID RE/MAX MA default').fill('R230021')
   await page.getByLabel('Nama Business Owner').fill('Budiono Yuwono')
@@ -21,6 +22,8 @@ test('admin sets office defaults, then prints a prefilled cover letter for an ap
   await expect(sheet).toContainText('Rp. 400.000.000,00')
   await expect(sheet).toContainText('(Empat Ratus Juta Rupiah)')
   await expect(sheet).toContainText('RE/MAX Eagle Citraland')
+  await expect(sheet.getByRole('img', { name: 'RE/MAX' })).toBeVisible()
+  await expect(sheet.getByText('Eagle', { exact: true })).toBeVisible() // the name under the logo
   await expect(page.getByRole('checkbox', { name: 'Copy NPWP / SPT PPh 21 Pribadi — Pegawai' })).toBeChecked()
 
   await page.getByLabel('Sales Officer bank').fill('Hilda')

@@ -26,6 +26,7 @@ Tanggal: 2026-10-16 · Status: disetujui per bagian di chat, menunggu review spe
 ```js
 config.coverLetter = {
   officeName: 'RE/MAX Eagle Citraland',
+  logoLabel: 'Eagle',                  // tercetak di bawah logo, opsional
   maName: 'Like',
   maId: 'R230021',
   boName: 'Budiono Yuwono',
@@ -211,7 +212,7 @@ Di `AdminHeader` `actions` (sebelah `StatusChip`): `Button asChild variant="outl
 Panel baru "Surat pengantar" (pola `RemindersPanel`): lima `TextField` (Nama kantor RE/MAX, MA default, No. ID RE/MAX, Nama Business Owner, Rekening marketing fee), tombol Simpan → `ReasonDialog` → `api.admin.config.update('coverLetter', …)`. Hint: "Dipakai sebagai isian awal surat pengantar baru. Surat yang sudah disimpan tidak berubah."
 
 ### 5.5 Logo
-`public/remax-logo.png`, diambil dari PDF contoh. Bila hasil ekstraksi tidak tajam, minta file asli ke user. `alt="RE/MAX"`.
+`public/remax-logo.jpg`: logo RE/MAX polos dari user. `alt="RE/MAX"`. Di bawahnya tercetak `logoLabel` (mis. "Eagle"), teks bebas yang default-nya dari Konfigurasi dan bisa diubah per surat; kosong berarti tidak ada teks.
 
 ## 6. Helper
 `terbilang(n)` di `src/lib/format.js`: integer Rupiah ≥ 0 → kata Indonesia dengan huruf kapital di awal kata + " Rupiah" (mis. `400000000` → "Empat Ratus Juta Rupiah", `1500000` → "Satu Juta Lima Ratus Ribu Rupiah", `11000` → "Sebelas Ribu Rupiah"). Mendukung sampai triliun; menangani "Seratus", "Seribu", "Sebelas", dan belasan.

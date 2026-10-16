@@ -129,6 +129,7 @@ function UploadPanel({ data, onSaved }) {
 
 const OFFICE_LABELS = [
   ['officeName', 'Kantor RE/MAX'],
+  ['logoLabel', 'Nama di bawah logo'],
   ['maName', 'Nama MA default'],
   ['maId', 'No. ID RE/MAX MA default'],
   ['boName', 'Nama Business Owner'],

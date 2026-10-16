@@ -119,6 +119,7 @@ export const FIELD_LABEL = {
   message: 'Pesan',
   schedule: 'Jadwal',
   officeName: 'Kantor RE/MAX',
+  logoLabel: 'Nama di bawah logo',
   maName: 'Marketing Associate',
   maId: 'No. ID RE/MAX',
   boName: 'Business Owner',

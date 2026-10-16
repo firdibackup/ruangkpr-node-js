@@ -111,6 +111,7 @@ function CoverLetterEditor({ data, back, onSaved }) {
             {text('maName', 'Nama Marketing Associate', { required: true })}
             {text('maId', 'No. ID RE/MAX', { required: true })}
             {text('officeName', 'Kantor RE/MAX', { required: true })}
+            {text('logoLabel', 'Nama di bawah logo', { optional: true, hint: 'Mis. Eagle. Kosongkan bila tidak perlu.' })}
           </Group>
           <Group legend="Nasabah & pengajuan">
             {text('customerName', 'Nama nasabah', { required: true })}
@@ -194,7 +195,10 @@ function CoverLetterSheet({ letter: l, variant, rows, onToggle, zoom }) {
       className="mx-auto flex min-h-[297mm] w-[210mm] flex-col gap-[3mm] bg-white p-[12mm] text-[10pt] leading-snug text-black shadow-card [print-color-adjust:exact] print:min-h-0 print:w-full print:p-0 print:shadow-none print:[zoom:1]!"
     >
       <header className="flex items-center justify-between gap-4 border-b-2 border-black pb-[3mm]">
-        <img src="/remax-logo.png" alt="RE/MAX" className="h-[15mm] w-auto" />
+        <div className="flex shrink-0 flex-col items-start">
+          <img src="/remax-logo.jpg" alt="RE/MAX" className="h-[11mm] w-auto" />
+          {l.logoLabel && <span className="pl-[4.5mm] text-[13pt] leading-none font-extrabold">{l.logoLabel}</span>}
+        </div>
         <h2 className="text-center text-[14pt] font-extrabold">SURAT PENGANTAR APLIKASI KPR</h2>
         <span className="max-w-[45mm] text-right text-[13pt] font-extrabold">{l.bankName}</span>
       </header>

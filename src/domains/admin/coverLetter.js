@@ -12,7 +12,7 @@ export const APPLICANT_COLUMNS = [
 const COLUMN_OF = { civil_servant: 'employee', private_employee: 'employee', contract_employee: 'employee', entrepreneur: 'entrepreneur', freelancer: 'professional' }
 
 // Office defaults kept in Configuration (config.coverLetter); a new letter starts from them.
-export const OFFICE_FIELDS = ['officeName', 'maName', 'maId', 'boName', 'feeAccount']
+export const OFFICE_FIELDS = ['officeName', 'logoLabel', 'maName', 'maId', 'boName', 'feeAccount']
 export const DEFAULT_OFFICE = Object.fromEntries(OFFICE_FIELDS.map((k) => [k, '']))
 export const officeInput = (v = {}) => Object.fromEntries(OFFICE_FIELDS.map((k) => [k, String(v[k] ?? '').trim()]))
 export const officeIssues = (v) => Object.fromEntries(OFFICE_FIELDS.filter((k) => v[k].length > 160).map((k) => [k, 'Maksimal 160 karakter.']))
@@ -91,7 +91,7 @@ export function prefillLetter({ app, data, userName, office }) {
   }
 }
 
-const TEXT_FIELDS = ['maName', 'maId', 'officeName', 'customerName', 'propertyAddress', 'bankName', 'salesOfficer', 'boName', 'feeAccount']
+const TEXT_FIELDS = ['logoLabel', 'maName', 'maId', 'officeName', 'customerName', 'propertyAddress', 'bankName', 'salesOfficer', 'boName', 'feeAccount']
 const REQUIRED = {
   maName: 'Isi nama Marketing Associate.',
   maId: 'Isi No. ID RE/MAX.',
