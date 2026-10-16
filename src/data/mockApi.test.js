@@ -450,6 +450,107 @@ describe('admin applications', () => {
   })
 })
 
+describe('admin cover letter', () => {
+  const FIRDI = 'app_01J8Z19RZ4VE4Q2AB7M5N8XKCF' // KPR Primary at the bank: Bank ABC, Rp400 jt
+  const office = { officeName: 'RE/MAX Eagle Citraland', maName: 'Like', maId: 'R230021', boName: 'Budiono Yuwono', feeAccount: 'Rek. Bank BCA 511.010.6060 a/n PT. BUANA JAYA MAPAN' }
+  const saveOffice = async (values = office, reason = 'Data kantor RE/MAX') => api.admin.config.update('coverLetter', { values, reason, expectedVersion: (await api.admin.config.get()).config.version })
+
+  it('prefills from the application and the office defaults, only once the application is at the bank', async () => {
+    mockControls.reset('admin_ops')
+    await expectCode(api.admin.applications.coverLetter('app_sample_01'), 'INVALID_STATE_TRANSITION') // submitted
+    await expectCode(api.admin.applications.coverLetter('app_sample_06'), 'INVALID_STATE_TRANSITION') // rejected
+    await expectCode(api.admin.applications.coverLetter('app_nope'), 'RESOURCE_NOT_FOUND')
+    await saveOffice()
+    const d = await api.admin.applications.coverLetter(FIRDI)
+    expect(d).toMatchObject({ variant: 'primary', saved: false, application: { id: FIRDI, userName: 'Firdi Audi' }, rows: { second: { title: 'Dokumen Penjual' } } })
+    expect(d.letter).toEqual({
+      ...office,
+      customerName: 'Firdi Audi',
+      propertyAddress: 'Rumah Griya Asri Blok C2 No. 8, Bekasi',
+      bankName: 'Bank ABC',
+      loanAmount: 400_000_000,
+      submittedDate: '2026-09-25',
+      salesOfficer: '',
+      applicantColumn: 'employee',
+      checked: ['app_ktp_kk', 'app_npwp', 'app_income', 'app_property'],
+    })
+  })
+
+  it('take over uses the old-loan table; take over + top-up splits the amount', async () => {
+    mockControls.reset('admin_ops')
+    let d = await api.admin.applications.coverLetter('app_sample_05') // Sari, Take Over at the bank
+    expect(d.variant).toBe('takeover')
+    expect(d.rows.second.title).toBe('Dokumen KPR Lama')
+    expect(d.letter.checked).toEqual(['app_ktp_kk', 'app_npwp', 'app_savings', 'app_income', 'app_property', 'house_certificate', 'house_permit', 'house_pbb', 'old_agreement', 'old_outstanding', 'old_payment'])
+    expect(d.letter).not.toHaveProperty('topupAmount')
+
+    const db = loadDb()
+    const app = db.accounts.flatMap((a) => a.applications).find((a) => a.id === 'app_sample_05')
+    const outstanding = app.snapshot.data.oldLoan.outstanding
+    app.optimizationMode = 'topup'
+    app.selection.loanAmount = outstanding + 150_000_000
+    saveDb(db)
+    d = await api.admin.applications.coverLetter('app_sample_05')
+    expect(d.variant).toBe('topup')
+    expect(d.rows.second.rows.at(-1)).toMatchObject({ key: 'topup_plan', label: 'Rencana Penggunaan Dana' })
+    expect(d.letter).toMatchObject({ loanAmount: outstanding + 150_000_000, takeoverAmount: outstanding, topupAmount: 150_000_000 })
+  })
+
+  it('validation: required fields, amount, date, and column', async () => {
+    mockControls.reset('admin_ops')
+    const d = await api.admin.applications.coverLetter(FIRDI) // no office defaults yet: those fields are empty
+    const e = await api.admin.applications.saveCoverLetter(FIRDI, { values: { ...d.letter, loanAmount: null, submittedDate: '2026-02-30', applicantColumn: 'boss' } }).catch((x) => x)
+    expect(e.code).toBe('VALIDATION_FAILED')
+    expect(e.fieldErrors.map((f) => f.field).sort()).toEqual(['applicantColumn', 'boName', 'feeAccount', 'loanAmount', 'maId', 'maName', 'officeName', 'submittedDate'])
+    expect(e.fieldErrors.find((f) => f.field === 'loanAmount').message).toBe('Isi nominal KPR yang diajukan.')
+    const long = await api.admin.applications.saveCoverLetter(FIRDI, { values: { ...d.letter, ...office, salesOfficer: 'x'.repeat(161) } }).catch((x) => x)
+    expect(long.fieldErrors).toEqual([{ field: 'salesOfficer', message: 'Maksimal 160 karakter.' }])
+  })
+
+  it('saves the edited letter, keeps it when the defaults change, and audits only real changes', async () => {
+    mockControls.reset('admin_ops')
+    const d0 = await api.admin.applications.coverLetter(FIRDI)
+    const values = { ...d0.letter, ...office, salesOfficer: '  Hilda ', checked: [...d0.letter.checked, 'app_license', 'not_a_row', 'app_license'] }
+    let d = await api.admin.applications.saveCoverLetter(FIRDI, { values })
+    expect(d.saved).toBe(true)
+    expect(d.letter).toMatchObject({ salesOfficer: 'Hilda', checked: ['app_ktp_kk', 'app_npwp', 'app_income', 'app_license', 'app_property'], updatedBy: { name: 'Admin RuangKPR' } })
+    expect((await api.admin.audit.list()).items[0]).toMatchObject({ action: 'application.cover_letter', resource: { type: 'application', id: FIRDI, label: 'Firdi Audi' }, after: { salesOfficer: 'Hilda' } })
+
+    await saveOffice({ ...office, maName: 'Budi' }, 'MA baru di kantor')
+    d = await api.admin.applications.coverLetter(FIRDI)
+    expect(d.letter.maName).toBe('Like')
+
+    // unchanged save: what Cetak sends for a saved letter
+    const before = (await api.admin.audit.list()).items.length
+    await api.admin.applications.saveCoverLetter(FIRDI, { values: d.letter })
+    expect((await api.admin.audit.list()).items).toHaveLength(before)
+  })
+
+  it('only super admins open it, and the applicant never receives it', async () => {
+    mockControls.reset('admin_ops')
+    const d = await api.admin.applications.coverLetter(FIRDI)
+    await api.admin.applications.saveCoverLetter(FIRDI, { values: { ...d.letter, ...office, salesOfficer: 'Sales Rahasia' } })
+    await signIn('Penulis Konten', 'penulis@ruangkpr.id')
+    await expectCode(api.admin.applications.coverLetter(FIRDI), 'FORBIDDEN')
+    await signIn('Firdi Audi', 'firdi.audi@email.com')
+    await expectCode(api.admin.applications.saveCoverLetter(FIRDI, { values: d.letter }), 'FORBIDDEN')
+    expect(JSON.stringify(await api.dashboard.getSnapshot())).not.toContain('Sales Rahasia')
+  })
+
+  it('office defaults: empty at first (also for an older saved configuration), trimmed, capped, audited', async () => {
+    mockControls.reset('admin_ops')
+    const db = loadDb()
+    db.config = { version: 2, reminders: DEFAULT_REMINDERS, upload: { maxFileMb: 5, formats: ['jpg', 'png', 'pdf'] } }
+    saveDb(db)
+    const { config } = await api.admin.config.get()
+    expect(config.coverLetter).toEqual({ officeName: '', maName: '', maId: '', boName: '', feeAccount: '' })
+    await expectCode(api.admin.config.update('coverLetter', { values: { ...office, feeAccount: 'x'.repeat(161) }, reason: 'Data kantor', expectedVersion: 2 }), 'VALIDATION_FAILED')
+    const d = await api.admin.config.update('coverLetter', { values: { ...office, maName: '  Like  ' }, reason: 'Data kantor', expectedVersion: 2 })
+    expect(d.config.coverLetter).toEqual(office)
+    expect((await api.admin.audit.list()).items[0]).toMatchObject({ action: 'config.update', resource: { type: 'config', id: 'coverLetter', label: 'Surat pengantar' } })
+  })
+})
+
 describe('admin catalog', () => {
   const asAdmin = () => signIn('Admin RuangKPR', 'admin@ruangkpr.id')
   const asFirdi = () => signIn('Firdi Audi', 'firdi.audi@email.com')

@@ -9,6 +9,7 @@ import { FIXED_MILESTONES, HEALTH_V1, deriveMortgage, mortgageAsOf, nextMileston
 import { defaultTakeoverGoal, takeoverDataFromMortgage, takeoverGaps, validateEmploymentBasic } from '@/domains/optimize/validation'
 import { validatePersonal } from '@/domains/applications/validation'
 import { STAGE_NOTE_STATUSES, STATUS_LABEL } from '@/domains/applications/meta'
+import { DEFAULT_OFFICE, PRINTABLE_STATUSES, letterInput, letterIssues, letterRows, officeInput, officeIssues, prefillLetter, variantOf } from '@/domains/admin/coverLetter'
 import { filledOnly, validateReminders } from '@/domains/mortgages/validation'
 import { CONSENT_TYPES, CONSENT_VERSION, validateChangePassword, validateEmail, validateLogin, validateNewPassword, validateRegister, validateWelcome } from '@/domains/session/validation'
 import { dateLong, maskEmail, maskNik } from '@/lib/format'
@@ -728,6 +729,25 @@ function applicationDetail(db, owner, app) {
   }
 }
 
+// Surat pengantar (spec 2026-10-16) lives in db.coverLetters, never on the application: the applicant reads that.
+function printableApp(db, id) {
+  const found = findUserApp(db, id)
+  if (!PRINTABLE_STATUSES.includes(found.app.status)) fail('INVALID_STATE_TRANSITION', 'Surat pengantar tersedia setelah pengajuan diteruskan ke bank.', 409)
+  return found
+}
+function coverLetterView(db, id) {
+  const { owner, app } = printableApp(db, id)
+  const variant = variantOf(app)
+  const saved = (db.coverLetters ?? []).find((l) => l.id === id)
+  return {
+    application: { id: app.id, status: app.status, productType: app.productType, optimizationMode: app.optimizationMode, userName: owner.user.name },
+    variant,
+    rows: letterRows(variant),
+    letter: saved ?? prefillLetter({ app, data: app.snapshot?.data ?? app.data, userName: owner.user.name, office: configOf(db).coverLetter }),
+    saved: Boolean(saved),
+  }
+}
+
 // ---- admin catalog (admin plan §4.4) ----
 // A published product keeps its live terms on the record; edits wait in `pendingRevision` until published as
 // version + 1. `version` is what applications pin (selection.productVersion); `rev` counts admin saves and is the
@@ -1012,16 +1032,19 @@ function csvCell(value) {
 // ---- admin configuration (admin plan §4.7) ----
 // Settings start at the values the app shipped with; the first admin save copies them into db.config. Reminder
 // defaults only shape KPRs set up later: reminders a user already saved are theirs.
-const DEFAULT_CONFIG = { version: 1, reminders: DEFAULT_REMINDERS, upload: DEFAULT_UPLOAD }
-const configOf = (db) => db.config ?? DEFAULT_CONFIG
-const CONFIG_LABEL = { reminders: 'Pengingat default', upload: 'Unggah dokumen' }
+const DEFAULT_CONFIG = { version: 1, reminders: DEFAULT_REMINDERS, upload: DEFAULT_UPLOAD, coverLetter: DEFAULT_OFFICE }
+// A configuration saved before a section existed reads that section's defaults.
+const configOf = (db) => ({ ...DEFAULT_CONFIG, ...db.config })
+const CONFIG_LABEL = { reminders: 'Pengingat default', upload: 'Unggah dokumen', coverLetter: 'Surat pengantar' }
 
 function configInput(section, v = {}) {
+  if (section === 'coverLetter') return officeInput(v)
   const desc = (list) => [...new Set(list ?? [])].sort((a, b) => b - a)
   if (section === 'reminders') return { payment: desc(v.payment), fixedExpiry: desc(v.fixedExpiry), channels: { inApp: !!v.channels?.inApp, email: !!v.channels?.email, whatsapp: !!v.channels?.whatsapp } }
   return { maxFileMb: v.maxFileMb, formats: Object.keys(UPLOAD_FORMATS).filter((f) => v.formats?.includes(f)) }
 }
 function configIssues(section, v) {
+  if (section === 'coverLetter') return officeIssues(v)
   if (section === 'reminders') {
     const e = validateReminders(v)
     if (v.payment.some((n) => ![7, 3, 1, 0].includes(n))) e.payment = 'Pilih dari H-7, H-3, H-1, atau Hari-H.'
@@ -2166,6 +2189,25 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
             ;(db.adminNotes ??= []).unshift({ id: nextId(db, 'note'), applicationId: id, text: note, author: { id: db.user.id, name: db.user.name }, createdAt: nowIso(db) })
             audit(db, { action: 'application.note', resource: { type: 'application', id, label: owner.user.name }, after: { note } })
             return applicationDetail(db, owner, app)
+          },
+          { admin: true },
+        ),
+        coverLetter: call('admin.applications.coverLetter', coverLetterView, { admin: true }),
+        saveCoverLetter: call(
+          'admin.applications.saveCoverLetter',
+          (db, id, { values } = {}) => {
+            const { owner, app } = printableApp(db, id)
+            const next = letterInput(variantOf(app), values)
+            failOnFields(letterIssues(next), 'Periksa kembali isian surat.')
+            const letters = (db.coverLetters ??= [])
+            const i = letters.findIndex((l) => l.id === id)
+            const diff = changes(letters[i] ?? {}, next, Object.keys(next))
+            if (!diff) return coverLetterView(db, id) // printing an unchanged letter writes nothing
+            const saved = { id, ...next, updatedAt: nowIso(db), updatedBy: { id: db.user.id, name: db.user.name } }
+            if (i >= 0) letters[i] = saved
+            else letters.push(saved)
+            audit(db, { action: 'application.cover_letter', resource: { type: 'application', id, label: owner.user.name }, ...diff })
+            return coverLetterView(db, id)
           },
           { admin: true },
         ),
