@@ -28,7 +28,6 @@ import { uploadHint } from "@/data/documentRules";
 import { calculateTopupScenario } from "@/calculations/finance";
 import { useForm } from "@/lib/hooks";
 import {
-  BANKS,
   CERTIFICATES,
   GENDERS,
   GOALS,
@@ -36,6 +35,7 @@ import {
   OCCUPATIONS,
   PROPERTY_TYPES,
   PURPOSES,
+  bankOptions,
   intInput,
   labelOf,
   moneyInput,
@@ -202,7 +202,7 @@ export function OptimizeStepPage({ employment = false }) {
           : Object.keys(validateGoal(app.data.goal ?? {})).length
             ? navigate("/optimize/5")
             : toPrograms();
-  const props = { app, clock: snap.clock, config: snap.config, setApp, next, navigate, fromReview };
+  const props = { app, banks: snap.banks, clock: snap.clock, config: snap.config, setApp, next, navigate, fromReview };
   const PN = modeName(app.optimizationMode);
   const back = {
     1: employment ? "/optimize/1" : "/optimize/intro",
@@ -607,12 +607,12 @@ function EmploymentStep({ app, setApp, next, fromReview }) {
 }
 
 // ---------- Step 2 ----------
-function OldLoanStep({ app, clock, setApp, next }) {
+function OldLoanStep({ app, banks, clock, setApp, next }) {
   const validate = useCallback(
     (v) => validateOldLoan(v, { today: clock }),
     [clock],
   );
-  const form = useForm(oldLoanFormValues(app.data.oldLoan), validate);
+  const form = useForm(oldLoanFormValues(app.data.oldLoan, banks), validate);
   const { saving, error, save } = useStepSave(app, 2, setApp);
   const v = form.values;
   const fixed = v.rateType === "fixed";
@@ -707,7 +707,7 @@ function OldLoanStep({ app, clock, setApp, next }) {
         <FormGrid>
           <SelectField
             label="Bank asal"
-            options={BANKS}
+            options={bankOptions(banks)}
             {...form.bind("bankName")}
           />
           <TextField

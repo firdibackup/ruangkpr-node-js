@@ -143,7 +143,7 @@ function mortgageBase({ id = 'mtg_01J8Z1Q6XWF7NE4M2A9K3D5PVT', startDate, produc
   const dueDay = 22
   const paidMonths = countDueDatesBetween({ startDate, today: CLOCK, dueDay })
   // Sisa pokok and tenor are computed for CLOCK; later clocks move them on from there (mortgageAsOf).
-  return { id, status: 'active', setupStep: 6, source: 'monitoring', bankName: 'Bank ABC', productName, scheme: 'conventional', originalPrincipal, originalTenorMonths, startDate, dueDay, paidMonths, outstandingAsOf: CLOCK }
+  return { id, status: 'active', setupStep: 6, source: 'monitoring', bankId: 'bnk_abc', bankName: 'Bank ABC', productName, scheme: 'conventional', originalPrincipal, originalTenorMonths, startDate, dueDay, paidMonths, outstandingAsOf: CLOCK }
 }
 
 function fixedMortgage({ startDate, fixedUntil, rateBps = 550, floatingBps = 900, withValue = true, productName }) {
@@ -271,6 +271,7 @@ function selectionFor(productId, loanAmount, tenorMonths) {
   return {
     bankProductId: product.id,
     productVersion: product.version,
+    bankId: product.bank.id,
     bankName: product.bank.name,
     bankMark: product.bank.mark,
     productName: product.name,
@@ -355,6 +356,7 @@ function takeoverInProcess(mortgage, { id = 'app_01J8Z7TK0VER4Q2AB7M5N8XKCF', pe
       personal: { ...personal },
       employment: { ...employment },
       oldLoan: {
+        bankId: mortgage.bankId,
         bankName: mortgage.bankName,
         productName: mortgage.productName,
         originalPrincipal: mortgage.originalPrincipal,
@@ -380,6 +382,7 @@ function takeoverInProcess(mortgage, { id = 'app_01J8Z7TK0VER4Q2AB7M5N8XKCF', pe
     selection: {
       bankProductId: product.id,
       productVersion: product.version,
+      bankId: product.bank.id,
       bankName: product.bank.name,
       bankMark: product.bank.mark,
       productName: product.name,

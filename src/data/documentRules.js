@@ -9,6 +9,8 @@ export const UPLOAD_FORMATS = {
 }
 // Shipped limits; the live ones come from the snapshot (`config.upload`).
 export const DEFAULT_UPLOAD = { maxFileMb: 5, formats: ['jpg', 'png', 'pdf'] }
+// Bank logos (admin, spec 2026-10-19): small images only.
+export const LOGO_UPLOAD = { maxFileMb: 1, formats: ['jpg', 'png'] }
 
 const formatList = (formats) => {
   const names = formats.map((f) => f.toUpperCase())

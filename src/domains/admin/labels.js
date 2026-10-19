@@ -57,6 +57,7 @@ export const FIELD_LABEL = {
   note: 'Catatan',
   name: 'Nama',
   mark: 'Kode',
+  logo: 'Logo',
   active: 'Status aktif',
   bank: 'Bank',
   productTypes: 'Jenis',

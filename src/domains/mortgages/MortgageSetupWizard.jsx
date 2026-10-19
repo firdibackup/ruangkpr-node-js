@@ -7,7 +7,7 @@ import { PiCalculatorFill, PiEqualsFill, PiTrendDownFill, PiTrendUpFill } from '
 import { api } from '@/data/api'
 import { calculateMaxPrincipal } from '@/calculations/finance'
 import { useForm, useResource } from '@/lib/hooks'
-import { BANKS, bpsInput, dateShort, intInput, moneyInput, percentBps, rupiah, rupiahShort, tenorLabel, toBps, toInt, toMoney } from '@/lib/format'
+import { bankChoice, bankOptions, bpsInput, dateShort, intInput, moneyInput, percentBps, rupiah, rupiahShort, tenorLabel, toBps, toInt, toMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/AppShell'
 import { CheckboxField, DateField, ErrorSummary, FormGrid, MoneyField, NumberField, RadioCards, RateField, SelectField, TextField } from '@/components/shared/fields'
@@ -70,7 +70,7 @@ export function MortgageSetupWizard() {
     toast(edit ? 'Perubahan tersimpan.' : 'Tersimpan.')
     navigate(returnTo ?? `/monitoring/setup/${n + 1}`)
   }
-  const common = { m, clock: snap.clock, reminderDefaults: snap.config.reminders, onSaved, editing: !!edit, backTo, navigate }
+  const common = { m, banks: snap.banks, clock: snap.clock, reminderDefaults: snap.config.reminders, onSaved, editing: !!edit, backTo, navigate }
 
   return (
     <>
@@ -182,14 +182,14 @@ function floatingPreview(m, v, clock, loan) {
   return deriveMortgage(preview, clock).floatingImpact
 }
 
-function LoanStep({ m, clock, onSaved, editing, backTo, navigate }) {
-  const known = BANKS.some((b) => b.value === m.bankName)
+function LoanStep({ m, banks, clock, onSaved, editing, backTo, navigate }) {
+  const bank = bankChoice(banks, m)
   const official = m.outstandingEstimated === false && m.outstandingPrincipal > 0
   const validate = useCallback((v) => validateLoanStep(v, { today: clock }), [clock])
   const form = useForm(
     {
-      bankName: !m.bankName ? '' : known ? m.bankName : 'Bank lainnya',
-      bankOther: known ? '' : m.bankName ?? '',
+      bankName: bank,
+      bankOther: bank === 'Bank lainnya' ? m.bankName ?? '' : '',
       productName: m.productName ?? '',
       scheme: m.scheme ?? 'conventional',
       originalPrincipal: moneyInput(m.originalPrincipal),
@@ -282,7 +282,7 @@ function LoanStep({ m, clock, onSaved, editing, backTo, navigate }) {
       <ErrorSummary show={form.showSummary} count={Object.keys(form.errors).length} />
       <Section title="Data KPR kamu" desc="Tanda * wajib diisi. Dipakai untuk reminder, jadwal amortisasi, dan simulasi.">
         <FormGrid>
-          <SelectField label="Bank" required options={BANKS} {...form.bind('bankName')} />
+          <SelectField label="Bank" required options={bankOptions(banks)} {...form.bind('bankName')} />
           {v.bankName === 'Bank lainnya' ? <TextField label="Nama bank" required placeholder="Nama bank kamu" {...form.bind('bankOther')} /> : <TextField label="Nama produk KPR" optional placeholder="KPR Fixed 5 Tahun" maxLength={100} {...form.bind('productName')} />}
           {v.bankName === 'Bank lainnya' && <TextField label="Nama produk KPR" optional placeholder="KPR Fixed 5 Tahun" maxLength={100} span {...form.bind('productName')} />}
           <RadioCards label="Jenis KPR" required options={SCHEMES} span {...form.bind('scheme')} />

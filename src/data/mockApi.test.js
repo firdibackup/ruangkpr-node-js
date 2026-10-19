@@ -663,6 +663,42 @@ describe('admin catalog', () => {
     expect(await compareIds()).not.toContain('bpr_abc_primary_fix5_v4')
   })
 
+  const png = (name = 'logo.png', bytes = 64) => new File([new Uint8Array(bytes)], name, { type: 'image/png' })
+
+  it('a bank logo is set, replaced and removed; every bank-showing read picks it up by bank id', async () => {
+    mockControls.reset('upload_failure')
+    await asAdmin()
+    let abc = (await api.admin.banks.list()).find((b) => b.id === 'bnk_abc')
+    await expectCode(api.admin.banks.update('bnk_abc', { values: { logo: new File(['%PDF'], 'logo.pdf', { type: 'application/pdf' }) }, reason: 'Logo baru', expectedVersion: abc.version }), 'FILE_TYPE_UNSUPPORTED')
+    await expectCode(api.admin.banks.update('bnk_abc', { values: { logo: png('besar.png', 1024 * 1024 + 1) }, reason: 'Logo baru', expectedVersion: abc.version }), 'FILE_TOO_LARGE')
+    abc = await api.admin.banks.update('bnk_abc', { values: { logo: png() }, reason: 'Logo baru', expectedVersion: abc.version })
+    expect(abc.logoUrl).toMatch(/^data:image\/png;base64,/)
+    const first = abc.logo.path
+    abc = await api.admin.banks.update('bnk_abc', { values: { logo: png() }, reason: 'Logo diperbarui', expectedVersion: abc.version })
+    expect(abc.logo.path).not.toBe(first) // same file name, new path: a replacement is always a change
+    const audit = (await api.admin.audit.list({ resourceType: 'bank' })).items[0]
+    expect(audit).toMatchObject({ action: 'bank.update', before: { logo: first }, after: { logo: abc.logo.path } })
+    expect(JSON.stringify(audit)).not.toContain('base64')
+    await asFirdi()
+    const compare = await compareFor()
+    expect(compare.items.find((x) => x.bank.id === 'bnk_abc').bank.logoUrl).toBe(abc.logoUrl)
+    const snap = await api.dashboard.getSnapshot()
+    expect(snap.banks.find((b) => b.id === 'bnk_abc')).toEqual({ id: 'bnk_abc', name: 'Bank ABC', mark: 'ABC', logoUrl: abc.logoUrl })
+    await asAdmin()
+    abc = await api.admin.banks.update('bnk_abc', { values: { logo: null }, reason: 'Logo dicabut', expectedVersion: abc.version })
+    expect(abc.logoUrl).toBeNull()
+  })
+
+  it('bank names stay unique; an inactive bank still lists for the KPR dropdown', async () => {
+    mockControls.reset('upload_failure')
+    await asAdmin()
+    await expectCode(api.admin.banks.create({ values: { name: 'bank abc', mark: 'ABX' }, reason: 'Bank baru' }), 'VALIDATION_FAILED')
+    const ghi = (await api.admin.banks.list()).find((b) => b.id === 'bnk_ghi')
+    await api.admin.banks.update('bnk_ghi', { values: { active: false }, reason: 'Kerja sama dihentikan', expectedVersion: ghi.version })
+    await asFirdi()
+    expect((await api.dashboard.getSnapshot()).banks.map((b) => b.id)).toContain('bnk_ghi')
+  })
+
   it('the product list filters by bank and searches product and bank names', async () => {
     mockControls.reset('upload_failure')
     await asAdmin()
@@ -898,6 +934,24 @@ describe('monitoring', () => {
     await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
     const user = (await api.admin.users.list()).find((u) => u.name === 'Firdi Audi')
     expect((await api.admin.users.get(user.id)).mortgages[0].outstandingPrincipal).toBe(balance)
+  })
+
+  it('a saved KPR links its bank by id, so a renamed bank keeps its code and logo on the KPR and its Take Over', async () => {
+    mockControls.reset('mortgage_active_normal')
+    const { mortgages: [{ id }] } = await api.dashboard.getSnapshot()
+    expect((await api.mortgages.saveSetupStep(id, { step: 1, values: { bankName: 'Bank Sinar' } })).bankId).toBeNull()
+    expect((await api.mortgages.saveSetupStep(id, { step: 1, values: { bankName: 'Bank XYZ' } })).bankId).toBe('bnk_xyz')
+    await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+    const xyz = (await api.admin.banks.list()).find((b) => b.id === 'bnk_xyz')
+    await api.admin.banks.update('bnk_xyz', { values: { name: 'Bank XYZ Syariah', mark: 'XYZS' }, reason: 'Ganti nama', expectedVersion: xyz.version })
+    await signIn('Firdi Audi', 'firdi.audi@email.com')
+    expect((await api.dashboard.getSnapshot()).mortgages.find((m) => m.id === id).bank).toMatchObject({ id: 'bnk_xyz', mark: 'XYZS', logoUrl: null })
+    const sim = await api.simulations.run({ source: { type: 'mortgage', id }, input: { mode: 'takeover', goal: 'lower_payment', tenorMonths: 180 } })
+    expect(sim.oldBank).toMatchObject({ name: 'Bank XYZ', mark: 'XYZS', logoUrl: null })
+    const draft = await api.applications.create({ productType: 'takeover', mode: 'takeover', mortgageId: id })
+    expect(draft.data.oldLoan).toMatchObject({ bankName: 'Bank XYZ', bankId: 'bnk_xyz' })
+    const saved = await api.applications.saveStep(draft.id, { step: 2, values: { oldLoan: { bankName: 'Bank ABC' } } })
+    expect(saved.data.oldLoan.bankId).toBe('bnk_abc')
   })
 
   it('Edit Data KPR saves the figures on screen as today’s, so passed installments are not counted twice', async () => {

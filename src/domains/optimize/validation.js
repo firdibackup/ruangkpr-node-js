@@ -1,6 +1,6 @@
 // Pure validators for the Take Over + Top-up flow (doc 02 OPT-01…OPT-05).
 import { calculateMaxPrincipal } from '@/calculations/finance'
-import { BANKS, bpsInput, intInput, moneyInput, toBps, toInt, toMoney } from '@/lib/format'
+import { bankChoice, bpsInput, intInput, moneyInput, toBps, toInt, toMoney } from '@/lib/format'
 import { validateEmployment, validatePersonal } from '@/domains/applications/validation'
 import { FIXED_PASSED, remainingFromStart } from '@/domains/mortgages/validation'
 
@@ -59,10 +59,10 @@ export function validateOldLoan(v, { today }) {
 }
 
 // Saved old loan → form strings. Shared by the form and takeoverGaps, so a gap means "this form would not pass".
-export function oldLoanFormValues(o = {}) {
+export function oldLoanFormValues(o = {}, banks = []) {
   const official = o.source === 'official'
   return {
-    bankName: !o.bankName ? '' : BANKS.some((b) => b.value === o.bankName) ? o.bankName : 'Bank lainnya',
+    bankName: bankChoice(banks, o),
     productName: o.productName ?? '',
     originalPrincipal: moneyInput(o.originalPrincipal),
     currentPayment: moneyInput(o.currentPayment),
@@ -132,6 +132,7 @@ export function takeoverDataFromMortgage(m, { personal, employment, goal }) {
     employment: { ...employment, monthlyIncome: f.monthlyIncome ?? null },
     oldLoan: {
       bankName: m.bankName,
+      bankId: m.bankId ?? null,
       productName: m.productName,
       originalPrincipal: m.originalPrincipal,
       currentPayment: m.currentPayment,

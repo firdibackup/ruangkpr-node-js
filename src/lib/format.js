@@ -140,7 +140,15 @@ export const CERTIFICATES = [
   { value: 'strata', label: 'Strata Title (SHMSRS)' },
   { value: 'other', label: 'Girik / lainnya' },
 ]
-export const BANKS = ['Bank ABC', 'BCA', 'Bank Mandiri', 'BRI', 'BNI', 'BTN', 'CIMB Niaga', 'Bank lainnya'].map((b) => ({ value: b, label: b }))
+// Bank code shown in place of a logo for a bank outside the admin list (spec 2026-10-19).
+export const markOf = (name) => String(name ?? '').replace(/^Bank\s+/i, '').slice(0, 3).toUpperCase()
+// The admin's banks (snapshot `banks`), then "Bank lainnya" for any other bank.
+export const bankOptions = (banks = []) => [...banks.map((b) => ({ value: b.name, label: b.name })), { value: 'Bank lainnya', label: 'Bank lainnya' }]
+// What a saved record shows in that dropdown: its bank's current name, else its saved name when listed, else "Bank lainnya".
+export function bankChoice(banks = [], { bankId, bankName } = {}) {
+  if (!bankId && !bankName) return ''
+  return (banks.find((b) => b.id === bankId) ?? banks.find((b) => b.name === bankName))?.name ?? 'Bank lainnya'
+}
 export const PURPOSES = [
   { value: 'renovation', label: 'Renovasi Rumah' },
   { value: 'education', label: 'Pendidikan' },

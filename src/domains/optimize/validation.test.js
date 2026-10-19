@@ -39,6 +39,14 @@ describe('old loan (Take Over step 2)', () => {
     const filled = { ...oldLoan, rateType: 'fixed', fixedUntil: '2026-12-22' }
     expect(validateOldLoan(oldLoanFormValues(filled), { today })).toEqual({})
   })
+
+  it('the bank asal dropdown starts at the bank the loan points at, by id first, then by name', () => {
+    const banks = [{ id: 'bnk_xyz', name: 'Bank XYZ Syariah' }, { id: 'bnk_abc', name: 'Bank ABC' }]
+    expect(oldLoanFormValues({ bankId: 'bnk_xyz', bankName: 'Bank XYZ' }, banks).bankName).toBe('Bank XYZ Syariah') // renamed since
+    expect(oldLoanFormValues({ bankName: 'Bank ABC' }, banks).bankName).toBe('Bank ABC') // saved before bankId
+    expect(oldLoanFormValues({ bankName: 'Bank Sinar' }, banks).bankName).toBe('Bank lainnya')
+    expect(oldLoanFormValues({}, banks).bankName).toBe('')
+  })
 })
 
 describe('debts on Pekerjaan (no Kemampuan bayar form)', () => {

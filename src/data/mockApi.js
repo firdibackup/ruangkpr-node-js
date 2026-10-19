@@ -12,11 +12,11 @@ import { STAGE_NOTE_STATUSES, STATUS_LABEL } from '@/domains/applications/meta'
 import { DEFAULT_OFFICE, PRINTABLE_STATUSES, letterInput, letterIssues, letterRows, officeInput, officeIssues, prefillLetter, variantOf } from '@/domains/admin/coverLetter'
 import { filledOnly, validateReminders } from '@/domains/mortgages/validation'
 import { CONSENT_TYPES, CONSENT_VERSION, validateChangePassword, validateEmail, validateLogin, validateNewPassword, validateRegister, validateWelcome } from '@/domains/session/validation'
-import { dateLong, maskEmail, maskNik } from '@/lib/format'
+import { dateLong, markOf, maskEmail, maskNik } from '@/lib/format'
 import { ApiError } from './apiError'
 import { ARTICLES } from './articles'
 import { BANK_PRODUCTS } from './catalog'
-import { DEFAULT_UPLOAD, DOC_LABELS, DOC_REJECT_REASONS, UPLOAD_FORMATS, rejectMessage, requiredDocuments, uploadProblem } from './documentRules'
+import { DEFAULT_UPLOAD, DOC_LABELS, DOC_REJECT_REASONS, LOGO_UPLOAD, UPLOAD_FORMATS, rejectMessage, requiredDocuments, uploadProblem } from './documentRules'
 import { DEFAULT_SUPPORT, supportInput, supportIssues } from './support'
 import { loadDb, resetDb, saveDb } from './mockDb'
 import { ACCOUNT_KEYS, DEFAULT_REMINDERS, DEMO_PASSWORD, GOOGLE_DEMO, SCENARIOS, createSeed, newAccount, pickAccount, staffAccount } from './seed'
@@ -95,6 +95,18 @@ function maybeFail(name, seq) {
 const catalogOf = (db) => db.products ?? BANK_PRODUCTS
 const banksFrom = (products) => [...new Map(products.map((p) => [p.bank.id, { ...p.bank, active: true, version: 1 }])).values()]
 const banksOf = (db) => db.banks ?? banksFrom(catalogOf(db))
+// The bank a record points at, read fresh so a new logo or code shows everywhere at once (spec 2026-10-19 §2).
+// Records saved before bankId existed match by exact name; any other bank keeps a code made from its name.
+function bankFor(db, { bankId, bankName } = {}) {
+  const banks = banksOf(db)
+  const b = (bankId && banks.find((x) => x.id === bankId)) || (bankName && banks.find((x) => x.name === bankName))
+  if (b) return { id: b.id, name: b.name, mark: b.mark, logoUrl: b.logo?.url ?? null }
+  return bankName ? { id: null, name: bankName, mark: markOf(bankName), logoUrl: null } : null
+}
+const bankIdFor = (db, name) => banksOf(db).find((b) => b.name === name)?.id ?? null
+const bankRow = (b) => ({ ...b, logoUrl: b.logo?.url ?? null })
+// Audit keeps the logo's file name, never its data.
+const auditBank = (b) => ({ name: b.name, mark: b.mark, active: b.active, logo: b.logo?.path ?? null })
 function editableCatalog(db) {
   db.products ??= structuredClone(BANK_PRODUCTS)
   db.banks ??= banksFrom(db.products)
@@ -107,7 +119,7 @@ function productsOf(db) {
   const off = new Set(banksOf(db).filter((b) => !b.active).map((b) => b.id))
   return catalogOf(db)
     .filter((p) => p.status === 'published' && !off.has(p.bank.id))
-    .map(({ pendingRevision: _draft, rev: _rev, ...p }) => (stale[p.id] ? { ...p, lastVerifiedAt: stale[p.id] } : p))
+    .map(({ pendingRevision: _draft, rev: _rev, ...p }) => ({ ...p, bank: bankFor(db, { bankId: p.bank.id }) ?? p.bank, ...(stale[p.id] && { lastVerifiedAt: stale[p.id] }) }))
 }
 
 // `owner` is the account the event belongs to: the signed-in user by default, a stored account for admin moves.
@@ -303,7 +315,7 @@ function pricingInputs(app) {
 }
 
 function selectionFrom(product, fields) {
-  return { bankProductId: product.id, productVersion: product.version, bankName: product.bank.name, bankMark: product.bank.mark, productName: product.name, ...fields }
+  return { bankProductId: product.id, productVersion: product.version, bankId: product.bank.id, bankName: product.bank.name, bankMark: product.bank.mark, productName: product.name, ...fields }
 }
 
 function prefilledPersonal(db) {
@@ -416,6 +428,7 @@ function mortgageFromApplication(db, app, base = {}, owner = db) {
     setupStep: 6,
     source: 'application',
     applicationId: app.id,
+    bankId: s.bankId ?? bankIdFor(db, s.bankName),
     bankName: s.bankName,
     productName: s.productName,
     scheme: 'conventional',
@@ -601,7 +614,7 @@ function simulationSource(db, source) {
     const f = app.data.finance ?? {}
     const e = app.data.employment ?? {}
     return {
-      oldBank: { name: o.bankName, productName: o.productName, estimated: o.source === 'estimate' },
+      oldBank: { name: o.bankName, mark: bankFor(db, o)?.mark ?? null, logoUrl: bankFor(db, o)?.logoUrl ?? null, productName: o.productName, estimated: o.source === 'estimate' },
       loan: { outstanding: o.outstanding, rateBps: o.rateBps, rateType: o.rateType, fixedUntil: o.fixedUntil, floatingRateBps: o.floatingRateBps, remainingMonths: o.remainingMonths, currentPayment: o.currentPayment, penaltyBps: o.penaltyBps, dueDay: o.dueDay },
       goal: g,
       propertyValue: p.estimatedValue ?? null,
@@ -614,7 +627,7 @@ function simulationSource(db, source) {
   const m = mortgageAsOf(findMortgage(db, source.id), db.clock)
   const f = m.finance ?? {}
   return {
-    oldBank: { name: m.bankName, productName: m.productName, estimated: m.outstandingEstimated || m.outstandingProjected },
+    oldBank: { name: m.bankName, mark: bankFor(db, m)?.mark ?? null, logoUrl: bankFor(db, m)?.logoUrl ?? null, productName: m.productName, estimated: m.outstandingEstimated || m.outstandingProjected },
     loan: { outstanding: m.outstandingPrincipal, rateBps: m.currentRateBps, rateType: m.currentRateType, fixedUntil: m.fixedUntil, floatingRateBps: m.estimatedFloatingRateBps, remainingMonths: m.remainingTenorMonths, currentPayment: m.currentPayment, penaltyBps: null, dueDay: m.dueDay },
     propertyValue: m.property?.estimatedValue ?? null,
     disputed: m.property?.disputed === true,
@@ -834,9 +847,11 @@ function productRow(db, p) {
 function bankIssues(db, b) {
   const e = {}
   if (b.name.length < 2) e.name = 'Isi nama bank.'
+  else if (banksOf(db).some((x) => x.id !== b.id && x.name.toLowerCase() === b.name.toLowerCase())) e.name = 'Nama ini sudah dipakai bank lain.'
   if (!/^[A-Z0-9]{2,5}$/.test(b.mark)) e.mark = 'Kode bank 2–5 huruf/angka.'
   else if (banksOf(db).some((x) => x.id !== b.id && x.mark === b.mark)) e.mark = 'Kode ini sudah dipakai bank lain.'
   if (typeof b.active !== 'boolean') e.active = 'Pilih status bank.'
+  if (b.logo != null && !(typeof b.logo.path === 'string' && typeof b.logo.url === 'string')) e.logo = 'Logo tidak valid.'
   return e
 }
 
@@ -1151,6 +1166,25 @@ const localStore = { load: () => loadDb(), save: (db) => saveDb(db) }
 // `store` is where an operation reads its data and writes back what it changed: localStore for the demo and tests,
 // supabaseStore for the real backend (spec 2026-10-09, Amandemen). A store save that finds a row changed meanwhile
 // rejects with `conflict`; the operation then runs again on fresh data.
+// The demo has no Storage: a chosen logo file is kept as a data URL under a fresh name (spec 2026-10-19 §3).
+const withLogo =
+  (write) =>
+  async (...args) => {
+    const input = args.at(-1)
+    const file = input?.values?.logo
+    if (!(file instanceof Blob)) return write(...args)
+    const problem = uploadProblem(file, LOGO_UPLOAD)
+    if (problem) fail(problem.code, problem.message, problem.status)
+    const url = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
+    const ext = /\.([a-z0-9]+)$/i.exec(file.name)[1].toLowerCase()
+    return write(...args.slice(0, -1), { ...input, values: { ...input.values, logo: { path: `${crypto.randomUUID()}.${ext}`, url } } })
+  }
+
 export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
   const call =
     (name, fn, { auth = true, admin = false } = {}) =>
@@ -1330,7 +1364,9 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         profile: db.profile,
         finance: db.finance,
         applications: db.applications.map(decorate),
-        mortgages: db.mortgages.map((m) => mortgageAsOf(m, db.clock)),
+        mortgages: db.mortgages.map((m) => ({ ...mortgageAsOf(m, db.clock), bank: bankFor(db, m) })),
+        // Every bank, inactive ones too: the KPR bank dropdowns, and a KPR may sit at a bank that left matching.
+        banks: banksOf(db).map((b) => bankFor(db, { bankId: b.id })).sort((a, b) => a.name.localeCompare(b.name, 'id')),
         simulation: db.simulation,
         unreadActivities: db.activities.filter((a) => !a.readAt).length,
         dashboardLayout: savedLayout(db),
@@ -1393,6 +1429,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         const before = pricingInputs(app)
         const previousPurchase = app.data.property?.purchaseType
         for (const [section, patch] of Object.entries(values)) app.data[section] = { ...(app.data[section] ?? {}), ...patch }
+        if (values.oldLoan && 'bankName' in values.oldLoan) app.data.oldLoan.bankId = bankIdFor(db, app.data.oldLoan.bankName)
         if (values.goal?.mode) app.optimizationMode = values.goal.mode
         if (app.productType === 'primary' && previousPurchase && app.data.property.purchaseType !== previousPurchase) {
           app.data.property.developerName = null
@@ -1587,6 +1624,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         }
         const before = { ...m }
         Object.assign(m, values)
+        if ('bankName' in values) m.bankId = bankIdFor(db, m.bankName)
         applyMortgageRules(m, before, values, db.clock)
         if (m.status === 'draft') m.setupStep = Math.min(2, Math.max(m.setupStep, step + 1))
         touch(db, m)
@@ -1633,6 +1671,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         if (values.reminders) m.reminders = values.reminders
         const { property: _p, finance: _f, reminders: _r, ...core } = values
         Object.assign(m, core)
+        if ('bankName' in core) m.bankId = bankIdFor(db, m.bankName)
         applyMortgageRules(m, before, core, db.clock)
         touch(db, m)
         if (!values.reminders || Object.keys(values).length > 1) {
@@ -2004,26 +2043,26 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           'admin.banks.list',
           (db) =>
             banksOf(db).map((b) => ({
-              ...b,
+              ...bankRow(b),
               products: catalogOf(db).filter((p) => p.bank.id === b.id && p.status !== 'archived').length,
               published: catalogOf(db).filter((p) => p.bank.id === b.id && p.status === 'published').length,
             })),
           { admin: true },
         ),
-        create: call(
+        create: withLogo(call(
           'admin.banks.create',
           (db, { values, reason }) => {
             editableCatalog(db)
             requireReason(reason)
-            const bank = { id: nextId(db, 'bnk'), name: String(values?.name ?? '').trim(), mark: String(values?.mark ?? '').trim().toUpperCase(), active: true, version: 1 }
+            const bank = { id: nextId(db, 'bnk'), name: String(values?.name ?? '').trim(), mark: String(values?.mark ?? '').trim().toUpperCase(), active: true, logo: values?.logo ?? null, version: 1 }
             failOnFields(bankIssues(db, bank), 'Periksa data bank.')
             db.banks.push(bank)
-            audit(db, { action: 'bank.create', resource: { type: 'bank', id: bank.id, label: bank.name }, reason, after: { name: bank.name, mark: bank.mark } })
-            return bank
+            audit(db, { action: 'bank.create', resource: { type: 'bank', id: bank.id, label: bank.name }, reason, after: { name: bank.name, mark: bank.mark, logo: bank.logo?.path ?? null } })
+            return bankRow(bank)
           },
           { admin: true },
-        ),
-        update: call(
+        )),
+        update: withLogo(call(
           'admin.banks.update',
           (db, id, { values, reason, expectedVersion }) => {
             editableCatalog(db)
@@ -2031,11 +2070,11 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
             if (!bank) fail('RESOURCE_NOT_FOUND', 'Bank tidak ditemukan.', 404)
             requireReason(reason)
             checkVersion(bank, expectedVersion)
-            const next = { ...bank, ...pickFields(values, ['name', 'mark', 'active']) }
+            const next = { ...bank, ...pickFields(values, ['name', 'mark', 'active', 'logo']) }
             next.name = String(next.name).trim()
             next.mark = String(next.mark).trim().toUpperCase()
             failOnFields(bankIssues(db, next), 'Periksa data bank.')
-            const diff = changes(bank, next, ['name', 'mark', 'active'])
+            const diff = changes(auditBank(bank), auditBank(next), ['name', 'mark', 'active', 'logo'])
             if (!diff) fail('VALIDATION_FAILED', 'Tidak ada perubahan untuk disimpan.', 400)
             Object.assign(bank, next)
             bumpVersion(bank)
@@ -2046,10 +2085,10 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
               if (p.pendingRevision) p.pendingRevision.bank = embedded
             }
             audit(db, { action: 'bank.update', resource: { type: 'bank', id, label: bank.name }, reason, ...diff })
-            return bank
+            return bankRow(bank)
           },
           { admin: true },
-        ),
+        )),
       },
       articles: {
         list: call(
