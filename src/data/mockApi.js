@@ -1160,12 +1160,6 @@ export function recordDocument(db, app, documentType, file, extra = {}) {
 }
 
 // The browser demo: everything lives in localStorage (mockDb.js).
-const localStore = { load: () => loadDb(), save: (db) => saveDb(db) }
-
-// ---------- adapter ----------
-// `store` is where an operation reads its data and writes back what it changed: localStore for the demo and tests,
-// supabaseStore for the real backend (spec 2026-10-09, Amandemen). A store save that finds a row changed meanwhile
-// rejects with `conflict`; the operation then runs again on fresh data.
 // The demo has no Storage: a chosen logo file is kept as a data URL under a fresh name (spec 2026-10-19 §3).
 const withLogo =
   (write) =>
@@ -1185,6 +1179,12 @@ const withLogo =
     return write(...args.slice(0, -1), { ...input, values: { ...input.values, logo: { path: `${crypto.randomUUID()}.${ext}`, url } } })
   }
 
+const localStore = { load: () => loadDb(), save: (db) => saveDb(db) }
+
+// ---------- adapter ----------
+// `store` is where an operation reads its data and writes back what it changed: localStore for the demo and tests,
+// supabaseStore for the real backend (spec 2026-10-09, Amandemen). A store save that finds a row changed meanwhile
+// rejects with `conflict`; the operation then runs again on fresh data.
 export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
   const call =
     (name, fn, { auth = true, admin = false } = {}) =>
