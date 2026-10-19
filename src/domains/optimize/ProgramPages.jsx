@@ -26,7 +26,6 @@ const COST_LABEL = {
   notary: () => 'Notaris & APHT',
   insurance: () => 'Asuransi',
 }
-const markOf = (name) => String(name ?? '').replace(/^Bank\s+/i, '').slice(0, 3).toUpperCase()
 
 // Current simulation; re-runs it for a resumed Take Over draft that already passed step 5.
 function useSimulation(sort) {
@@ -110,7 +109,7 @@ export function BaselinePage() {
         <Panel className="gap-5 sm:p-7">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3.5">
-              <BankMark mark={markOf(sim.oldBank.name)} tone="muted" />
+              <BankMark bank={sim.oldBank} tone="muted" />
               <div className="flex flex-col gap-0.5">
                 <h2 className="text-lg font-extrabold">KPR kamu saat ini</h2>
                 <span className="text-[13px] text-muted-foreground">
@@ -183,7 +182,7 @@ export function ProgramsPage() {
       <Header sim={sim} title={`Pilihan ${modeName(sim.input.mode)}`} subtitle="Estimasi berdasarkan profil kamu. Pilih satu program." back="/optimize/baseline" />
       <HeroCard scenery={false} className="flex-row flex-wrap items-center justify-between gap-4 px-[22px] py-[18px] sm:px-[22px] sm:py-[18px]">
         <div className="flex items-center gap-3">
-          <BankMark mark={markOf(sim.oldBank.name)} tone="glass" size="sm" />
+          <BankMark bank={sim.oldBank} tone="glass" size="sm" />
           <div className="flex flex-col gap-0.5">
             <span className="text-xs font-bold text-white/80">Pembanding · KPR saat ini</span>
             <span className="text-sm font-bold">
@@ -255,7 +254,7 @@ function ProgramCard({ x, sim, onOpen }) {
     <article className={cn('flex flex-col gap-[18px] rounded-card border-2 bg-card p-6 shadow-card', x.recommended ? 'border-primary' : 'border-card')}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3.5">
-          <BankMark mark={x.bank.mark} />
+          <BankMark bank={x.bank} />
           <div className="flex flex-col gap-0.5">
             <h3 className="text-[17px] font-extrabold">{x.bank.name}</h3>
             <span className="text-[13px] text-muted-foreground">
@@ -485,7 +484,7 @@ export function ConfirmProgramPage() {
       <div className="flex justify-center">
         <section className="flex w-full max-w-[620px] flex-col gap-5 rounded-card bg-card p-6 shadow-card sm:p-8">
           <div className="flex items-center gap-3.5">
-            <BankMark mark={x.bank.mark} size="lg" />
+            <BankMark bank={x.bank} size="lg" />
             <div className="flex flex-col gap-0.5">
               <h2 className="text-xl font-extrabold">{x.bank.name}</h2>
               <span className="text-sm text-muted-foreground">

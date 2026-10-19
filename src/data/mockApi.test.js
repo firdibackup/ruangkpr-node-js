@@ -679,6 +679,9 @@ describe('admin catalog', () => {
     const audit = (await api.admin.audit.list({ resourceType: 'bank' })).items[0]
     expect(audit).toMatchObject({ action: 'bank.update', before: { logo: first }, after: { logo: abc.logo.path } })
     expect(JSON.stringify(audit)).not.toContain('base64')
+    abc = await api.admin.banks.update('bnk_abc', { values: { name: 'Bank ABC', mark: 'ABC', active: true, logo: undefined }, reason: 'Hanya cek', expectedVersion: abc.version }).catch((e) => e)
+    expect(abc.code).toBe('VALIDATION_FAILED') // undefined keeps the logo: nothing changed
+    abc = (await api.admin.banks.list()).find((b) => b.id === 'bnk_abc')
     await asFirdi()
     const compare = await compareFor()
     expect(compare.items.find((x) => x.bank.id === 'bnk_abc').bank.logoUrl).toBe(abc.logoUrl)

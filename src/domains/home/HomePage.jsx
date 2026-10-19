@@ -9,7 +9,6 @@ import {
   CloudCheckIcon,
   FilePenLineIcon,
   GitCompareIcon,
-  LandmarkIcon,
   LayersIcon,
   LayoutDashboardIcon,
   PercentIcon,
@@ -34,6 +33,7 @@ import {
 } from "@/components/shared/dialogs";
 import { StatusStepper } from "@/components/shared/progress";
 import {
+  BankMark,
   Chip,
   ErrorPanel,
   HeroCard,
@@ -760,7 +760,7 @@ function ActiveMortgageMini({ mortgage: m, derived, takeover }) {
         <Chip tone="ok">Aktif</Chip>
       </div>
       <div className="flex items-center gap-3.5">
-        <IconBox icon={LandmarkIcon} size="lg" />
+        <BankMark bank={m.bank} size="lg" />
         <div className="flex flex-col">
           <span className="font-extrabold">
             {m.productName || "KPR Rumah Tinggal"}

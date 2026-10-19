@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
+  BankMark,
   Chip,
   Disclaimer,
   EmptyState,
@@ -520,12 +521,7 @@ function MyKprWidget({ m, d }) {
       </div>
       {/* Shorter cells keep the balance and drop the bank row, then the detail rows. */}
       <div className="flex items-center gap-3.5 [@container(max-height:24rem)]:hidden">
-        <span
-          className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-secondary text-base font-extrabold tracking-[-0.3px] text-primary italic"
-          aria-hidden
-        >
-          {m.bankName.replace(/^Bank\s+/i, "").slice(0, 4)}
-        </span>
+        <BankMark bank={m.bank} size="lg" />
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-base font-extrabold">
             {m.productName || "KPR Rumah Tinggal"}

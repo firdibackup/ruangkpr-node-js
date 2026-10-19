@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { ArrowRightIcon, CircleCheckIcon, LandmarkIcon, LightbulbIcon, SearchXIcon, StarIcon, TriangleAlertIcon } from 'lucide-react'
+import { ArrowRightIcon, CircleCheckIcon, LightbulbIcon, SearchXIcon, StarIcon, TriangleAlertIcon } from 'lucide-react'
 import { api } from '@/data/api'
 import { simulateLoan } from '@/calculations/programs'
 import { useResource } from '@/lib/hooks'
@@ -8,7 +8,7 @@ import { dateShort, percentBps, rupiah, rupiahShort, tenorLabel } from '@/lib/fo
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { CheckboxField } from '@/components/shared/fields'
-import { Chip, Disclaimer, EmptyState, ErrorPanel, EstimateTag, HeroCard, IconBox, LoadingCards, Notice, Panel, Spinner, StatTile } from '@/components/shared/ui'
+import { BankMark, Chip, Disclaimer, EmptyState, ErrorPanel, EstimateTag, HeroCard, IconBox, LoadingCards, Notice, Panel, Spinner, StatTile } from '@/components/shared/ui'
 
 const SORTS = [
   ['total', 'Total pembayaran'],
@@ -84,7 +84,7 @@ export function PrimaryCompareStep({ app, go, fromReview }) {
             return (
               <article key={x.productId} className={cn('flex flex-col gap-4 rounded-card bg-card p-6 shadow-card', x.recommended ? 'ring-2 ring-primary' : 'ring-1 ring-border')}>
                 <div className="flex items-center gap-3">
-                  <IconBox icon={LandmarkIcon} tone="muted" size="lg" />
+                  <BankMark bank={x.bank} tone="muted" size="lg" />
                   <div className="flex min-w-0 flex-col gap-0.5">
                     <h3 className="text-base font-extrabold">{x.bank.name}</h3>
                     <span className="text-[13px] text-muted-foreground">
@@ -203,7 +203,7 @@ function ProgramSimulator({ app, item, capacity, onSaved, go, fromReview }) {
     <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <Panel className="gap-6 sm:p-7">
         <div className="flex items-center gap-3">
-          <IconBox icon={LandmarkIcon} tone="muted" size="lg" />
+          <BankMark bank={item.bank} tone="muted" size="lg" />
           <div className="flex flex-col gap-0.5">
             <h2 className="text-lg font-extrabold">{item.bank.name}</h2>
             <span className="text-[13px] text-muted-foreground">

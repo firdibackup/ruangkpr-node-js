@@ -102,3 +102,18 @@ test('a bank is switched off with a reason and shows as inactive', async ({ page
   await page.getByRole('button', { name: 'Simpan bank' }).click()
   await expect(row.getByText('Nonaktif')).toBeVisible()
 })
+
+test('admin uploads a bank logo, sees it before saving, and it shows in the bank list', async ({ page }) => {
+  await useScenario(page, 'admin_ops', '/admin/banks')
+  const row = page.getByRole('row', { name: /Bank ABC/ })
+  await row.getByRole('button', { name: 'Ubah' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.locator('input[type=file]').setInputFiles({ name: 'abc.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') })
+  await expect(dialog.getByText('Format tidak didukung. Gunakan JPG atau PNG.')).toBeVisible()
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64')
+  await dialog.locator('input[type=file]').setInputFiles({ name: 'abc.png', mimeType: 'image/png', buffer: png })
+  await expect(dialog.locator('img')).toHaveAttribute('src', /^blob:/)
+  await page.getByLabel('Alasan perubahan').fill('Logo resmi bank')
+  await page.getByRole('button', { name: 'Simpan bank' }).click()
+  await expect(row.locator('img')).toHaveAttribute('src', /^data:image\/png/)
+})

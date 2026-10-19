@@ -2070,7 +2070,8 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
             if (!bank) fail('RESOURCE_NOT_FOUND', 'Bank tidak ditemukan.', 404)
             requireReason(reason)
             checkVersion(bank, expectedVersion)
-            const next = { ...bank, ...pickFields(values, ['name', 'mark', 'active', 'logo']) }
+            // `logo: undefined` keeps the saved logo; null removes it (spec 2026-10-19 §3).
+            const next = { ...bank, ...pickFields(values, ['name', 'mark', 'active', ...(values?.logo === undefined ? [] : ['logo'])]) }
             next.name = String(next.name).trim()
             next.mark = String(next.mark).trim().toUpperCase()
             failOnFields(bankIssues(db, next), 'Periksa data bank.')

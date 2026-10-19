@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { CircleCheckIcon, PlusIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/data/api'
 import { useResource } from '@/lib/hooks'
+import { LOGO_UPLOAD, acceptOf, uploadProblem } from '@/data/documentRules'
 import { OCCUPATIONS, PROPERTY_TYPES, PURPOSES, bpsInput, dateShort, intInput, moneyInput, rupiah, toBps, toInt, toMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { CheckboxField, DateField, FieldError, FormGrid, MoneyField, NumberField, RateField, SelectField, TextAreaField, TextField } from '@/components/shared/fields'
 import { ConfirmDialog, FormDialog } from '@/components/shared/dialogs'
-import { Chip, ErrorPanel, Notice, PageSkeleton, Panel, PanelTitle, Spinner, SummaryRows } from '@/components/shared/ui'
+import { BankMark, Chip, ErrorPanel, Notice, PageSkeleton, Panel, PanelTitle, Spinner, SummaryRows } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AdminHeader } from './shared'
 
@@ -592,9 +593,12 @@ export function BankListPage() {
               {data.map((b) => (
                 <TableRow key={b.id}>
                   <TableCell className="py-3">
-                    <span className="flex flex-col">
-                      <span className="font-bold">{b.name}</span>
-                      <span className="text-xs text-muted-foreground">Kode {b.mark}</span>
+                    <span className="flex items-center gap-3">
+                      <BankMark bank={b} size="sm" />
+                      <span className="flex flex-col">
+                        <span className="font-bold">{b.name}</span>
+                        <span className="text-xs text-muted-foreground">Kode {b.mark}</span>
+                      </span>
                     </span>
                   </TableCell>
                   <TableCell className="py-3 text-ink-2 tabular">
@@ -633,11 +637,26 @@ export function BankListPage() {
 
 function BankDialog({ bank, onClose, onSaved }) {
   const isNew = !bank.id
-  const [v, setV] = useState({ name: bank.name ?? '', mark: bank.mark ?? '', active: bank.active ?? true })
+  // logo: undefined keeps the saved one, a File replaces it, null removes it.
+  const [v, setV] = useState({ name: bank.name ?? '', mark: bank.mark ?? '', active: bank.active ?? true, logo: undefined })
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [logoError, setLogoError] = useState(null)
   const fieldError = (k) => error?.fieldErrors?.find((x) => x.field === k)?.message
+  const input = useRef(null)
+  // A picked file previews from memory until it is saved.
+  const preview = useMemo(() => (v.logo instanceof File ? URL.createObjectURL(v.logo) : null), [v.logo])
+  useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview])
+  const shown = v.logo === undefined ? bank.logoUrl : preview
+  const pickLogo = (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const problem = uploadProblem(file, LOGO_UPLOAD)
+    setLogoError(problem?.message ?? null)
+    if (!problem) setV({ ...v, logo: file })
+  }
   const submit = async (e) => {
     e.preventDefault()
     setSaving(true)
@@ -654,8 +673,26 @@ function BankDialog({ bank, onClose, onSaved }) {
       <form onSubmit={submit} noValidate className="flex flex-col gap-5">
         <FormGrid>
           <TextField label="Nama bank" required value={v.name} onChange={(x) => setV({ ...v, name: x })} error={fieldError('name')} />
-          <TextField label="Kode bank" required maxLength={5} hint="2–5 huruf, tampil di logo bank." value={v.mark} onChange={(x) => setV({ ...v, mark: x.toUpperCase() })} error={fieldError('mark')} />
+          <TextField label="Kode bank" required maxLength={5} hint="2–5 huruf, tampil bila logo belum ada." value={v.mark} onChange={(x) => setV({ ...v, mark: x.toUpperCase() })} error={fieldError('mark')} />
         </FormGrid>
+        <div className="flex items-center gap-4">
+          <BankMark bank={{ mark: v.mark, logoUrl: shown }} size="lg" />
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="neutral" size="sm" onClick={() => input.current?.click()}>
+                {shown ? 'Ganti logo' : 'Pilih logo'}
+              </Button>
+              {shown && (
+                <Button type="button" variant="neutral" size="sm" onClick={() => setV({ ...v, logo: null })}>
+                  Hapus logo
+                </Button>
+              )}
+            </div>
+            <span className="text-xs text-muted-foreground">PNG/JPG maks. 1 MB, bentuk persegi, latar putih atau transparan.</span>
+            {(logoError || fieldError('logo')) && <FieldError>{logoError ?? fieldError('logo')}</FieldError>}
+          </div>
+          <input ref={input} type="file" accept={acceptOf(LOGO_UPLOAD)} className="sr-only" tabIndex={-1} onChange={pickLogo} aria-hidden />
+        </div>
         {!isNew && <CheckboxField label="Bank aktif (produknya ikut pencocokan)" checked={v.active} onChange={(x) => setV({ ...v, active: x })} />}
         <TextAreaField label="Alasan perubahan" required rows={2} value={reason} onChange={setReason} error={fieldError('reason')} />
         {error && !error.fieldErrors?.length && (

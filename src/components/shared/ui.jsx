@@ -135,13 +135,21 @@ export function HeroCard({ className, children, scenery = 'bottom' }) {
   )
 }
 
-export function BankMark({ mark, size = 'md', tone = 'primary' }) {
+// A bank's logo when it has one that loads; otherwise its code (spec 2026-10-19 §4). `failed` holds the URL that
+// broke, so a replaced logo is tried again.
+export function BankMark({ bank, size = 'md', tone = 'primary' }) {
+  const [failed, setFailed] = useState(null)
+  const logo = bank?.logoUrl && bank.logoUrl !== failed ? bank.logoUrl : null
   return (
     <span
-      className={cn('flex shrink-0 items-center justify-center font-extrabold italic', size === 'lg' ? 'size-14 rounded-2xl text-base' : size === 'sm' ? 'size-10 rounded-lg text-[13px]' : 'size-[52px] rounded-xl text-[15px]', tone === 'primary' ? 'bg-secondary text-primary' : tone === 'glass' ? 'bg-white/15 text-white' : 'bg-muted text-ink-3')}
+      className={cn(
+        'flex shrink-0 items-center justify-center overflow-hidden font-extrabold italic',
+        size === 'lg' ? 'size-14 rounded-2xl text-base' : size === 'sm' ? 'size-10 rounded-lg text-[13px]' : 'size-[52px] rounded-xl text-[15px]',
+        logo ? 'bg-white p-1.5 ring-1 ring-border' : tone === 'primary' ? 'bg-secondary text-primary' : tone === 'glass' ? 'bg-white/15 text-white' : 'bg-muted text-ink-3',
+      )}
       aria-hidden
     >
-      {mark}
+      {logo ? <img src={logo} alt="" className="size-full object-contain" onError={() => setFailed(logo)} /> : bank?.mark}
     </span>
   )
 }
