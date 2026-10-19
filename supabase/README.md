@@ -17,11 +17,12 @@ Migration `20261009051240_auth_foundation`, `20261009071328_app_data`, `20261009
 
 **Email di VPS (dipasang 2026-10-09):** kode OTP dikirim lewat **SMTP Resend + template server** (`volumes/templates/otp.html`, container `templates-server`), jadi hook `send_email_hook` **tidak diaktifkan**. Email reminder tetap dikirim dari database lewat API Resend dan butuh key `resend_api_key` di Vault (langkah 4.2). Tes OTP terkirim, dan user pertama tercipta dengan profil otomatis.
 
-**Reminder in-app (Fase 4a)** berjalan lewat `pg_cron` setiap hari pukul 07:00 WIB (`ruangkpr-reminders`): pengingat H-x sebelum jatuh tempo (kalau bulan itu belum ditandai bayar) dan sebelum masa fixed berakhir, masuk ke Activity user, tanpa dobel. Email reminder dikirim di job yang sama lewat Resend (langkah 4). Email yang harinya sudah lewat dilewati, tidak pernah terkirim terlambat. Cek riwayat job:
+**Reminder in-app (Fase 4a)** berjalan lewat `pg_cron` setiap jam (`ruangkpr-reminders`, `private.run_reminders`), mulai 07:00 WIB. Sebelum jam itu job hanya membaca jawaban Resend, jadi tidak ada pengingat di malam hari. Isinya pengingat H-x sebelum jatuh tempo (kalau bulan itu belum ditandai bayar) dan sebelum masa fixed berakhir, masuk ke Activity user, tanpa dobel. Kalau server mati pagi hari, run berikutnya di hari yang sama menyusul. Email reminder dikirim di job yang sama lewat Resend (langkah 4) dan berstatus `sending` sampai run berikutnya membaca jawaban Resend: berhasil → `sent`, gagal → dicoba lagi tiap jam sampai 3 kali, lalu `failed` dengan alasannya di `last_error`. Email yang harinya sudah lewat dilewati, tidak pernah terkirim terlambat. Cek riwayat job:
 
 ```sql
 select status, return_message, start_time from cron.job_run_details order by start_time desc limit 5;
 select channel, status, count(*) from public.reminder_deliveries group by 1, 2;
+select id, target_date, attempts, last_error from public.reminder_deliveries where status = 'failed' order by id desc limit 10;
 ``` Katalog bank/produk masih kosong dan diisi admin. Ada 5 artikel edukasi published.
 
 ## Fase 0: persiapan VPS (sekali, oleh pemilik VPS)

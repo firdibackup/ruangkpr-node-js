@@ -41,7 +41,7 @@ select is((select count(*)::int from public.activities where user_id in ('000000
 select is(private.enqueue_reminders('2026-11-23'), 0, 'running twice the same day sends nothing new');
 select is(private.enqueue_reminders('2026-11-24'), 0, 'H-6 is not on the schedule');
 select is(private.enqueue_reminders('2026-11-27'), 2, 'H-3 reminds r1 and r2 again');
-select ok(exists (select 1 from cron.job where jobname = 'ruangkpr-reminders' and schedule = '0 0 * * *'), 'the job runs daily at 07:00 WIB');
+select ok(exists (select 1 from cron.job where jobname = 'ruangkpr-reminders' and schedule = '0 * * * *' and command = 'select private.run_reminders()'), 'the job runs every hour (quiet before 07:00 WIB)');
 
 select * from finish();
 rollback;

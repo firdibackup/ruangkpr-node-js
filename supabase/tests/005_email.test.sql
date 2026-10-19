@@ -27,8 +27,8 @@ select ok(has_function_privilege('supabase_auth_admin', 'public.send_email_hook(
 insert into public.reminder_deliveries (user_id, mortgage_id, kind, target_date, offset_days, channel, status, created_at)
 values ('00000000-0000-4000-8000-0000000005e1', 'mtg_e1', 'payment', '2026-10-30', 7, 'email', 'queued', '2026-10-23 01:00+00');
 
-select is(private.run_daily_reminders('2026-11-23'), 2, 'the daily run sends the two reminder emails of the day');
-select is((select count(*)::int from public.reminder_deliveries where mortgage_id = 'mtg_e1' and channel = 'email' and status = 'sent'), 2, 'both emails are marked sent');
+select is(private.run_reminders('2026-11-23 08:00+07'), 2, 'the morning run sends the two reminder emails of the day');
+select is((select count(*)::int from public.reminder_deliveries where mortgage_id = 'mtg_e1' and channel = 'email' and status = 'sending'), 2, 'both emails are handed to Resend');
 select is((select status from public.reminder_deliveries where mortgage_id = 'mtg_e1' and target_date = '2026-10-30'), 'skipped', 'an email left from an earlier day is skipped, never sent late');
 select ok(exists (select 1 from net.http_request_queue q where q.id > (select id from sent_before)
                   and convert_from(q.body, 'UTF8') like '%Cicilan KPR jatuh tempo 30 Nov 2026%'), 'the payment email names the due date');
