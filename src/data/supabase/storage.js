@@ -1,17 +1,18 @@
-// Files in Supabase Storage: application documents and payment proofs (spec 2026-10-09 §4.3).
+// Files in Supabase Storage: application documents, payment proofs (spec 2026-10-09 §4.3) and bank logos (spec 2026-10-19).
 import { ApiError } from '../apiError'
 import { supabase } from './client'
 import { toApiError } from './errors'
 
 export const DOCS_BUCKET = 'application-documents'
 export const PROOFS_BUCKET = 'payment-proofs'
+export const LOGOS_BUCKET = 'bank-logos'
 
 const make = (code, message, status, extra = {}) => new ApiError({ code, message, ...extra }, { status })
 
 // {user}/{record}[/{type}]/{uuid}.{ext}: the first folder is what the Storage policies check against auth.uid().
 export function filePath(folders, file) {
   const ext = /\.([a-z0-9]+)$/i.exec(file.name ?? '')?.[1]?.toLowerCase() ?? 'bin'
-  return `${folders.join('/')}/${crypto.randomUUID()}.${ext}`
+  return [...folders, `${crypto.randomUUID()}.${ext}`].join('/')
 }
 
 // A copied application points at the files of the one it came from; only a record's own folder is ever removed.
@@ -59,6 +60,9 @@ export async function removeFiles(bucket, paths) {
   const list = paths.filter(Boolean)
   if (list.length) await supabase().storage.from(bucket).remove(list).catch(() => {})
 }
+
+// Public bucket (bank logos): a plain, permanent URL.
+export const publicUrl = (bucket, path) => supabase().storage.from(bucket).getPublicUrl(path).data.publicUrl
 
 // `download` (a file name, or true) makes Storage answer with Content-Disposition: attachment.
 export async function signedUrl(bucket, path, download) {

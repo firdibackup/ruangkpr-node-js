@@ -1,12 +1,12 @@
 // The real backend: the same operations as the demo (mockApi.js) over supabaseStore, plus what only a server has —
 // sign-in, files in Storage, account deletion (spec 2026-10-09, Amandemen).
 import { ApiError } from '../apiError'
-import { DEFAULT_UPLOAD, uploadProblem } from '../documentRules'
+import { DEFAULT_UPLOAD, LOGO_UPLOAD, uploadProblem } from '../documentRules'
 import { createMockApi } from '../mockApi'
 import { authApi } from './auth'
 import { supabase } from './client'
 import { must } from './errors'
-import { DOCS_BUCKET, PROOFS_BUCKET, currentSession, filePath, ownsFolder, removeFiles, signedUrl, uploadFile } from './storage'
+import { DOCS_BUCKET, LOGOS_BUCKET, PROOFS_BUCKET, currentSession, filePath, ownsFolder, publicUrl, removeFiles, signedUrl, uploadFile } from './storage'
 import { createSupabaseStore } from './store'
 
 const fileMeta = (file) => ({ name: file.name, size: file.size, type: file.type })
@@ -15,6 +15,28 @@ const fileMeta = (file) => ({ name: file.name, size: file.size, type: file.type 
 async function uploadRules() {
   const config = await must(supabase().from('app_config').select('doc').maybeSingle())
   return config?.doc?.upload ?? DEFAULT_UPLOAD
+}
+
+// Logo to Storage first, then the bank; a failed save takes the new file out, a successful one the file it replaced
+// (spec 2026-10-19 §3).
+async function saveBankLogo(values, previous, write) {
+  const file = values?.logo instanceof Blob ? values.logo : null
+  let path = null
+  if (file) {
+    const problem = uploadProblem(file, LOGO_UPLOAD)
+    if (problem) throw new ApiError({ code: problem.code, message: problem.message }, { status: problem.status })
+    path = filePath([], file)
+    await uploadFile(LOGOS_BUCKET, path, file)
+  }
+  let bank
+  try {
+    bank = await write(file ? { ...values, logo: { path, url: publicUrl(LOGOS_BUCKET, path) } } : values)
+  } catch (e) {
+    await removeFiles(LOGOS_BUCKET, [path])
+    throw e
+  }
+  if (values?.logo !== undefined && previous !== path) await removeFiles(LOGOS_BUCKET, [previous])
+  return bank
 }
 
 export function createSupabaseApi() {
@@ -91,6 +113,14 @@ export function createSupabaseApi() {
         const file = detail.application.documents.find((d) => d.type === documentType)?.file
         if (!file?.path) throw new ApiError({ code: 'RESOURCE_NOT_FOUND', message: 'File dokumen tidak ditemukan.' }, { status: 404 })
         return signedUrl(DOCS_BUCKET, file.path, file.fileName || true)
+      },
+    },
+    banks: {
+      ...base.admin.banks,
+      create: ({ values, reason } = {}) => saveBankLogo(values, null, (v) => base.admin.banks.create({ values: v, reason })),
+      async update(id, { values, ...rest } = {}) {
+        const previous = values?.logo === undefined ? null : (await base.admin.banks.list()).find((b) => b.id === id)?.logo?.path
+        return saveBankLogo(values, previous, (v) => base.admin.banks.update(id, { ...rest, values: v }))
       },
     },
   }

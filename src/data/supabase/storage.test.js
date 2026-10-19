@@ -5,6 +5,7 @@ describe('storage helpers', () => {
   it('builds {user}/{record}/{type}/{uuid}.{ext} paths with a lower-case extension', () => {
     expect(filePath(['u1', 'app_1', 'ktp'], { name: 'KTP Saya.JPG' })).toMatch(/^u1\/app_1\/ktp\/[0-9a-f-]{36}\.jpg$/)
     expect(filePath(['u1', 'mtg_1'], { name: 'bukti' })).toMatch(/^u1\/mtg_1\/[0-9a-f-]{36}\.bin$/)
+    expect(filePath([], { name: 'Logo.PNG' })).toMatch(/^[0-9a-f-]{36}\.png$/) // bank logos sit at the bucket root
   })
 
   it('only removes files that sit in the record own folder (a copied application shares the old files)', () => {
