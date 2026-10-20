@@ -33,7 +33,7 @@ export function SchedulePage() {
       {embed && (
         <Panel>
           <iframe title="Kalender konsultasi" src={embed} loading="lazy" className="h-[min(720px,75dvh)] w-full rounded-card border-0" />
-          <p className="text-sm text-ink-3">Kalender tampil untuk akun Google yang diberi akses. Kalau kosong atau diminta login, masuk ke Google dengan akun itu, atau buka di tab baru.</p>
+          <p className="text-sm text-muted-foreground">Kalender tampil untuk akun Google yang diberi akses. Kalau kosong atau diminta login, masuk ke Google dengan akun itu, atau buka di tab baru.</p>
           <div className="flex flex-wrap gap-2.5">
             <Button asChild variant="outline" size="md">
               <a href={embed} target="_blank" rel="noopener noreferrer">

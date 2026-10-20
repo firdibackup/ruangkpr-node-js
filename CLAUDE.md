@@ -33,9 +33,12 @@ When implementing changes, prefer the smallest solution that fits the existing a
 
 For frontend work, treat the existing visual baseline in this file as authoritative.
 
-- Inspect existing UI components and `src/styles/globals.css` before creating new visual patterns.
+- Inspect existing UI components, `src/brand/tokens.css` and `src/styles/globals.css` before creating new visual patterns.
 - Reuse shadcn/Radix components and existing shared components where possible.
-- Preserve Plus Jakarta Sans, existing color tokens, spacing language, 24px card radius, and navigation patterns unless the task explicitly changes them.
+- Preserve the brand parameters (colours, fonts, card radius, logo, name in `src/brand/`, assets in `public/brand/`; see `BRANDING.md`), spacing language, and navigation patterns unless the task explicitly changes them.
+- Never write a colour value in components or `globals.css`: use the semantic utilities (`bg-primary`, `text-muted-foreground`, `border-input`, `bg-danger-solid`, …). A new colour role is a token in `src/brand/tokens.css` plus its contrast pair in `src/brand/brand.test.js`, which fails on any hex outside `src/brand/`.
+- Never hardcode the product name, support email or brand image paths: use `brand` from `src/brand/brand.js` and `public/brand/`.
+- A brand the super admin publishes at `/admin/brand` overrides the files at runtime (`src/brand/theme.js` derives the variables, `src/brand/live.js` paints them on `<html>`); read the logo through `useLiveBrand()`, not a fixed path.
 - Maintain mobile-first behavior and the desktop breakpoint at 1024px.
 - Keep touch targets at least 44px.
 - Check loading, empty, error, and disabled states for new interactive UI.

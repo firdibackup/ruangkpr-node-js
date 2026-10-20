@@ -31,7 +31,7 @@ function Loading({ rows }) {
 function LoadError({ what, onRetry }) {
   return (
     <div className="flex flex-col items-start gap-2">
-      <p className="text-sm text-ink-3">{what} gagal dimuat.</p>
+      <p className="text-sm text-muted-foreground">{what} gagal dimuat.</p>
       <Button size="sm" variant="outline" onClick={onRetry}>
         Coba lagi
       </Button>
@@ -59,14 +59,14 @@ export function RemindersWidget({ m, d, clock }) {
               className="flex items-center justify-between gap-3 rounded-xl bg-muted px-3 py-2"
             >
               <span className="text-sm font-bold">{x.label}</span>
-              <span className="text-[13px] text-ink-3 tabular">
+              <span className="text-[13px] text-muted-foreground tabular">
                 {dateShort(x.date)}
               </span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm leading-[21px] text-ink-3">
+        <p className="text-sm leading-[21px] text-muted-foreground">
           Belum ada pengingat aktif dalam waktu dekat.
         </p>
       )}
@@ -108,7 +108,7 @@ export function RecentActivityWidget() {
                 <span
                   className={cn(
                     "mt-1.5 size-2 shrink-0 rounded-full",
-                    a.readAt ? "bg-border" : "bg-brand-red",
+                    a.readAt ? "bg-border" : "bg-danger-solid",
                   )}
                   aria-hidden
                 />
@@ -126,7 +126,7 @@ export function RecentActivityWidget() {
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-ink-3">Belum ada aktivitas.</p>
+        <p className="text-sm text-muted-foreground">Belum ada aktivitas.</p>
       )}
       <Link to="/activity" className={cn(LINK, "mt-auto")}>
         Lihat semua

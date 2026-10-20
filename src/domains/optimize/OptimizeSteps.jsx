@@ -187,21 +187,19 @@ export function OptimizeStepPage({ employment = false }) {
   const milestone = n === 3;
   // `gaps` is from before this save, so it still lists the page just saved. Done: Dokumen once a bank is picked, else
   // the bank list with the goal the draft took from the monitored KPR (as Peluang does), or Tujuan when it has none.
+  // `saved` is the draft the save returned: data that changes the price drops the picked bank (saveStep).
   const gap = gaps.find((p) => p !== location.pathname);
   const toPrograms = async () => {
     setApp(await api.applications.saveStep(app.id, { step: 5, values: { goal: app.data.goal } }));
     navigate("/optimize/programs"); // runs the draft's simulation (ProgramPages useSimulation)
   };
-  const next = (to, opts) =>
-    !fromGaps
-      ? navigate(fromReview ? "/optimize/7" : to, opts)
-      : gap
-        ? navigate(gap, { state: { from: "gaps" } })
-        : app.selection
-          ? navigate("/optimize/6")
-          : Object.keys(validateGoal(app.data.goal ?? {})).length
-            ? navigate("/optimize/5")
-            : toPrograms();
+  const next = (to, saved = app) => {
+    if (!fromGaps) return navigate(fromReview ? "/optimize/7" : to);
+    if (app.selection && !saved.selection) toast("Data baru mengubah hitungan, jadi pilihan bank dihitung ulang.");
+    if (gap) return navigate(gap, { state: { from: "gaps" } });
+    if (saved.selection) return navigate("/optimize/6");
+    return Object.keys(validateGoal(saved.data.goal ?? {})).length ? navigate("/optimize/5") : toPrograms();
+  };
   const props = { app, banks: snap.banks, clock: snap.clock, config: snap.config, setApp, next, navigate, fromReview };
   const PN = modeName(app.optimizationMode);
   const back = {
@@ -304,7 +302,7 @@ function Group({ icon, title, desc, children }) {
           <span className="flex min-w-0 flex-col gap-1">
             <span className="text-lg font-extrabold">{title}</span>
             {desc && (
-              <span className="text-[13px] leading-5 font-normal text-ink-3">
+              <span className="text-[13px] leading-5 font-normal text-muted-foreground">
                 {desc}
               </span>
             )}
@@ -372,9 +370,10 @@ function PersonalStep({ app, clock, setApp, next, fromReview }) {
   // Saved as sub-step 0 so the draft stays on step 1 until employment is saved too.
   const { saving, error, save } = useStepSave(app, 0, setApp);
   const onSubmit = form.submit(async (x) => {
-    if (await save({ personal: toPersonal(x) })) {
+    const saved = await save({ personal: toPersonal(x) });
+    if (saved) {
       form.markClean();
-      next("/optimize/1/pekerjaan");
+      next("/optimize/1/pekerjaan", saved);
     }
   });
   const demo = () =>
@@ -487,11 +486,10 @@ function EmploymentStep({ app, setApp, next, fromReview }) {
   const onSubmit = form.submit(async (x) => {
     const { vehicleDebt, cardDebt, otherDebt, ...employment } =
       toEmployment(x);
-    if (
-      await save({ employment, finance: { vehicleDebt, cardDebt, otherDebt } })
-    ) {
+    const saved = await save({ employment, finance: { vehicleDebt, cardDebt, otherDebt } });
+    if (saved) {
       form.markClean();
-      next("/optimize/2");
+      next("/optimize/2", saved);
     }
   });
   const demo = () =>
@@ -659,7 +657,7 @@ function OldLoanStep({ app, banks, clock, setApp, next }) {
     });
     if (saved) {
       form.markClean();
-      next("/optimize/3");
+      next("/optimize/3", saved);
     }
   });
   const demo = () =>
@@ -1057,7 +1055,7 @@ function HealthAside({ health: h, note, sticky }) {
             {h.label}
             {h.partial ? " · parsial" : ""}
           </Chip>
-          <p className="text-[13px] leading-5 font-semibold text-ink-2">
+          <p className="text-[13px] leading-5 font-semibold text-foreground">
             {h.tone === "ok"
               ? "Kondisi KPR kamu sehat."
               : weakest?.key === "rate" && r.mode === "floating"
@@ -1123,7 +1121,7 @@ function PropertyStep({ app, clock, config, setApp, next }) {
     });
     if (saved) {
       form.markClean();
-      next("/optimize/5");
+      next("/optimize/5", saved);
     }
   });
   const demo = () =>
@@ -1338,7 +1336,7 @@ function TakeoverDocsStep({ app, config, setApp, next, fromReview }) {
           if (!docs.length) return null;
           return (
             <Panel key={key} className="gap-3 sm:p-7">
-              <span className="flex items-center gap-2.5 text-[13px] font-extrabold tracking-[0.4px] text-ink-3">
+              <span className="flex items-center gap-2.5 text-[13px] font-extrabold tracking-[0.4px] text-muted-foreground">
                 <Icon className="size-[18px] text-primary" aria-hidden />
                 {title}
               </span>
@@ -1357,7 +1355,7 @@ function TakeoverDocsStep({ app, config, setApp, next, fromReview }) {
         })}
       </div>
       <aside className="flex flex-col gap-3.5 rounded-card bg-card p-6 shadow-card lg:sticky lg:top-6">
-        <span className="text-[13px] font-extrabold text-ink-3">
+        <span className="text-[13px] font-extrabold text-muted-foreground">
           Dokumen wajib
         </span>
         <span className="text-[30px] font-extrabold" role="status">
@@ -1369,9 +1367,9 @@ function TakeoverDocsStep({ app, config, setApp, next, fromReview }) {
         <ProgressBar
           value={(done / Math.max(1, required.length)) * 100}
           label="Dokumen wajib terunggah"
-          barClassName="bg-success-strong"
+          barClassName="bg-success-solid"
         />
-        <p className="text-[13px] leading-5 text-ink-3">
+        <p className="text-[13px] leading-5 text-muted-foreground">
           Dokumen KPR lama dan properti diperlukan untuk Take Over, berbeda dari
           KPR baru. {uploadHint(config.upload)}. Setiap file tersimpan otomatis.
         </p>
@@ -1404,7 +1402,7 @@ function TakeoverDocsStep({ app, config, setApp, next, fromReview }) {
           }}
           aria-disabled={!complete}
           aria-busy={saving}
-          className={cn(!complete && "bg-border text-ink-3 hover:bg-border")}
+          className={cn(!complete && "bg-border text-muted-foreground hover:bg-border")}
         >
           {saving && <Spinner />}
           {fromReview ? "Simpan & kembali ke Review" : "Simpan & Lanjutkan"}
@@ -1524,11 +1522,11 @@ function TakeoverReview({ app, navigate }) {
             key={x.title}
             className={cn(
               "flex items-start justify-between gap-4 rounded-3xl border bg-card px-6 py-5 shadow-card",
-              x.warn ? "border-[#f2d27a]" : "border-card",
+              x.warn ? "border-warning-border" : "border-card",
             )}
           >
             <div className="flex min-w-0 flex-col gap-1.5">
-              <h2 className="text-[13px] font-extrabold text-ink-3">
+              <h2 className="text-[13px] font-extrabold text-muted-foreground">
                 {x.title}
               </h2>
               {x.lines.map((l) => (
@@ -1537,7 +1535,7 @@ function TakeoverReview({ app, navigate }) {
                 </span>
               ))}
               {x.warn && (
-                <span className="text-xs font-bold text-warning-text">
+                <span className="text-xs font-bold text-warning">
                   {x.warn}
                 </span>
               )}
@@ -1565,7 +1563,7 @@ function TakeoverReview({ app, navigate }) {
           onChange={(x) => setCons((c) => ({ ...c, sendToBank: x }))}
         />
         {!canSubmit && (
-          <p className="rounded-xl bg-muted px-3.5 py-3 text-xs leading-[18px] font-semibold text-ink-3">
+          <p className="rounded-xl bg-muted px-3.5 py-3 text-xs leading-[18px] font-semibold text-muted-foreground">
             Lengkapi{" "}
             {[
               !docOk && "dokumen wajib",
@@ -1586,7 +1584,7 @@ function TakeoverReview({ app, navigate }) {
           onClick={submit}
           aria-disabled={!canSubmit || pending}
           aria-busy={pending}
-          className={cn(!canSubmit && "bg-border text-ink-3 hover:bg-border")}
+          className={cn(!canSubmit && "bg-border text-muted-foreground hover:bg-border")}
         >
           {pending && <Spinner />}
           {pending ? "Mengirim…" : "Submit Pengajuan"}

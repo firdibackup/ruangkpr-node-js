@@ -1,3 +1,5 @@
+import { brand } from '@/brand/brand'
+
 // Page tours (react-joyride) for first-time users: where things are, plus the KPR terms shown there.
 // `target` is a `data-tour` name; PageTour drops steps whose element isn't on screen (hidden widget,
 // desktop-only control on a phone). A `center` step has no target and floats mid-screen.
@@ -5,7 +7,7 @@ export const TOURS = {
   "home-fresh": [
     {
       placement: "center",
-      title: "Selamat datang di RuangKPR",
+      title: `Selamat datang di ${brand.name}`,
       content:
         "Kami bantu urus KPR kamu, dari mengajukan sampai memantau cicilan setelah rumah jadi milikmu. Kenalan sebentar, ya.",
     },
@@ -59,7 +61,7 @@ export const TOURS = {
       target: "nextPayment",
       title: "Pembayaran berikutnya",
       content:
-        "Cicilan dan jatuh tempo terdekat. Sudah bayar? Tekan Tandai Sudah Dibayar. Ini catatan pribadi kamu, karena RuangKPR tidak terhubung ke rekening bank.",
+        `Cicilan dan jatuh tempo terdekat. Sudah bayar? Tekan Tandai Sudah Dibayar. Ini catatan pribadi kamu, karena ${brand.name} tidak terhubung ke rekening bank.`,
     },
     {
       target: "amortization",

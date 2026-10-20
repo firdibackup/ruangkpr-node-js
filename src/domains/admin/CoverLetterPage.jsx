@@ -144,7 +144,7 @@ function CoverLetterEditor({ data, back, onSaved }) {
 function Group({ legend, children }) {
   return (
     <fieldset className="flex flex-col gap-4">
-      <legend className="mb-3 text-sm font-bold text-ink-2">{legend}</legend>
+      <legend className="mb-3 text-sm font-bold text-foreground">{legend}</legend>
       {children}
     </fieldset>
   )

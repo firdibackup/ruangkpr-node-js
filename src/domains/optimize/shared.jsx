@@ -51,7 +51,7 @@ export function Aside({ icon: Icon, title, note, rows, tone = 'info', sticky = t
       </div>
       {children}
       {rows?.length > 0 && <SummaryRows size="sm" rows={rows} />}
-      {note && <p className={`rounded-xl px-3.5 py-3 text-[13px] leading-5 font-medium ${tone === 'warn' ? 'bg-warning-bg text-warning' : 'bg-secondary text-ink-2'}`}>{note}</p>}
+      {note && <p className={`rounded-xl px-3.5 py-3 text-[13px] leading-5 font-medium ${tone === 'warn' ? 'bg-warning-bg text-warning' : 'bg-secondary text-foreground'}`}>{note}</p>}
     </aside>
   )
 }

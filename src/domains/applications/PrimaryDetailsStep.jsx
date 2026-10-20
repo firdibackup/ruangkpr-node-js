@@ -267,7 +267,7 @@ export function PrimaryDetailsStep({ step, app, snapshot, onCreated, onSaved, fr
             </Notice>
           )}
           {step === 2 && (
-            <div className="flex items-center gap-2 text-xs leading-[18px] text-ink-3">
+            <div className="flex items-center gap-2 text-xs leading-[18px] text-muted-foreground">
               <LockIcon className="size-3.5 text-success" aria-hidden />
               Data kamu hanya digunakan untuk proses pengajuan KPR yang kamu setujui.
             </div>
@@ -281,7 +281,7 @@ export function PrimaryDetailsStep({ step, app, snapshot, onCreated, onSaved, fr
           </Button>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
             {form.hasErrors && <span className="text-center text-xs text-muted-foreground">Lengkapi semua field wajib untuk lanjut.</span>}
-            <Button type="submit" disabled={saving} aria-busy={saving} className={form.hasErrors ? 'bg-border text-ink-3 hover:bg-border' : ''}>
+            <Button type="submit" disabled={saving} aria-busy={saving} className={form.hasErrors ? 'bg-border text-muted-foreground hover:bg-border' : ''}>
               {saving && <Spinner />}
               {saving ? 'Menyimpan…' : backToReview ? 'Simpan & kembali ke Review' : 'Simpan & Lanjutkan'}
             </Button>

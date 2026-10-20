@@ -60,7 +60,7 @@ export function WidgetGallery({
             <TabsPrimitive.Trigger
               key={t.id}
               value={t.id}
-              className="h-11 shrink-0 rounded-full px-4 text-sm font-bold text-ink-3 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 data-[state=active]:bg-primary data-[state=active]:text-white"
+              className="h-11 shrink-0 rounded-full px-4 text-sm font-bold text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 data-[state=active]:bg-primary data-[state=active]:text-white"
             >
               {t.label}
             </TabsPrimitive.Trigger>
@@ -113,7 +113,7 @@ function GalleryCard({ widget: w, added, lock, widgetProps, onAdd, onUnlock }) {
             )
           )}
         </div>
-        <p className="text-[13px] leading-5 text-ink-3">{w.description}</p>
+        <p className="text-[13px] leading-5 text-muted-foreground">{w.description}</p>
         {!added && (lock ? lock.action : true) && (
           <div className="mt-auto pt-2">
             {lock ? (

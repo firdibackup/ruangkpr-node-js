@@ -42,7 +42,7 @@ const TICK = { fontSize: "0.75em", fill: "var(--muted-foreground)" };
 const TOOLTIP = {
   borderRadius: 12,
   border: "1px solid var(--border)",
-  boxShadow: "0 6px 24px #0b1b3314",
+  boxShadow: "var(--card-shadow)",
   fontSize: 13,
 };
 const CHART_AREA =
@@ -62,7 +62,7 @@ function Heading({ title, sub, children }) {
 
 function Swatch({ color, label }) {
   return (
-    <span className="flex items-center gap-1.5 text-[13px] text-ink-3">
+    <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
       <span className="size-2.5 rounded-[3px]" style={{ background: color }} />
       {label}
     </span>
@@ -183,7 +183,7 @@ export function AmortizationChartWidget({ d }) {
                 "h-11 rounded-full px-4 text-sm font-bold outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
                 view === v.id
                   ? "bg-primary text-white"
-                  : "text-ink-3 hover:text-foreground",
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {v.label}
@@ -294,7 +294,7 @@ export function FloatingImpactWidget({ m, d }) {
     return (
       <Panel className="justify-center gap-1.5">
         <h2 className="text-lg font-extrabold">Dampak Floating</h2>
-        <p className="text-sm leading-[21px] text-ink-3">
+        <p className="text-sm leading-[21px] text-muted-foreground">
           Masa fixed berlaku sampai lunas, jadi cicilan kamu tidak berubah.
         </p>
       </Panel>

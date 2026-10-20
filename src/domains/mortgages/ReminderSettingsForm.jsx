@@ -24,11 +24,11 @@ function Chip({ label, checked, onChange, disabled, tag }) {
         disabled ? 'cursor-not-allowed border-border bg-muted text-muted-foreground' : checked ? 'border-primary bg-secondary' : 'border-input bg-card',
       )}
     >
-      <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-md border-2 text-white', checked ? 'border-primary bg-primary' : disabled ? 'border-[#d5dbe6] bg-card' : 'border-[#b8c2d3] bg-card')} aria-hidden>
+      <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-md border-2 text-white', checked ? 'border-primary bg-primary' : disabled ? 'border-border bg-card' : 'border-border-strong bg-card')} aria-hidden>
         {checked && <CheckIcon className="size-3" strokeWidth={3} />}
       </span>
       {label}
-      {tag && <span className="rounded-full bg-border px-2 py-0.5 text-[11px] font-bold text-ink-3">{tag}</span>}
+      {tag && <span className="rounded-full bg-border px-2 py-0.5 text-[11px] font-bold text-muted-foreground">{tag}</span>}
     </button>
   )
 }
@@ -41,7 +41,7 @@ function Group({ title, sub, children, note, error }) {
         <span className="text-[15px] font-extrabold">{title}</span>
         {sub && <span className="text-[13px] text-muted-foreground">{sub}</span>}
       </div>
-      {note && <div className="rounded-xl bg-muted px-4 py-3.5 text-[13px] leading-5 text-ink-3">{note}</div>}
+      {note && <div className="rounded-xl bg-muted px-4 py-3.5 text-[13px] leading-5 text-muted-foreground">{note}</div>}
       {children && <div className="flex flex-wrap gap-2.5">{children}</div>}
       {error && <FieldError>{error}</FieldError>}
     </fieldset>

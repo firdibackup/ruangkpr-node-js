@@ -18,6 +18,7 @@ import { filledOnly, validateReminders } from '@/domains/mortgages/validation'
 import { validateEmploymentBasic } from '@/domains/optimize/validation'
 import { profileFormValues, validatePersonal } from '@/domains/applications/validation'
 import { productName } from '@/domains/applications/meta'
+import { brand } from '@/brand/brand'
 
 export function ProfilePage() {
   const navigate = useNavigate()
@@ -104,7 +105,7 @@ export function ProfilePage() {
                 </Button>
               </>
             ) : (
-              <p className="text-sm text-ink-3">Reminder aktif setelah kamu menambahkan KPR untuk dipantau.</p>
+              <p className="text-sm text-muted-foreground">Reminder aktif setelah kamu menambahkan KPR untuk dipantau.</p>
             )}
           </Panel>
           <Panel className="gap-2.5 sm:p-7">
@@ -112,7 +113,7 @@ export function ProfilePage() {
               <IconBox icon={HeadsetIcon} />
               <h2 className="text-[17px] font-extrabold">Bantuan</h2>
             </div>
-            <p className="text-sm leading-[21px] text-ink-3">Tanya soal KPR atau pengajuan kamu lewat WhatsApp, atau jadwalkan konsultasi live dengan tim RuangKPR.</p>
+            <p className="text-sm leading-[21px] text-muted-foreground">Tanya soal KPR atau pengajuan kamu lewat WhatsApp, atau jadwalkan konsultasi live dengan tim {brand.name}.</p>
             <Button variant="outline" size="md" className="mt-1 w-fit" onClick={() => setCs(true)}>
               <HeadsetIcon aria-hidden />
               Hubungi CS
@@ -123,7 +124,7 @@ export function ProfilePage() {
               <IconBox icon={ShieldCheckIcon} />
               <h2 className="text-[17px] font-extrabold">Privasi & persetujuan</h2>
             </div>
-            <p className="text-sm leading-[21px] text-ink-3">Data kamu tidak dikirim ke bank tanpa persetujuan dan klik Submit. RuangKPR tidak pernah meminta password, PIN, atau OTP perbankan.</p>
+            <p className="text-sm leading-[21px] text-muted-foreground">Data kamu tidak dikirim ke bank tanpa persetujuan dan klik Submit. {brand.name} tidak pernah meminta password, PIN, atau OTP perbankan.</p>
             {(p.consents ?? []).map((c) => (
               <span key={c.type} className="text-[13px] text-muted-foreground">
                 {c.type === 'terms' ? 'Syarat & Ketentuan' : 'Kebijakan Privasi'} v{c.version} · disetujui {dateLong(c.acceptedAt)}
@@ -177,8 +178,8 @@ export function ProfilePage() {
         <ConfirmDialog
           open={del}
           onOpenChange={setDel}
-          title="Hapus akun RuangKPR?"
-          body="Semua data kamu di RuangKPR akan dihapus permanen dan tidak bisa dikembalikan:"
+          title={`Hapus akun ${brand.name}?`}
+          body={`Semua data kamu di ${brand.name} akan dihapus permanen dan tidak bisa dikembalikan:`}
           confirmLabel="Hapus Akun"
           confirmDisabled={!agreed}
           onConfirm={async () => {
@@ -188,7 +189,7 @@ export function ProfilePage() {
             navigate('/login', { replace: true })
           }}
         >
-          <ul className="-mt-2 list-disc pl-5 text-sm leading-[21px] text-ink-3">
+          <ul className="-mt-2 list-disc pl-5 text-sm leading-[21px] text-muted-foreground">
             <li>Profil, data pribadi & penghasilan</li>
             <li>KPR yang dipantau & pengaturan reminder</li>
             <li>Draft pengajuan & hasil simulasi</li>

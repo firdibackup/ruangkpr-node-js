@@ -153,7 +153,7 @@ export function WidgetBoard({
         <div data-tour="arrange-panel" className="flex flex-col gap-3 rounded-card bg-card p-5 shadow-card lg:sticky lg:top-4 lg:z-20 lg:flex-row lg:items-center lg:gap-6">
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <h2 className="text-base font-extrabold">Atur Dashboard</h2>
-            <p className="text-[13px] leading-5 text-ink-3">
+            <p className="text-[13px] leading-5 text-muted-foreground">
               {grid
                 ? "Tarik ⠿ untuk memindah dan sudut kiri atas atau kanan bawah untuk mengubah ukuran, atau pakai menu ⋯."
                 : "Sembunyikan atau tambah widget. Posisi dan ukuran diatur di layar yang lebih lebar."}
@@ -314,7 +314,7 @@ function Widget({
               <>
                 <span
                   data-tour="widget-move"
-                  className="widget-handle flex size-11 cursor-grab touch-none items-center justify-center rounded-xl border border-border bg-card text-ink-3 shadow-card active:cursor-grabbing"
+                  className="widget-handle flex size-11 cursor-grab touch-none items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-card active:cursor-grabbing"
                   title={`Tarik untuk memindah ${title}`}
                 >
                   <GripVerticalIcon className="size-5" aria-hidden />

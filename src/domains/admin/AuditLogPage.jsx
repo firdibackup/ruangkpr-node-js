@@ -29,7 +29,7 @@ export function AuditLogPage() {
       {!data && !error && <PageSkeleton />}
       {data && (
         <Panel>
-          <p className="text-sm font-semibold text-ink-3">{data.items.length} catatan</p>
+          <p className="text-sm font-semibold text-muted-foreground">{data.items.length} catatan</p>
           {/* The same timeline as the overview's recent activity: open the record, or unfold its before/after values. */}
           <ActivityFeed events={data.items} label="Log audit" empty="Belum ada perubahan admin yang cocok dengan filter ini." />
         </Panel>

@@ -26,7 +26,7 @@ import { AdminHeader, AuditList, EditDialog, StatusChip } from './shared'
 import { formatValue } from './labels'
 
 const CHOICE = { '': undefined, yes: true, no: false }
-const head = 'text-xs font-bold text-ink-3'
+const head = 'text-xs font-bold text-muted-foreground'
 
 export function UserListPage() {
   const [query, setQuery] = useState('')
@@ -45,7 +45,7 @@ export function UserListPage() {
       {!data && !error && <PageSkeleton />}
       {data && (
         <Panel>
-          <p className="text-sm font-semibold text-ink-3">{data.length} user</p>
+          <p className="text-sm font-semibold text-muted-foreground">{data.length} user</p>
           {data.length === 0 ? (
             <p className="text-sm text-muted-foreground">Tidak ada user yang cocok dengan pencarian atau filter ini.</p>
           ) : (
@@ -70,8 +70,8 @@ export function UserListPage() {
                       </span>
                     </TableCell>
                     <TableCell className="py-3">{u.activeApplicationStatus ? <StatusChip status={u.activeApplicationStatus} /> : <span className="text-muted-foreground">—</span>}</TableCell>
-                    <TableCell className="py-3 text-ink-2">{u.hasActiveMortgage ? 'Ya' : '—'}</TableCell>
-                    <TableCell className="py-3 text-ink-2 tabular">{dateShort(u.createdAt)}</TableCell>
+                    <TableCell className="py-3 text-foreground">{u.hasActiveMortgage ? 'Ya' : '—'}</TableCell>
+                    <TableCell className="py-3 text-foreground tabular">{dateShort(u.createdAt)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -86,7 +86,7 @@ export function UserListPage() {
 const MORTGAGE_STATUS = { active: 'Aktif', draft: 'Setup belum selesai', replaced: 'Diganti (Take Over)', closed: 'Lunas' }
 const mortgageName = (m) => [m.bankName, m.productName].filter(Boolean).join(' · ') || 'KPR'
 const rows = (items, render, empty) => (items.length ? <ul className="flex flex-col">{items.map(render)}</ul> : <p className="text-sm text-muted-foreground">{empty}</p>)
-const row = 'flex items-center justify-between gap-3 border-b border-line py-3 first:pt-0 last:border-b-0 last:pb-0'
+const row = 'flex items-center justify-between gap-3 border-b border-border py-3 first:pt-0 last:border-b-0 last:pb-0'
 
 // History panels show the latest few; the history page has all of it. KPR events name their KPR, the user's own
 // record never repeats the user's name.
@@ -214,7 +214,7 @@ export function UserDetailPage() {
                       Sisa pokok {rupiah(m.outstandingPrincipal)} · cicilan {rupiah(m.currentPayment)} · {m.currentRateType === 'floating' ? 'floating' : 'fixed'} {percentBps(m.currentRateBps)}
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs font-bold text-ink-3">{MORTGAGE_STATUS[m.status] ?? m.status}</span>
+                  <span className="shrink-0 text-xs font-bold text-muted-foreground">{MORTGAGE_STATUS[m.status] ?? m.status}</span>
                 </li>
               ),
               'Belum ada KPR yang dipantau.',
@@ -295,7 +295,7 @@ export function UserMortgagePage() {
           <Panel>
             <PanelTitle sub={`Dari data yang diisi user, dihitung per ${dateLong(data.asOf)}.`}>Ringkasan</PanelTitle>
             <div className="flex flex-col gap-2">
-              <span className="flex items-center gap-2 text-[13px] font-extrabold text-ink-3">Sisa pokok {(m.outstandingEstimated || m.outstandingProjected) && <EstimateTag />}</span>
+              <span className="flex items-center gap-2 text-[13px] font-extrabold text-muted-foreground">Sisa pokok {(m.outstandingEstimated || m.outstandingProjected) && <EstimateTag />}</span>
               <span className="text-[30px] font-extrabold tracking-[-0.6px] tabular">{rupiah(m.outstandingPrincipal)}</span>
               {d.paidRatio == null ? (
                 <span className="text-sm text-muted-foreground">Progres pelunasan belum diketahui.</span>
@@ -362,11 +362,11 @@ export function UserMortgagePage() {
                   {d.health.components.map((c) => (
                     <li key={c.key} className="flex flex-col gap-1">
                       <span className="flex justify-between gap-3 text-[13px]">
-                        <span className="font-semibold text-ink-2">{c.name}</span>
+                        <span className="font-semibold text-foreground">{c.name}</span>
                         <span className={c.score == null ? 'text-muted-foreground' : 'font-extrabold tabular'}>{c.score ?? 'Belum dapat dihitung'}</span>
                       </span>
                       {c.score != null && (
-                        <span className="h-1.5 rounded-full bg-[var(--chart-track)]" aria-hidden>
+                        <span className="h-1.5 rounded-full bg-chart-track" aria-hidden>
                           <span className="block h-full rounded-full" style={{ width: `${c.score}%`, background: HEALTH_FILL[c.tone] }} />
                         </span>
                       )}
@@ -481,7 +481,7 @@ export function UserMortgagePage() {
                 {s.yearly.map((y) => (
                   <TableRow key={y.year}>
                     <TableCell className="py-2.5 font-bold">{y.year}</TableCell>
-                    <TableCell className={`py-2.5 ${y.containsEstimate ? 'text-warning-text' : 'text-ink-2'}`}>
+                    <TableCell className={`py-2.5 ${y.containsEstimate ? 'text-warning' : 'text-foreground'}`}>
                       {y.minRateBps === y.maxRateBps ? percentBps(y.minRateBps) : `${percentBps(y.minRateBps)}–${percentBps(y.maxRateBps)}`}
                       {y.containsEstimate && '*'}
                     </TableCell>
@@ -551,7 +551,7 @@ export function UserHistoryPage() {
         <DateField label="Sampai" value={f.sampai} onChange={set('sampai')} />
       </div>
       <Panel>
-        <p className="text-sm font-semibold text-ink-3">{items.length} catatan</p>
+        <p className="text-sm font-semibold text-muted-foreground">{items.length} catatan</p>
         <AuditList events={items} label="Riwayat perubahan" subject={kprName} values withTime empty={FILTERS.some((k) => f[k]) ? 'Tidak ada perubahan yang cocok dengan filter ini.' : 'Belum ada perubahan.'} />
       </Panel>
     </>

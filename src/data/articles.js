@@ -1,3 +1,5 @@
+import { brand } from '@/brand/brand'
+
 // Education fixture content served through the adapter (Explore / Home insights).
 export const ARTICLES = [
   {
@@ -11,7 +13,7 @@ export const ARTICLES = [
       'Bunga fixed berlaku tetap selama periode tertentu, misalnya 3 atau 5 tahun pertama. Selama periode ini cicilan kamu tidak berubah.',
       'Setelah masa fixed berakhir, bunga biasanya berubah menjadi floating: mengikuti suku bunga acuan dan kebijakan bank. Cicilan dihitung ulang dari sisa pokok dan sisa tenor, sehingga bisa naik cukup signifikan.',
       'Karena itu, bandingkan program bukan hanya dari bunga promo, tetapi juga estimasi bunga floating setelahnya dan total pembayaran selama tenor.',
-      'Di RuangKPR, kamu akan diingatkan H-90, H-60, H-30, H-14, dan H-7 sebelum masa fixed berakhir, lengkap dengan estimasi dampak ke cicilan.',
+      `Di ${brand.name}, kamu akan diingatkan H-90, H-60, H-30, H-14, dan H-7 sebelum masa fixed berakhir, lengkap dengan estimasi dampak ke cicilan.`,
     ],
   },
   {
@@ -37,7 +39,7 @@ export const ARTICLES = [
     body: [
       'Selain harga rumah dan DP, siapkan biaya transaksi: BPHTB, biaya notaris/PPAT, biaya appraisal, provisi dan administrasi bank, serta asuransi jiwa dan kebakaran.',
       'Besarnya bervariasi antar bank dan daerah. Minta rincian tertulis dari bank sebelum akad.',
-      'Pada perbandingan program di RuangKPR, biaya yang tersedia ditampilkan per program dan diberi label estimasi bila belum final.',
+      `Pada perbandingan program di ${brand.name}, biaya yang tersedia ditampilkan per program dan diberi label estimasi bila belum final.`,
     ],
   },
   {

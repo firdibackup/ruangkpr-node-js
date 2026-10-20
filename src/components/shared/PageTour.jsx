@@ -19,7 +19,7 @@ const OPTIONS = {
   skipBeacon: true,
   dismissKeyAction: false, // Esc ends the whole tour (handled below), not just the step
   overlayClickAction: false,
-  overlayColor: '#0b1b3399',
+  overlayColor: 'color-mix(in srgb, var(--inverse) 60%, transparent)',
   spotlightPadding: 8,
   spotlightRadius: 20,
   scrollOffset: 120, // clears the sticky mobile header and the sticky "Atur Dashboard" toolbar
@@ -89,7 +89,7 @@ function TourTooltip({ backProps, primaryProps, skipProps, index, size, isLastSt
           {index + 1} dari {size}
         </span>
       </div>
-      <p id={bodyId} className="text-sm leading-[21px] text-ink-2">
+      <p id={bodyId} className="text-sm leading-[21px] text-foreground">
         {step.content}
       </p>
       <div className="flex flex-wrap items-center gap-2">

@@ -47,7 +47,7 @@ Bukan "kalkulator KPR yang lebih lengkap", tetapi **dashboard yang menjaga KPR t
 
 ## Brand Commitments
 
-- **RuangKPR adalah layanan RE/MAX.** Identitas RE/MAX (nama, balon, palet brand) boleh tampil di produk.
+- **RuangKPR adalah layanan RE/MAX.** Nama dan balon RE/MAX boleh tampil di produk; palet UI memakai sistem warna Teal / Aqua (`src/brand/tokens.css`, panduan clone di `BRANDING.md`).
 - Nama tampilan "RuangKPR"; shell B2C memakai tagline "Command Center" (PRD §4.2), dashboard admin menampilkan label role ("Super admin", "Content writer").
 - Visual language dan shell mengikuti artifact Claude Design yang sudah disetujui; shell atau visual language baru butuh persetujuan eksplisit (PRD §4.2).
 - **Suara:** Bahasa Indonesia dengan sapaan "kamu"; istilah keuangan dijelaskan dengan bahasa sederhana; setiap angka hasil kalkulasi disertai asumsi dan disclaimer bahwa itu estimasi.
@@ -56,7 +56,7 @@ Bukan "kalkulator KPR yang lebih lengkap", tetapi **dashboard yang menjaga KPR t
 
 - **Belum ada bukti nyata:** tidak ada mitra bank yang boleh disebut, jumlah pengguna, testimoni, maupun studi kasus. Jangan menampilkan atau mengarang klaim semacam itu.
 - Data demo bersifat fiktif dan tidak boleh disajikan sebagai data asli: bank "Bank ABC/XYZ/DEF/GHI" (`src/data/catalog.js`), user contoh dan skenario (`src/data/seed.js`), artikel edukasi (`src/data/articles.js`).
-- Aset yang ada: ilustrasi dan foto di `public/` (`cover-auth.webp`, `card-kpr.webp`, `card-overview.webp`, `no-kpr-page.webp`) dan ikon layanan di `public/icon-service/`. Sebagian memakai balon RE/MAX.
+- Aset yang ada: ilustrasi dan foto di `public/brand/` (`cover-auth.webp`, `card-kpr.webp`, `card-overview.webp`, `no-kpr-page.webp`) dan ikon layanan di `public/brand/icon-service/`. Sebagian memakai balon RE/MAX dan palet merah-biru lama.
 
 ## Product Principles
 

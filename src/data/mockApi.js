@@ -22,6 +22,8 @@ import { loadDb, resetDb, saveDb } from './mockDb'
 import { ACCOUNT_KEYS, DEFAULT_REMINDERS, DEMO_PASSWORD, GOOGLE_DEMO, SCENARIOS, createSeed, newAccount, pickAccount, staffAccount } from './seed'
 import { STAFF, canOpen } from './roles'
 import { TOURS } from './tours'
+import { brand } from '@/brand/brand'
+import { EDITABLE, FONTS, HEX_HINT, STEPS, brandIssues, brandVars, isHex } from '@/brand/theme'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const clone = (x) => (x === undefined ? x : structuredClone(x))
@@ -42,7 +44,7 @@ const CANCELLABLE = ['draft', 'submitted', 'docs_verification', 'additional_docs
 const STATUS_COPY = {
   docs_verification: ['Dokumen sedang diverifikasi', 'Tim kami memeriksa kelengkapan dokumen kamu.'],
   bank_processing: ['Pengajuan masuk proses bank', 'Bank sedang menganalisis pengajuan kamu.'],
-  appraisal: ['Appraisal properti dijadwalkan', 'Tim RuangKPR akan mengonfirmasi jadwal survei lewat WhatsApp.'],
+  appraisal: ['Appraisal properti dijadwalkan', `Tim ${brand.name} akan mengonfirmasi jadwal survei lewat WhatsApp.`],
   approved: ['Pengajuan disetujui', 'Angka final mengikuti offering letter dari bank.'],
   old_mortgage_settlement: ['Pelunasan KPR lama berjalan', 'Tetap bayar cicilan bank lama sampai ada konfirmasi pelunasan resmi.'],
   akad: ['Jadwal akad tersedia', 'Tanda tangani akad sesuai jadwal dari bank.'],
@@ -297,15 +299,16 @@ function primaryInput(app) {
 }
 
 // What prices or qualifies a program (profileInput, primaryInput, simulationSource): a change drops the chosen program.
-// KTP data, company and job title keep it.
+// KTP data, company, job title and the old loan's other details (start date, product name…) keep it.
+const OLD_LOAN_PRICING = ['outstanding', 'rateBps', 'rateType', 'fixedUntil', 'floatingRateBps', 'remainingMonths', 'currentPayment', 'penaltyBps', 'dueDay']
 function pricingInputs(app) {
-  const { employment: e = {}, finance: f = {}, property: p = {} } = app.data
+  const { employment: e = {}, finance: f = {}, property: p = {}, oldLoan: o = {} } = app.data
   return JSON.stringify([
     app.data.loan,
     p.price,
     p.estimatedValue,
     p.disputed,
-    app.data.oldLoan,
+    OLD_LOAN_PRICING.map((k) => o[k] ?? null),
     app.data.goal,
     app.productType === 'primary' ? e.occupation : null,
     (e.monthlyIncome ?? 0) + (e.jointIncome ? e.partnerIncome ?? 0 : 0),
@@ -1078,6 +1081,44 @@ function configIssues(section, v) {
   }
 }
 
+// ---- brand (spec 2026-10-20 brand CMS) ----
+// Two rows: the draft only the super admin sees and previews, and the brand every visitor gets. Neither = the look
+// the files ship (src/brand/).
+const brandOf = (db) => ({ draft: db.brand?.draft ?? null, published: db.brand?.published ?? null })
+const OVERRIDE_KEYS = new Set(EDITABLE.flatMap((p) => STEPS.map((s) => `${p}-${s}`)))
+const BRAND_COLORS = ['primary', 'secondary', 'accent']
+const brandFile = (f) => (f && typeof f.path === 'string' && typeof f.url === 'string' ? { path: f.path, url: f.url } : null)
+
+function brandInput(v = {}) {
+  const hex = (x) => (typeof x === 'string' ? x.trim().toLowerCase() : '')
+  return {
+    colors: Object.fromEntries(BRAND_COLORS.map((k) => [k, hex(v.colors?.[k])])),
+    overrides: Object.fromEntries(Object.entries(v.overrides ?? {}).filter(([k]) => OVERRIDE_KEYS.has(k)).map(([k, x]) => [k, hex(x)])),
+    fonts: { body: v.fonts?.body, heading: v.fonts?.heading },
+    cardRadius: v.cardRadius,
+    logo: brandFile(v.logo),
+    favicon: brandFile(v.favicon),
+  }
+}
+function brandFieldIssues(v) {
+  const e = {}
+  for (const k of BRAND_COLORS) if (!isHex(v.colors[k])) e[`colors.${k}`] = HEX_HINT
+  if (!Object.values(v.overrides).every(isHex)) e.overrides = 'Setiap shade lanjutan harus hex 6 digit.'
+  for (const k of ['body', 'heading']) if (!FONTS.includes(v.fonts[k])) e[`fonts.${k}`] = 'Pilih font dari daftar.'
+  if (!(Number.isInteger(v.cardRadius) && v.cardRadius >= 0 && v.cardRadius <= 40)) e.cardRadius = 'Isi radius 0–40 px.'
+  return e
+}
+// What the audit log keeps of a brand: readable values, never the logo data.
+const brandSummary = (s) =>
+  s && {
+    colors: BRAND_COLORS.map((k) => s.colors[k]).join(' · '),
+    shades: Object.keys(s.overrides).length,
+    fonts: s.fonts.body === s.fonts.heading ? s.fonts.body : `${s.fonts.body} / ${s.fonts.heading}`,
+    cardRadius: `${s.cardRadius}px`,
+    logo: s.logo?.path ?? null,
+    favicon: s.favicon?.path ?? null,
+  }
+
 // KPR Health versions are append-only: publishing adds a version, a rollback republishes an old one as a new
 // version, and the newest is the one in force. Version 1 is the formula in derive.js.
 const SEEDED_HEALTH = { ...HEALTH_V1, reason: 'Formula awal KPR Health', publishedAt: '2026-09-01T02:00:00.000Z', publishedBy: null, rollbackOf: null }
@@ -1146,11 +1187,11 @@ const scoreOf = ({ score, label, tone, partial }) => ({ score, label, tone, part
 // when none is left, returns the application to verification. `extra` carries the Storage path in Supabase mode.
 export function recordDocument(db, app, documentType, file, extra = {}) {
   const replacing = app.documents[documentType]?.status === 'needs_update'
-  if (app.status !== 'draft' && !replacing) fail('INVALID_STATE_TRANSITION', 'Dokumen hanya bisa diganti jika diminta tim RuangKPR.', 400)
+  if (app.status !== 'draft' && !replacing) fail('INVALID_STATE_TRANSITION', `Dokumen hanya bisa diganti jika diminta tim ${brand.name}.`, 400)
   app.documents[documentType] = { status: 'uploaded', fileName: file.name, sizeBytes: file.size, contentType: file.type, uploadedAt: nowIso(db), invalidReason: null, ...extra }
   if (replacing) {
     app.pendingActions = app.pendingActions.filter((a) => a.documentType !== documentType)
-    pushActivity(db, { type: 'document_replaced', category: 'application', title: `${DOC_LABELS[documentType]} terbaru terkirim`, body: 'Menunggu verifikasi dari tim RuangKPR.', action: { label: 'Lihat status', route: '/my-kpr/application' } })
+    pushActivity(db, { type: 'document_replaced', category: 'application', title: `${DOC_LABELS[documentType]} terbaru terkirim`, body: `Menunggu verifikasi dari tim ${brand.name}.`, action: { label: 'Lihat status', route: '/my-kpr/application' } })
     if (!app.pendingActions.length && app.status === 'additional_docs_requested') {
       app.status = 'docs_verification'
       app.statusHistory.push({ status: 'docs_verification', at: nowIso(db) })
@@ -1161,22 +1202,33 @@ export function recordDocument(db, app, documentType, file, extra = {}) {
 
 // The browser demo: everything lives in localStorage (mockDb.js).
 // The demo has no Storage: a chosen logo file is kept as a data URL under a fresh name (spec 2026-10-19 §3).
+async function demoFile(file) {
+  const problem = uploadProblem(file, LOGO_UPLOAD)
+  if (problem) fail(problem.code, problem.message, problem.status)
+  const url = await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+  const ext = /\.([a-z0-9]+)$/i.exec(file.name)[1].toLowerCase()
+  return { path: `${crypto.randomUUID()}.${ext}`, url }
+}
 const withLogo =
   (write) =>
   async (...args) => {
     const input = args.at(-1)
     const file = input?.values?.logo
     if (!(file instanceof Blob)) return write(...args)
-    const problem = uploadProblem(file, LOGO_UPLOAD)
-    if (problem) fail(problem.code, problem.message, problem.status)
-    const url = await new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result)
-      reader.onerror = () => reject(reader.error)
-      reader.readAsDataURL(file)
-    })
-    const ext = /\.([a-z0-9]+)$/i.exec(file.name)[1].toLowerCase()
-    return write(...args.slice(0, -1), { ...input, values: { ...input.values, logo: { path: `${crypto.randomUUID()}.${ext}`, url } } })
+    return write(...args.slice(0, -1), { ...input, values: { ...input.values, logo: await demoFile(file) } })
+  }
+// The brand's logo and favicon, the same way (the Supabase adapter uploads them to brand-assets instead).
+const withBrandFiles =
+  (write) =>
+  async (input = {}) => {
+    const settings = { ...input.settings }
+    for (const k of ['logo', 'favicon']) if (settings[k] instanceof Blob) settings[k] = await demoFile(settings[k])
+    return write({ ...input, settings })
   }
 
 const localStore = { load: () => loadDb(), save: (db) => saveDb(db) }
@@ -1466,7 +1518,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         const db = await store.load({ admin: false })
         if (db.session.status !== 'authenticated') fail('AUTH_REQUIRED', 'Sesi berakhir. Silakan masuk lagi.', 401)
         const app = findApp(db, id)
-        if (app.status !== 'draft' && app.documents[documentType]?.status !== 'needs_update') fail('INVALID_STATE_TRANSITION', 'Dokumen hanya bisa diganti jika diminta tim RuangKPR.', 400)
+        if (app.status !== 'draft' && app.documents[documentType]?.status !== 'needs_update') fail('INVALID_STATE_TRANSITION', `Dokumen hanya bisa diganti jika diminta tim ${brand.name}.`, 400)
         if (db.flags?.uploadFailOnce && !db.flags.failedUploads.includes(documentType)) {
           db.flags.failedUploads.push(documentType)
           await store.save(db)
@@ -1840,6 +1892,11 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
       }),
     },
 
+    // The published brand, for every visitor before the first render (main.jsx): no sign-in, no demo latency.
+    brand: {
+      published: async () => clone((await store.load()).brand?.published ?? null),
+    },
+
     // super_admin only (admin dashboard plan): app registrations and sample users alike.
     admin: {
       overview: {
@@ -1876,6 +1933,53 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
             bumpVersion(db.config)
             audit(db, { action: 'config.update', resource: { type: 'config', id: section, label: CONFIG_LABEL[section] }, reason, ...diff })
             return { config: db.config, health: { version: activeHealth(db).version, publishedAt: activeHealth(db).publishedAt } }
+          },
+          { admin: true },
+        ),
+      },
+      brand: {
+        get: call('admin.brand.get', brandOf, { admin: true }),
+        // Only the admin who previews a draft sees it; nothing goes live until publish.
+        saveDraft: withBrandFiles(
+          call(
+            'admin.brand.saveDraft',
+            (db, { settings, expectedVersion } = {}) => {
+              const prev = db.brand?.draft ?? null
+              checkVersion(prev ?? { version: 0 }, expectedVersion)
+              const next = brandInput(settings)
+              failOnFields(brandFieldIssues(next), 'Periksa kembali pengaturan brand.')
+              db.brand = { ...brandOf(db), draft: { ...next, version: (prev?.version ?? 0) + 1, updatedAt: nowIso(db), updatedBy: db.user.name } }
+              return brandOf(db)
+            },
+            { admin: true },
+          ),
+        ),
+        // Every visitor gets the draft; refused while any text or control would fall below WCAG AA.
+        publish: call(
+          'admin.brand.publish',
+          (db, { reason, expectedVersion } = {}) => {
+            requireReason(reason)
+            const { draft, published } = brandOf(db)
+            if (!draft) fail('VALIDATION_FAILED', 'Simpan draft dulu sebelum publish.', 400)
+            checkVersion(draft, expectedVersion)
+            const issues = brandIssues(brandVars(draft))
+            if (issues.length) fail('VALIDATION_FAILED', `Kontras belum cukup: ${[...new Set(issues.map((i) => i.label))].join(', ')}.`, 400)
+            db.brand = { draft, published: { ...draft, publishedAt: nowIso(db), publishedBy: db.user.name } }
+            audit(db, { action: 'brand.publish', resource: { type: 'brand', id: 'brand', label: 'Brand' }, reason, before: brandSummary(published), after: brandSummary(draft) })
+            return brandOf(db)
+          },
+          { admin: true },
+        ),
+        // Back to the files' look for everyone: draft and published brand both go.
+        reset: call(
+          'admin.brand.reset',
+          (db, { reason } = {}) => {
+            requireReason(reason)
+            const { draft, published } = brandOf(db)
+            if (!draft && !published) fail('VALIDATION_FAILED', 'Brand sudah memakai tampilan default.', 400)
+            db.brand = { draft: null, published: null }
+            audit(db, { action: 'brand.reset', resource: { type: 'brand', id: 'brand', label: 'Brand' }, reason, before: brandSummary(published ?? draft), after: null })
+            return brandOf(db)
           },
           { admin: true },
         ),

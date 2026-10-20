@@ -7,8 +7,9 @@ import { bookingLink, whatsappLink } from '@/data/support'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Spinner } from './ui'
+import { brand } from '@/brand/brand'
 
-const overlay = 'fixed inset-0 z-50 bg-[#0b1b3380] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0'
+const overlay = 'fixed inset-0 z-50 bg-inverse/50 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0'
 const content =
   'fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-card bg-card p-7 text-foreground shadow-pop outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95'
 
@@ -40,7 +41,7 @@ export function ConfirmDialog({ open, onOpenChange, title, body, note, children,
           )}
           <div className="flex flex-col gap-2">
             <AlertDialogPrimitive.Title className="text-xl font-extrabold">{title}</AlertDialogPrimitive.Title>
-            <AlertDialogPrimitive.Description className="text-sm leading-[21px] text-ink-3">{body}</AlertDialogPrimitive.Description>
+            <AlertDialogPrimitive.Description className="text-sm leading-[21px] text-muted-foreground">{body}</AlertDialogPrimitive.Description>
             {note && <p className="text-sm font-semibold text-success">{note}</p>}
           </div>
           {children}
@@ -80,7 +81,7 @@ export function FormDialog({ open, onOpenChange, title, description, children, c
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-col gap-1.5">
               <DialogPrimitive.Title className="text-xl font-extrabold">{title}</DialogPrimitive.Title>
-              {description && <DialogPrimitive.Description className="text-sm leading-[21px] text-ink-3">{description}</DialogPrimitive.Description>}
+              {description && <DialogPrimitive.Description className="text-sm leading-[21px] text-muted-foreground">{description}</DialogPrimitive.Description>}
             </div>
             <DialogPrimitive.Close className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border text-foreground hover:bg-muted" aria-label="Tutup">
               <XIcon className="size-5" />
@@ -97,10 +98,10 @@ export function FormDialog({ open, onOpenChange, title, description, children, c
 // new tab with the user's name and account email filled in: the email is what the team searches in admin.
 // `topic` is what the user is asking about, e.g. "pengajuan KPR Primary di Bank ABC".
 export function ContactCsDialog({ open, onOpenChange, support, name, email, topic }) {
-  const wa = whatsappLink(support?.whatsapp, [`Halo CS RuangKPR, saya ${name}.`, email && `Email akun: ${email}`, `Saya ingin bertanya tentang ${topic || 'KPR'}.`].filter(Boolean).join('\n'))
+  const wa = whatsappLink(support?.whatsapp, [`Halo CS ${brand.name}, saya ${name}.`, email && `Email akun: ${email}`, `Saya ingin bertanya tentang ${topic || 'KPR'}.`].filter(Boolean).join('\n'))
   const booking = bookingLink(support?.bookingUrl, { name, email, notes: topic && `Konsultasi ${topic}.` })
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title="Hubungi CS RuangKPR" description="Senin–Jumat, 08.00–17.00 WIB.">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={`Hubungi CS ${brand.name}`} description="Senin–Jumat, 08.00–17.00 WIB.">
       {wa && (
         <Button asChild size="md">
           <a href={wa} target="_blank" rel="noopener noreferrer">
@@ -120,8 +121,8 @@ export function ContactCsDialog({ open, onOpenChange, support, name, email, topi
           <p className="text-xs leading-[18px] text-muted-foreground">Pilih jam yang masih kosong. Jadwal yang tampil sudah menyesuaikan kesibukan tim marketing.</p>
         </div>
       )}
-      <p className="text-sm leading-[21px] text-ink-3">
-        Atau email <b>cs@ruangkpr.id</b>
+      <p className="text-sm leading-[21px] text-muted-foreground">
+        Atau email <b>{brand.supportEmail}</b>
         {email ? <> dari {email}, supaya tim langsung menemukan data kamu.</> : '.'}
       </p>
       <Button variant="neutral" size="md" onClick={() => onOpenChange(false)}>
@@ -148,12 +149,12 @@ export function SuccessDialog({ title, body, children, onClose }) {
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={overlay} />
         <DialogPrimitive.Content className={cn(content, 'max-w-[440px] items-center text-center')}>
-          <span className="flex size-[72px] items-center justify-center rounded-full bg-success-bg text-success-strong" aria-hidden>
+          <span className="flex size-[72px] items-center justify-center rounded-full bg-success-bg text-success" aria-hidden>
             <CircleCheckIcon className="size-9" />
           </span>
           <div className="flex flex-col gap-2">
             <DialogPrimitive.Title className="text-2xl font-extrabold">{title}</DialogPrimitive.Title>
-            <DialogPrimitive.Description className="text-[15px] leading-[22px] text-ink-3">{body}</DialogPrimitive.Description>
+            <DialogPrimitive.Description className="text-[15px] leading-[22px] text-muted-foreground">{body}</DialogPrimitive.Description>
           </div>
           {children}
           <DialogPrimitive.Close asChild>

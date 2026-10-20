@@ -31,7 +31,7 @@ function PartialSchedule({ d }) {
   return (
     <section className="flex flex-col items-start gap-2.5 rounded-card border border-warning-border bg-card p-7">
       <h2 className="text-[17px] font-extrabold">Jadwal belum bisa dihitung lengkap.</h2>
-      <p className="text-sm text-ink-3">Data yang belum tersedia: {d.scheduleMissing.join(', ')}. Kami tidak menampilkan jadwal perkiraan tanpa data ini.</p>
+      <p className="text-sm text-muted-foreground">Data yang belum tersedia: {d.scheduleMissing.join(', ')}. Kami tidak menampilkan jadwal perkiraan tanpa data ini.</p>
       <Button size="md" onClick={() => navigate('/monitoring/setup/1?edit=mykpr')}>
         Lengkapi Data Bunga
       </Button>
@@ -79,7 +79,7 @@ export function AmortizationPage() {
             ]}
           />
           <div data-tour="amort-rate" className="mt-3.5 flex flex-col gap-1 rounded-xl bg-muted px-4 py-3.5">
-            <span className="text-xs font-extrabold text-ink-3">Asumsi rate</span>
+            <span className="text-xs font-extrabold text-muted-foreground">Asumsi rate</span>
             <span className="text-sm font-bold">
               {s.assumptions.map((a) => `${percentBps(a.annualRateBps)} ${a.rateType}${a.estimated ? ' (estimasi)' : ''}`).join(' → ')}
             </span>
@@ -88,7 +88,7 @@ export function AmortizationPage() {
         <Panel data-tour="amort-chart" className="sm:p-7">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-[17px] font-extrabold">Komposisi Pembayaran per Tahun</h2>
-            <div className="flex gap-3.5 text-xs font-bold text-ink-3" aria-hidden>
+            <div className="flex gap-3.5 text-xs font-bold text-muted-foreground" aria-hidden>
               <span className="flex items-center gap-1.5">
                 <span className="size-3 rounded-[3px] bg-primary" />
                 Pokok
@@ -187,7 +187,7 @@ export function AmortizationSchedulePage() {
       <Panel className="gap-[18px] sm:p-7">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3.5">
-            <span className="text-sm font-semibold text-ink-3" id="view-label">
+            <span className="text-sm font-semibold text-muted-foreground" id="view-label">
               Tampilan
             </span>
             <div role="group" aria-labelledby="view-label" className="flex gap-1 rounded-full bg-muted p-1">
@@ -195,13 +195,13 @@ export function AmortizationSchedulePage() {
                 ['bulanan', 'Bulanan'],
                 ['tahunan', 'Tahunan'],
               ].map(([k, l]) => (
-                <button key={k} type="button" aria-pressed={view === k} onClick={() => set({ view: k })} className={cn('h-10 rounded-full px-[18px] text-[13px] font-bold', view === k ? 'bg-card text-primary shadow-sm' : 'text-ink-3')}>
+                <button key={k} type="button" aria-pressed={view === k} onClick={() => set({ view: k })} className={cn('h-10 rounded-full px-[18px] text-[13px] font-bold', view === k ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground')}>
                   {l}
                 </button>
               ))}
             </div>
             {view === 'bulanan' && (
-              <label className="flex items-center gap-2.5 text-sm font-semibold text-ink-3">
+              <label className="flex items-center gap-2.5 text-sm font-semibold text-muted-foreground">
                 Tahun
                 <select value={year} onChange={(e) => set({ year: e.target.value })} className="h-11 rounded-lg border border-input bg-field px-3.5 text-sm font-bold text-foreground">
                   {years.map((y) => (
@@ -218,7 +218,7 @@ export function AmortizationSchedulePage() {
         <div className="relative overflow-x-auto rounded-2xl border border-border" tabIndex={0} role="region" aria-label="Tabel jadwal amortisasi (dapat digeser)">
           <table className="w-full min-w-[860px] border-collapse text-[13px] tabular">
             <caption className="sr-only">Jadwal amortisasi {view === 'bulanan' ? `bulanan tahun ${year}` : 'tahunan'}. Tanda * = bunga estimasi.</caption>
-            <thead className="bg-muted text-xs font-extrabold text-ink-3">
+            <thead className="bg-muted text-xs font-extrabold text-muted-foreground">
               <tr>
                 <th scope="col" className="sticky left-0 bg-muted px-[18px] py-3.5 text-left">
                   {view === 'bulanan' ? 'Tanggal Angsuran' : 'Tahun'}
@@ -238,7 +238,7 @@ export function AmortizationSchedulePage() {
                 <Fragment key={r.key}>
                   {r.banner && (
                     <tr>
-                      <td colSpan={7} className="border-t border-warning-border bg-warning-soft px-[18px] py-2.5 text-[13px] font-bold text-warning">
+                      <td colSpan={7} className="border-t border-warning-border bg-warning-bg px-[18px] py-2.5 text-[13px] font-bold text-warning">
                         <span className="flex items-center gap-2">
                           <TriangleAlertIcon className="size-4" aria-hidden />
                           {r.banner}
@@ -246,11 +246,11 @@ export function AmortizationSchedulePage() {
                       </td>
                     </tr>
                   )}
-                  <tr className="border-t border-line">
+                  <tr className="border-t border-border">
                     <th scope="row" className="sticky left-0 bg-card px-[18px] py-3 text-left font-bold">
                       {r.label}
                     </th>
-                    <td className={cn('px-3 py-3 font-semibold', r.estimate && 'text-warning-text')}>{r.rate}</td>
+                    <td className={cn('px-3 py-3 font-semibold', r.estimate && 'text-warning')}>{r.rate}</td>
                     {r.cells.map((c, i) => (
                       <td key={HEAD[i]} className={cn('px-3 py-3 text-right last:pr-[18px]', i === 1 && 'font-bold')}>
                         {rupiah(c)}

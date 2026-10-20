@@ -96,7 +96,7 @@ function OtherDraftNotice({ app, onDeleted }) {
     <>
       <PageHeader title="Pengajuan lain masih aktif" back="/" />
       <Panel>
-        <p className="text-sm leading-[21px] text-ink-3">
+        <p className="text-sm leading-[21px] text-muted-foreground">
           Kamu masih punya pengajuan <b>{productName(app)}</b>. MVP mendukung satu pengajuan aktif. Lanjutkan pengajuan itu, atau hapus draft-nya untuk memulai KPR Primary.
         </p>
         <div className="flex flex-wrap gap-3">
@@ -192,7 +192,7 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules }) {
           </Button>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
             {!complete && <span className="text-center text-xs text-muted-foreground">Upload semua dokumen wajib untuk lanjut.</span>}
-            <Button onClick={next} aria-disabled={!complete} aria-busy={saving} className={!complete ? 'bg-border text-ink-3 hover:bg-border' : ''}>
+            <Button onClick={next} aria-disabled={!complete} aria-busy={saving} className={!complete ? 'bg-border text-muted-foreground hover:bg-border' : ''}>
               {saving && <Spinner />}
               {fromReview ? 'Simpan & kembali ke Review' : 'Lanjutkan'}
             </Button>
@@ -201,12 +201,12 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules }) {
       </div>
       {/* Same counter aside as the Take Over documents step. */}
       <aside className="flex flex-col gap-3.5 rounded-card bg-card p-6 shadow-card xl:sticky xl:top-6">
-        <span className="text-[13px] font-extrabold text-ink-3">Dokumen wajib</span>
+        <span className="text-[13px] font-extrabold text-muted-foreground">Dokumen wajib</span>
         <span className="text-[30px] font-extrabold" role="status">
           {done} <span className="text-base text-muted-foreground">dari {required.length} terunggah</span>
         </span>
-        <ProgressBar value={(done / Math.max(1, required.length)) * 100} label="Dokumen wajib terunggah" barClassName="bg-success-strong" />
-        <p className="text-[13px] leading-5 text-ink-3">{uploadHint(uploadRules)} per file. File tersimpan otomatis begitu dipilih.</p>
+        <ProgressBar value={(done / Math.max(1, required.length)) * 100} label="Dokumen wajib terunggah" barClassName="bg-success-solid" />
+        <p className="text-[13px] leading-5 text-muted-foreground">{uploadHint(uploadRules)} per file. File tersimpan otomatis begitu dipilih.</p>
         {isMock && (import.meta.env.DEV || isDemo) && !complete && (
           <button type="button" onClick={fillDemo} disabled={demoPending} className="w-fit text-[13px] font-bold text-primary underline">
             {demoPending ? 'Mengisi…' : 'Isi contoh'}
@@ -332,7 +332,7 @@ function ReviewStep({ app, go }) {
             {app.requiredDocuments.map((d) => {
               const ok = ['uploaded', 'verified'].includes(app.documents[d.type]?.status)
               return (
-                <span key={d.type} className={cn('rounded-full px-3 py-1.5 text-[13px] font-bold', ok ? 'bg-success-bg text-success' : d.required ? 'bg-danger-bg text-danger-strong' : 'bg-muted text-ink-3')}>
+                <span key={d.type} className={cn('rounded-full px-3 py-1.5 text-[13px] font-bold', ok ? 'bg-success-bg text-success' : d.required ? 'bg-danger-bg text-danger' : 'bg-muted text-muted-foreground')}>
                   {ok ? `✓ ${d.label}` : d.required ? `✕ ${d.label}` : `${d.label} · opsional`}
                 </span>
               )
@@ -353,17 +353,17 @@ function ReviewStep({ app, go }) {
       </Panel>
 
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-card bg-card px-6 py-[22px] shadow-card">
-        <div className="flex min-w-[240px] flex-1 flex-col gap-1 text-[13px] leading-5 text-ink-3">
+        <div className="flex min-w-[240px] flex-1 flex-col gap-1 text-[13px] leading-5 text-muted-foreground">
           <span>Pengajuan ini hanya dikirim ke satu bank/program{s ? `: ${s.bankName}` : ''}. Setelah submit, data tidak bisa diubah kecuali diminta bank.</span>
           <Disclaimer>Semua angka adalah estimasi, bukan persetujuan kredit.</Disclaimer>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <Button onClick={submit} aria-disabled={!canSubmit || pending} aria-busy={pending} className={!canSubmit ? 'bg-border text-ink-3 hover:bg-border' : ''}>
+          <Button onClick={submit} aria-disabled={!canSubmit || pending} aria-busy={pending} className={!canSubmit ? 'bg-border text-muted-foreground hover:bg-border' : ''}>
             {pending && <Spinner />}
             {pending ? 'Mengirim…' : 'Submit Pengajuan'}
           </Button>
-          {!allOk && <span className="text-xs text-warning-text">Lengkapi bagian bertanda ⚠ dulu.</span>}
-          {allOk && !canSubmit && <span className="text-xs text-warning-text">Centang kedua persetujuan untuk submit.</span>}
+          {!allOk && <span className="text-xs text-warning">Lengkapi bagian bertanda ⚠ dulu.</span>}
+          {allOk && !canSubmit && <span className="text-xs text-warning">Centang kedua persetujuan untuk submit.</span>}
         </div>
       </div>
     </div>

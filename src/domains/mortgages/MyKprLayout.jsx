@@ -33,7 +33,7 @@ export function MyKprResolver() {
       {draft ? (
         <Panel className="max-w-[720px] gap-5 sm:p-7">
           <div className="flex flex-col gap-1.5">
-            <span className="w-fit rounded-full bg-muted px-3 py-1 text-xs font-extrabold text-ink-3">Draft Pantau KPR</span>
+            <span className="w-fit rounded-full bg-muted px-3 py-1 text-xs font-extrabold text-muted-foreground">Draft Pantau KPR</span>
             <h2 className="text-[22px] font-extrabold">Lanjutkan pengaturan KPR kamu</h2>
             <p className="text-[13px] text-muted-foreground">Terakhir disimpan {dateShort(draft.updatedAt ?? draft.createdAt)}</p>
           </div>
@@ -74,15 +74,15 @@ export function MyKprResolver() {
       ) : (
         <EmptyState
           media={
-            // The drawing sits on #FEFEFE with ground cut at the sides: brightness lifts it to card white,
+            // The drawing sits on near-white with ground cut at the sides: brightness lifts it to card white,
             // the mask fades the cut, and the negative margins absorb its built-in whitespace.
             <img
-              src="/no-kpr-page.webp"
+              src="/brand/no-kpr-page.webp"
               alt=""
               width={1448}
               height={1086}
               decoding="async"
-              className="-mt-4 -mb-3 h-auto w-full max-w-[340px] brightness-[1.02] [mask-image:linear-gradient(90deg,transparent,#000_10%,#000_90%,transparent)] sm:max-w-[380px]"
+              className="-mt-4 -mb-3 h-auto w-full max-w-[340px] brightness-[1.02] [mask-image:linear-gradient(90deg,transparent,black_10%,black_90%,transparent)] sm:max-w-[380px]"
             />
           }
           title="Belum ada KPR atau pengajuan"
@@ -131,7 +131,7 @@ export function MyKprLayout() {
       <TabsPrimitive.Root value={tab} onValueChange={(v) => navigate(`/my-kpr/${v}`)} className="flex flex-col gap-5">
         <TabsPrimitive.List aria-label="Detail KPR" className="relative flex w-full max-w-full gap-1 self-start overflow-x-auto rounded-full border border-border bg-card p-1 sm:w-fit">
           {TABS.map(([k, label]) => (
-            <TabsPrimitive.Trigger key={k} value={k} data-tour={`tab-${k}`} className="h-11 shrink-0 rounded-full px-[22px] text-sm font-bold text-ink-3 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 data-[state=active]:bg-primary data-[state=active]:text-white">
+            <TabsPrimitive.Trigger key={k} value={k} data-tour={`tab-${k}`} className="h-11 shrink-0 rounded-full px-[22px] text-sm font-bold text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 data-[state=active]:bg-primary data-[state=active]:text-white">
               {label}
             </TabsPrimitive.Trigger>
           ))}

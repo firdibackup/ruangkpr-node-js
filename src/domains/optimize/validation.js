@@ -122,8 +122,7 @@ export function validateTakeoverProperty(v, { mode }) {
 }
 
 
-// Take Over draft data from a monitored KPR plus the reusable profile. Shared by the API (draft creation) and the
-// start page, which needs the same gaps before any draft exists.
+// Take Over draft data from a monitored KPR plus the reusable profile (API draft creation and Peluang's apply).
 export function takeoverDataFromMortgage(m, { personal, employment, goal }) {
   const pr = m.property ?? {}
   const f = m.finance ?? {}
@@ -168,12 +167,6 @@ export function takeoverGaps(data, { today, mode }) {
   ]
     .filter(([, errors]) => Object.keys(errors).length)
     .map(([path]) => path)
-}
-
-// Gaps of a Take Over started from the monitored KPR (start page, Home shortcuts): bank choices wait for these.
-export function mortgageTakeoverGaps(m, snap, mode) {
-  const data = takeoverDataFromMortgage(m, { personal: snap.profile ?? {}, employment: { ...snap.profile, ...snap.finance }, goal: {} })
-  return takeoverGaps(data, { today: snap.clock, mode })
 }
 
 // Default goal from the monitored KPR: Explore's opportunity and Home's direct program lists. Top-up uses the

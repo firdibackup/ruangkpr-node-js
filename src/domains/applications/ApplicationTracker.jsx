@@ -48,6 +48,7 @@ import {
   trackerSteps,
 } from "./meta";
 import { KprSwitch } from "./KprSwitch";
+import { brand } from "@/brand/brand";
 
 const CANCELLABLE = [
   "submitted",
@@ -67,7 +68,7 @@ export function StageNoteCard({ app }) {
   return (
     <Panel>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <PanelTitle>Info dari tim RuangKPR</PanelTitle>
+        <PanelTitle>Info dari tim {brand.name}</PanelTitle>
         {appraisal && !s ? (
           <Chip tone="warn" icon={ClockIcon}>
             Menunggu konfirmasi
@@ -77,7 +78,7 @@ export function StageNoteCard({ app }) {
         )}
       </div>
       {appraisal && !s && (
-        <p className="text-sm leading-[22px] text-ink-2">
+        <p className="text-sm leading-[22px] text-foreground">
           Jadwal appraisal akan dikonfirmasi tim lewat WhatsApp.
         </p>
       )}
@@ -92,7 +93,7 @@ export function StageNoteCard({ app }) {
         />
       )}
       {note?.message && (
-        <p className="text-sm leading-[22px] text-ink-2">{note.message}</p>
+        <p className="text-sm leading-[22px] text-foreground">{note.message}</p>
       )}
       {note && (
         <span className="text-xs text-muted-foreground">
@@ -108,7 +109,7 @@ export function PendingDocs({ app }) {
   return (
     <ul className="flex flex-col gap-1.5">
       {(app.pendingActions ?? []).map((p) => (
-        <li key={p.id} className="text-sm leading-[21px] text-ink-2">
+        <li key={p.id} className="text-sm leading-[21px] text-foreground">
           <span className="font-bold">{DOC_LABELS[p.documentType] ?? p.documentType}</span> — {p.message}
         </li>
       ))}
@@ -312,7 +313,7 @@ function heroFor(app, snap) {
         icon: RulerIcon,
         tag: "Appraisal",
         title: "Appraisal properti dijadwalkan",
-        body: "Tim RuangKPR akan mengonfirmasi jadwal survei properti dengan kamu lewat WhatsApp. Nilai appraisal bisa berbeda dari estimasi kamu.",
+        body: `Tim ${brand.name} akan mengonfirmasi jadwal survei properti dengan kamu lewat WhatsApp. Nilai appraisal bisa berbeda dari estimasi kamu.`,
       };
     case "approved":
       return {
@@ -387,7 +388,7 @@ function Tracker({ app, snap, onChange, reload }) {
       { onProgress },
     );
     onChange(next);
-    toast("Dokumen terbaru terkirim ke tim RuangKPR.");
+    toast(`Dokumen terbaru terkirim ke tim ${brand.name}.`);
   };
 
   return (
@@ -398,7 +399,7 @@ function Tracker({ app, snap, onChange, reload }) {
             className={cn(
               "flex flex-col gap-3.5 rounded-card p-6 shadow-card sm:p-7",
               hero.tone === "warn"
-                ? "border border-[#f2d27a] bg-[#fff6dd]"
+                ? "border border-warning-border bg-warning-bg"
                 : "bg-card",
             )}
           >
@@ -424,7 +425,7 @@ function Tracker({ app, snap, onChange, reload }) {
                 <h2 className="text-xl font-extrabold">{hero.title}</h2>
               </div>
             </div>
-            <p className="text-sm leading-[22px] text-ink-2">{hero.body}</p>
+            <p className="text-sm leading-[22px] text-foreground">{hero.body}</p>
             {hero.rows && <SummaryRows size="sm" rows={hero.rows} />}
             {hero.cta && (
               <Button
@@ -440,13 +441,13 @@ function Tracker({ app, snap, onChange, reload }) {
         {!rejected && <StageNoteCard app={app} />}
 
         {pending.length > 0 && (
-          <section className="flex flex-col gap-3 rounded-card border border-[#f2d27a] bg-[#fff6dd] p-6">
+          <section className="flex flex-col gap-3 rounded-card border border-warning-border bg-warning-bg p-6">
             <span className="flex items-center gap-2 text-[13px] font-extrabold text-warning">
               <TriangleAlertIcon className="size-4" aria-hidden />
-              Permintaan tim RuangKPR · {dateShort(pending[0].requestedAt)}
+              Permintaan tim {brand.name} · {dateShort(pending[0].requestedAt)}
             </span>
             <PendingDocs app={app} />
-            <p className="text-sm text-ink-2">
+            <p className="text-sm text-foreground">
               Upload ulang langsung di daftar dokumen di bawah.
             </p>
           </section>
@@ -488,7 +489,7 @@ function Tracker({ app, snap, onChange, reload }) {
         </Panel>
 
         {rejected ? (
-          <section className="flex flex-col gap-4 rounded-card border-t-4 border-brand-red bg-card p-6 shadow-card sm:p-7">
+          <section className="flex flex-col gap-4 rounded-card border-t-4 border-danger-solid bg-card p-6 shadow-card sm:p-7">
             <div className="flex flex-col gap-1.5">
               <span className="text-[13px] font-bold text-muted-foreground">
                 Alasan penolakan
@@ -498,7 +499,7 @@ function Tracker({ app, snap, onChange, reload }) {
               </span>
             </div>
             <div className="flex flex-col gap-2">
-              <span className="text-[13px] font-extrabold text-ink-3">
+              <span className="text-[13px] font-extrabold text-muted-foreground">
                 Yang dapat dilakukan
               </span>
               {[
@@ -678,7 +679,7 @@ function DemoControls({ app, reload }) {
     reload();
   };
   return (
-    <div className="flex flex-col gap-2.5 rounded-3xl border border-dashed border-[#aeb9cc] p-[18px]">
+    <div className="flex flex-col gap-2.5 rounded-3xl border border-dashed border-input p-[18px]">
       <span className="text-[11px] font-extrabold tracking-[0.5px] text-muted-foreground">
         MODE DEMO · SIMULASI RESPONS BANK
       </span>

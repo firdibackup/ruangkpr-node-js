@@ -26,11 +26,11 @@ export function OverviewTab() {
   return (
     <section className="grid grid-cols-1 gap-7 rounded-card bg-card p-6 shadow-card md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] sm:p-7" aria-label="Ringkasan KPR">
       <div className="flex min-w-0 flex-col gap-4">
-        <span className="text-[13px] font-extrabold text-ink-3">Sisa Pokok {(m.outstandingEstimated || m.outstandingProjected) && <EstimateTag />}</span>
+        <span className="text-[13px] font-extrabold text-muted-foreground">Sisa Pokok {(m.outstandingEstimated || m.outstandingProjected) && <EstimateTag />}</span>
         <span className="text-[34px] font-extrabold tracking-[-1px] tabular sm:text-[40px]">{rupiah(m.outstandingPrincipal)}</span>
-        <span className="mt-2 text-[13px] font-extrabold text-ink-3">Progress Pokok</span>
+        <span className="mt-2 text-[13px] font-extrabold text-muted-foreground">Progress Pokok</span>
         {d.paidRatio == null ? (
-          <span className="flex flex-wrap items-center gap-x-2 text-sm text-ink-3">
+          <span className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
             Progres pelunasan belum diketahui.
             <Link to={progressGap(m, 'mykpr').to} className="flex min-h-11 items-center font-bold text-primary underline">
               {progressGap(m, 'mykpr').label}
@@ -42,7 +42,7 @@ export function OverviewTab() {
             <span className="text-sm font-bold text-primary">{percentProgress(d.paidRatio)} lunas</span>
           </>
         )}
-        <div className="grid grid-cols-3 gap-2 border-t border-line pt-3.5">
+        <div className="grid grid-cols-3 gap-2 border-t border-border pt-3.5">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm font-extrabold">{monthYear(m.startDate)}</span>
             <span className="text-xs text-muted-foreground">Mulai</span>
@@ -94,9 +94,9 @@ export function PaymentTab() {
   return (
     <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
       <Panel className="gap-3 sm:p-7">
-        <span className="text-[13px] font-extrabold text-ink-3">Pembayaran berikutnya {d.termsEstimated && <EstimateTag />}</span>
+        <span className="text-[13px] font-extrabold text-muted-foreground">Pembayaran berikutnya {d.termsEstimated && <EstimateTag />}</span>
         <span className="text-[34px] font-extrabold tracking-[-0.6px] tabular">{rupiah(d.payment)}</span>
-        <span className="text-sm text-ink-3">
+        <span className="text-sm text-muted-foreground">
           {dateLong(d.nextDue)} · {daysLabel(d.daysToNextDue)}
         </span>
         {row ? (
@@ -131,7 +131,7 @@ export function PaymentTab() {
             const past = due < snap.clock
             const label = `${monthName(due)} ${due.slice(0, 4)}`
             return (
-              <li key={due} className="flex min-h-[60px] flex-wrap items-center justify-between gap-2 border-b border-line px-1 py-2 text-sm last:border-b-0">
+              <li key={due} className="flex min-h-[60px] flex-wrap items-center justify-between gap-2 border-b border-border px-1 py-2 text-sm last:border-b-0">
                 <span className="flex min-w-[120px] flex-1 basis-0 flex-col gap-0.5">
                   <span className="font-bold">{label}</span>
                   {p?.proof && (
@@ -143,7 +143,7 @@ export function PaymentTab() {
                   )}
                 </span>
                 <span className="flex items-center gap-3">
-                  <span className={`flex items-center gap-1.5 font-bold ${p ? 'text-success' : past ? 'text-warning-text' : 'text-muted-foreground'}`}>
+                  <span className={`flex items-center gap-1.5 font-bold ${p ? 'text-success' : past ? 'text-warning' : 'text-muted-foreground'}`}>
                     {p ? <CircleCheckIcon className="size-4" aria-hidden /> : past ? <CircleAlertIcon className="size-4" aria-hidden /> : <CircleIcon className="size-4" aria-hidden />}
                     {p ? `Ditandai dibayar ${dateShort(p.paidAt)}` : past ? 'Belum ditandai' : 'Mendatang'}
                   </span>
@@ -233,12 +233,12 @@ export function RateTab() {
     <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
       <Panel className="gap-[18px] sm:p-7">
         <div className="flex flex-col gap-1">
-          <span className="text-[13px] font-extrabold text-ink-3">Bunga saat ini</span>
+          <span className="text-[13px] font-extrabold text-muted-foreground">Bunga saat ini</span>
           <span className="text-[34px] font-extrabold">
             {unknown ? (m.currentRateBps ? percentBps(m.currentRateBps) : rateTypeLabel(null)) : `${d.rateBps ? `${percentBps(d.rateBps)} ` : ''}${fixed ? 'Fixed' : 'Floating'}`}
           </span>
           {d.termsEstimated && (
-            <span className="flex flex-wrap items-center gap-x-2 text-[13px] text-ink-3">
+            <span className="flex flex-wrap items-center gap-x-2 text-[13px] text-muted-foreground">
               <EstimateTag /> Masa fixed sudah berakhir. Perbarui bunga dari bank.
               <Link to="/monitoring/setup/1?edit=rate" className="flex min-h-11 items-center font-bold text-primary underline">
                 Perbarui bunga
@@ -246,7 +246,7 @@ export function RateTab() {
             </span>
           )}
           {unknown && (
-            <span className="flex flex-wrap items-center gap-x-2 text-base font-bold text-warning-text">
+            <span className="flex flex-wrap items-center gap-x-2 text-base font-bold text-warning">
               Jenis bunga belum diketahui
               <Link to="/monitoring/setup/1?edit=rate" className="flex min-h-11 items-center text-[13px] text-primary underline">
                 Isi jenis bunga
@@ -257,19 +257,19 @@ export function RateTab() {
         {fixed && m.fixedUntil && (
           <>
             <div className="flex flex-col gap-1">
-              <span className="text-[13px] font-extrabold text-ink-3">Fixed berakhir</span>
+              <span className="text-[13px] font-extrabold text-muted-foreground">Fixed berakhir</span>
               <span className="text-base font-bold">
                 {dateLong(m.fixedUntil)} · {daysLabel(daysUntil({ fromDate: snap.clock, targetDate: m.fixedUntil }))}
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[13px] font-extrabold text-ink-3">Berikutnya</span>
+              <span className="text-[13px] font-extrabold text-muted-foreground">Berikutnya</span>
               {m.estimatedFloatingRateBps ? (
                 <span className="flex items-center gap-2 text-base font-bold">
                   Floating {percentBps(m.estimatedFloatingRateBps)} <EstimateTag />
                 </span>
               ) : (
-                <span className="flex flex-wrap items-center gap-2 text-base font-bold text-warning-text">
+                <span className="flex flex-wrap items-center gap-2 text-base font-bold text-warning">
                   Estimasi floating belum diisi
                   <Link to="/monitoring/setup/1?edit=rate" className="text-[13px] text-primary underline">
                     Edit
@@ -280,7 +280,7 @@ export function RateTab() {
           </>
         )}
         <div className="flex flex-col gap-1 rounded-2xl bg-muted px-[18px] py-4">
-          <span className="text-[13px] font-extrabold text-ink-3">Dampak cicilan</span>
+          <span className="text-[13px] font-extrabold text-muted-foreground">Dampak cicilan</span>
           <span className="text-base font-extrabold">
             {fi ? (
               <>
@@ -343,12 +343,12 @@ export function PropertyTab() {
       <div className="flex min-w-0 flex-col gap-2.5">
         <h2 className="text-xl font-extrabold">{p.address || 'Alamat belum diisi'}</h2>
         {p.type ? (
-          <span className="text-sm text-ink-3">
+          <span className="text-sm text-muted-foreground">
             {labelOf(PROPERTY_TYPES, p.type)} · LT {p.landArea ?? '–'} / LB {p.buildingArea ?? '–'} · {labelOf(CERTIFICATES, p.certificateType)}
           </span>
         ) : (
           // Not asked in the setup: filled here or from Home, after activation.
-          <span className="text-sm text-ink-3">Detail properti belum diisi.</span>
+          <span className="text-sm text-muted-foreground">Detail properti belum diisi.</span>
         )}
         <SummaryRows
           className="mt-2"
@@ -390,7 +390,7 @@ export function PropertyTab() {
         ) : (
           GEOAPIFY_KEY && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-border py-2 pr-2 pl-4">
-              <span className="flex items-center gap-2 text-sm text-ink-3">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
                 <MapPinIcon className="size-4 shrink-0" aria-hidden />
                 Lokasi di peta belum ditandai.
               </span>
@@ -400,7 +400,7 @@ export function PropertyTab() {
             </div>
           )
         )}
-        <span className="text-[13px] text-ink-3">{hasValue ? `Nilai diperbarui ${dateShort(p.valueAsOf)}` : 'Nilai properti belum diisi.'}</span>
+        <span className="text-[13px] text-muted-foreground">{hasValue ? `Nilai diperbarui ${dateShort(p.valueAsOf)}` : 'Nilai properti belum diisi.'}</span>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" size="md" onClick={() => setOpen(true)}>
             <RefreshCwIcon aria-hidden />
@@ -411,7 +411,7 @@ export function PropertyTab() {
             {p.type ? 'Edit Data Properti' : 'Lengkapi Data Properti'}
           </Button>
         </div>
-        <div className="flex flex-col gap-1.5 rounded-2xl bg-muted px-[18px] py-4 text-[13px] leading-5 text-ink-3">
+        <div className="flex flex-col gap-1.5 rounded-2xl bg-muted px-[18px] py-4 text-[13px] leading-5 text-muted-foreground">
           <span>Nilai properti bukan appraisal resmi.</span>
           <span>Equity bukan otomatis dana tunai.</span>
         </div>

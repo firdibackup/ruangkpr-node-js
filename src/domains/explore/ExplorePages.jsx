@@ -117,13 +117,13 @@ function ActiveExplore({ data }) {
       img: 2,
       go: () => navigate("/optimize/start?mode=topup"),
     },
-    {
-      key: "multiguna",
-      name: "Multiguna",
-      desc: "Pinjaman baru dengan agunan rumah.",
-      img: 3,
-      go: () => setMultiguna(true),
-    },
+    // {
+    //   key: "multiguna",
+    //   name: "Multiguna",
+    //   desc: "Pinjaman baru dengan agunan rumah.",
+    //   img: 3,
+    //   go: () => setMultiguna(true),
+    // },
   ];
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
@@ -136,12 +136,12 @@ function ActiveExplore({ data }) {
             className={cn(
               "group relative isolate flex min-h-[272px] items-end overflow-hidden rounded-3xl bg-foreground p-6 text-left text-white shadow-card transition-colors hover:border-primary sm:min-h-[188px] sm:items-center",
               p.warn
-                ? "border-2 border-warning-accent"
+                ? "border-2 border-warning-border"
                 : "border border-transparent",
             )}
           >
             <img
-              src={`/service/${p.img}.webp`}
+              src={`/brand/service/${p.img}.webp`}
               alt=""
               width={2400}
               height={1792}
@@ -200,10 +200,6 @@ function ActiveExplore({ data }) {
             manual.
           </p>
         )}
-        <Disclaimer>
-          Simulasi tidak membuat pengajuan dan tidak mengirim data ke bank
-          sampai kamu memilih “Ajukan”.
-        </Disclaimer>
       </div>
       <section className="flex flex-col gap-1.5 rounded-3xl border border-border bg-card p-6">
         <h2 className="mb-1.5 text-[17px] font-extrabold">Pelajari</h2>
@@ -211,7 +207,7 @@ function ActiveExplore({ data }) {
           <Link
             key={a.slug}
             to={`/education/${a.slug}`}
-            className="flex min-h-[52px] items-center gap-3 border-b border-line px-1 text-sm font-bold last:border-b-0 hover:text-primary"
+            className="flex min-h-[52px] items-center gap-3 border-b border-border px-1 text-sm font-bold last:border-b-0 hover:text-primary"
           >
             <BookOpenIcon className="size-[17px] text-primary" aria-hidden />
             <span className="flex-1">{a.title}</span>
@@ -224,7 +220,7 @@ function ActiveExplore({ data }) {
         title="Multiguna"
         description="Flow Multiguna belum tersedia pada versi ini."
       >
-        <p className="text-sm leading-[21px] text-ink-3">
+        <p className="text-sm leading-[21px] text-muted-foreground">
           Simulasi Multiguna akan memakai mesin kalkulasi yang sama setelah
           kebijakan mitra bank tervalidasi. Untuk dana tambahan saat ini, coba
           Refinancing + Top-up.
@@ -265,7 +261,7 @@ export function EducationPage() {
         subtitle={`${data.tag} · ${data.minutes} menit baca`}
         back="/explore"
       />
-      <article className="flex max-w-[720px] flex-col gap-4 rounded-card bg-card p-6 text-[15px] leading-[26px] text-ink-2 shadow-card sm:p-8">
+      <article className="flex max-w-[720px] flex-col gap-4 rounded-card bg-card p-6 text-[15px] leading-[26px] text-foreground shadow-card sm:p-8">
         {data.body.map((p) => (
           <p key={p.slice(0, 24)}>{p}</p>
         ))}

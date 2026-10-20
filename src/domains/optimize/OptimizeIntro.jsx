@@ -26,10 +26,10 @@ export function OptimizeIntro() {
           </Chip>
           <div className="flex flex-col gap-2.5">
             <h2 className="text-[28px] leading-9 font-extrabold tracking-[-0.5px] text-pretty">Pindahkan KPR ke bank yang lebih sesuai</h2>
-            <p className="max-w-[560px] text-[15px] leading-6 text-ink-3">Bandingkan KPR sekarang dengan program bank baru memakai biaya total dan break-even, bukan hanya bunga promo. Kamu juga bisa menambah dana (Top-up) dari nilai rumah — estimasi, tetap tergantung appraisal dan kelayakan.</p>
+            <p className="max-w-[560px] text-[15px] leading-6 text-muted-foreground">Bandingkan KPR sekarang dengan program bank baru memakai biaya total dan break-even, bukan hanya bunga promo. Kamu juga bisa menambah dana (Top-up) dari nilai rumah — estimasi, tetap tergantung appraisal dan kelayakan.</p>
           </div>
           <div className="flex flex-col gap-3">
-            <span className="text-[13px] font-extrabold text-ink-3">Yang perlu disiapkan</span>
+            <span className="text-[13px] font-extrabold text-muted-foreground">Yang perlu disiapkan</span>
             {['Data KPR saat ini', 'Data properti', 'Data penghasilan dan cicilan lain', 'Dokumen KPR lama'].map((t) => (
               <span key={t} className="flex items-center gap-2.5 text-sm font-semibold">
                 <span className="flex size-6 items-center justify-center rounded-full bg-success-bg text-success" aria-hidden>
@@ -49,11 +49,11 @@ export function OptimizeIntro() {
                   <Icon className="size-4" aria-hidden />
                   {t}
                 </span>
-                <span className="text-[13px] leading-5 text-ink-3">{dsc}</span>
+                <span className="text-[13px] leading-5 text-muted-foreground">{dsc}</span>
               </div>
             ))}
           </div>
-          <div className="flex flex-wrap gap-[18px] text-[13px] text-ink-3">
+          <div className="flex flex-wrap gap-[18px] text-[13px] text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <ClockIcon className="size-[15px]" aria-hidden />
               Estimasi pengisian 10–15 menit
@@ -89,7 +89,7 @@ export function OptimizeIntro() {
           <HouseIllustration className="absolute inset-0 size-full" />
           <div className="absolute inset-x-4 bottom-4 flex items-start gap-2.5 rounded-xl bg-white/95 px-4 py-3.5 text-primary">
             <ShieldCheckIcon className="size-5 shrink-0" aria-hidden />
-            <span className="text-[13px] leading-5 font-semibold text-ink-2">Data tidak dikirim ke bank sebelum kamu memilih satu program, memberi persetujuan, dan menekan Submit.</span>
+            <span className="text-[13px] leading-5 font-semibold text-foreground">Data tidak dikirim ke bank sebelum kamu memilih satu program, memberi persetujuan, dan menekan Submit.</span>
           </div>
         </div>
       </div>

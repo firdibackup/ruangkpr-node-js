@@ -106,7 +106,7 @@ function SetupLayout({ children, footer, onSubmit, aside }) {
         {aside}
         <div className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-[22px]">
           <LockIcon className="size-5 text-primary" aria-hidden />
-          <p className="text-sm leading-[21px] text-ink-2">Data yang kamu masukkan tidak dikirim ke bank sampai kamu sendiri memilih untuk mengajukan.</p>
+          <p className="text-sm leading-[21px] text-foreground">Data yang kamu masukkan tidak dikirim ke bank sampai kamu sendiri memilih untuk mengajukan.</p>
         </div>
       </aside>
     </form>
@@ -384,7 +384,7 @@ function ReminderStep({ m, clock, reminderDefaults, navigate }) {
           <Button variant="neutral" onClick={() => navigate('/monitoring/setup/1')}>
             Kembali
           </Button>
-          <Button type="submit" disabled={pending} aria-busy={pending} className={!agree ? 'bg-border text-ink-3 hover:bg-border' : ''}>
+          <Button type="submit" disabled={pending} aria-busy={pending} className={!agree ? 'bg-border text-muted-foreground hover:bg-border' : ''}>
             {pending && <Spinner />}
             {pending ? 'Mengaktifkan…' : 'Aktifkan Pemantauan KPR'}
           </Button>
@@ -406,7 +406,7 @@ function ReminderStep({ m, clock, reminderDefaults, navigate }) {
                 </button>
               </div>
               {s.lines.map((l) => (
-                <span key={l} className="text-sm leading-5 text-ink-2">
+                <span key={l} className="text-sm leading-5 text-foreground">
                   {l}
                 </span>
               ))}

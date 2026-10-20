@@ -3,11 +3,13 @@
 @import "shadcn/tailwind.css";
 @import "react-grid-layout/css/styles.css";
 
-/* Tokens copied from the approved Claude Design artifact (RuangKPR App (Standalone).html).
-   Deviation for WCAG AA: muted text #6B7A90 (4.36:1 on white) → #5F6E84 (5.2:1). */
+@import "../brand/tokens.css";
+
+/* Utilities over the brand tokens. Colour values live only in src/brand/tokens.css; this file maps them to
+   Tailwind names and is the same in every clone. */
 @theme inline {
-  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-heading: var(--font-sans);
+  --font-sans: var(--body-font);
+  --font-heading: var(--heading-font);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -15,44 +17,62 @@
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-inverse: var(--inverse);
+  --color-inverse-foreground: var(--inverse-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-field: var(--field);
+  --color-placeholder: var(--placeholder);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-pressed: var(--primary-pressed);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-hover: var(--secondary-hover);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
+  --color-cta: var(--cta);
+  --color-cta-foreground: var(--cta-foreground);
+  --color-cta-hover: var(--cta-hover);
+  --color-cta-pressed: var(--cta-pressed);
+  --color-link: var(--link);
+  --color-highlight: var(--highlight);
   --color-ring: var(--ring);
-
-  --color-ink-2: #152033;
-  --color-ink-3: #536176;
-  --color-line: #eef1f6;
-  --color-field: #f6f7fa;
-  --color-primary-dark: #00266b;
-  --color-step-current: #6e93d6;
-  --color-brand-red: #dc1c2e;
-  --color-success: #0e7a43;
-  --color-success-strong: #1b8a5a;
-  --color-success-bg: #e7f6ee;
-  --color-warning: #7a4a00;
-  --color-warning-text: #9a5b00;
-  --color-warning-bg: #fff1c2;
-  --color-warning-soft: #fff8e6;
-  --color-warning-border: #f0d48a;
-  --color-warning-accent: #e0a100;
-  --color-danger: #c4161c;
-  --color-danger-strong: #b3141f;
-  --color-danger-bg: #fdecee;
-  --color-danger-border: #f5c2c7;
-  --color-chart-interest: #9db6e3;
-  --color-opp: #0f9d6b;
-  --color-opp-light: #22c58b;
-  --color-opp-mute: #f1f8f5;
-  --color-opp-mute-border: #cfe5db;
+  --color-disabled: var(--disabled);
+  --color-disabled-foreground: var(--disabled-foreground);
+  --color-step-current: var(--step-current);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+  --color-success-solid: var(--success-solid);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-warning-solid: var(--warning-solid);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+  --color-danger-solid: var(--danger-solid);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
+  --color-info-solid: var(--info-solid);
+  --color-opp: var(--opp);
+  --color-opp-mute: var(--opp-mute);
+  --color-opp-mute-border: var(--opp-mute-border);
+  /* Chart series and status indicator fills (bars, gauges, timeline marks); text uses the status tokens. */
+  --color-chart-principal: var(--chart-principal);
+  --color-chart-interest: var(--chart-interest);
+  --color-chart-step: var(--chart-step);
+  --color-chart-ok: var(--chart-ok);
+  --color-chart-warn: var(--chart-warn);
+  --color-chart-bad: var(--chart-bad);
+  --color-chart-track: var(--chart-track);
 
   --radius-sm: 8px;
   --radius-md: 10px;
@@ -60,44 +80,17 @@
   --radius-xl: 14px;
   --radius-2xl: 16px;
   --radius-3xl: 20px;
-  --radius-card: 24px;
+  --radius-card: var(--card-radius);
 
-  --shadow-card: 0 6px 24px #0b1b3314;
-  --shadow-pop: 0 24px 60px #0b1b3340;
-  --shadow-opp: 0 6px 20px #0f9d6b40;
-  --shadow-opp-hover: 0 10px 28px #0f9d6b59;
+  --shadow-card: var(--card-shadow);
+  --shadow-card-hover: var(--card-shadow-hover);
+  --shadow-pop: var(--pop-shadow);
+  --shadow-opp: var(--opp-shadow);
+  --shadow-opp-hover: var(--opp-shadow-hover);
 }
 
 :root {
-  --background: #f4f6fa;
-  --foreground: #0b1b33;
-  --card: #ffffff;
-  --card-foreground: #0b1b33;
-  --popover: #ffffff;
-  --popover-foreground: #0b1b33;
-  --primary: #003da5;
-  --primary-foreground: #ffffff;
-  --secondary: #e8effb;
-  --secondary-foreground: #003da5;
-  --muted: #f4f6fa;
-  --muted-foreground: #5f6e84;
-  --accent: #e8effb;
-  --accent-foreground: #003da5;
-  --destructive: #dc1c2e;
-  --border: #e6eaf1;
-  --input: #e5e8ef;
-  --ring: #003da5;
   --radius: 12px;
-  /* Chart colours for Recharts, which reads them from SVG attributes rather than utilities. */
-  --chart-principal: #003da5;
-  --chart-interest: #9db6e3;
-  /* Admin counts: the step-current blue, the lighter series beside --chart-principal (passes the CVD check). */
-  --chart-step: #6e93d6;
-  --chart-ok: #1b8a5a;
-  --chart-warn: #e0a100;
-  --chart-warn-text: #9a5b00;
-  --chart-bad: #dc1c2e;
-  --chart-track: #eef1f6;
 }
 
 @layer base {
@@ -111,40 +104,54 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--heading-font);
+  }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
   ::selection {
-    background: color-mix(in srgb, var(--primary) 18%, transparent);
+    background: var(--selection);
+    color: var(--selection-foreground);
+  }
+  ::placeholder {
+    color: var(--placeholder);
+    opacity: 1;
   }
   input[type="range"] {
     accent-color: var(--primary);
   }
+  /* Guideline focus: 2px ring, 2px away from the control. */
   :focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--ring) 55%, transparent);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
 }
 
 @utility hero-gradient {
-  background: linear-gradient(-104.5deg, #00266be6 8.6%, #0a57d0e6 91.4%), #003da5;
+  background: linear-gradient(-104.5deg, var(--hero-from) 8.6%, var(--hero-to) 91.4%);
 }
 
 /* Street skyline ghosted into the hero's right corner. Luminosity keeps the gradient's hue; the mask fades
    the left edge, the sky (top ~35% of the image) and the road (bottom ~30%) so no light rectangle shows. */
 @utility hero-scenery {
-  mask-image: linear-gradient(to left, #000 45%, transparent), linear-gradient(to top, transparent, #000 30% 65%, transparent);
+  mask-image: linear-gradient(to left, black 45%, transparent), linear-gradient(to top, transparent, black 30% 65%, transparent);
   mask-composite: intersect;
   mix-blend-mode: luminosity;
   opacity: 0.22;
 }
 
-/* Opportunity tile with a real value: green spotlight, centre glow capped at 25% so white text stays legible. */
+/* Opportunity tile with a real value: brand spotlight, centre glow capped at 15% so white text stays legible. */
 @utility opp-gradient {
   background:
-    radial-gradient(circle at 50% 50%, #ffffff40, transparent 60%),
-    linear-gradient(135deg, var(--color-opp) 0%, var(--color-opp-light) 50%, var(--color-opp) 100%);
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, white 15%, transparent), transparent 60%),
+    linear-gradient(135deg, var(--opp-dark) 0%, var(--opp) 50%, var(--opp-dark) 100%);
 }
 
 @utility tabular {
@@ -161,7 +168,7 @@
 .react-grid-item.react-grid-placeholder {
   background: var(--primary);
   opacity: 0.1;
-  border-radius: 24px;
+  border-radius: var(--card-radius);
 }
 .react-grid-item > .react-resizable-handle {
   width: 2.75rem;

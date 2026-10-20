@@ -1,6 +1,6 @@
 import { Suspense, lazy, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeftIcon, ArrowRightIcon, ChartColumnIcon, ChevronDownIcon, FileStackIcon, LandmarkIcon, MinusIcon, NewspaperIcon, ScrollTextIcon, SlidersHorizontalIcon, TrendingDownIcon, TrendingUpIcon, UsersIcon } from 'lucide-react'
+import { ArrowLeftIcon, ArrowRightIcon, ChartColumnIcon, ChevronDownIcon, FileStackIcon, LandmarkIcon, MinusIcon, NewspaperIcon, PaletteIcon, ScrollTextIcon, SlidersHorizontalIcon, TrendingDownIcon, TrendingUpIcon, UsersIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { dateShort } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -27,7 +27,7 @@ export function Change({ value, vs, upIsGood = true }) {
   const Icon = value > 0 ? TrendingUpIcon : value < 0 ? TrendingDownIcon : MinusIcon
   const good = value === 0 ? null : value > 0 === upIsGood
   return (
-    <span className={cn('inline-flex flex-wrap items-center gap-x-1 text-xs font-bold', good === null ? 'text-ink-3' : good ? 'text-success' : 'text-danger')}>
+    <span className={cn('inline-flex flex-wrap items-center gap-x-1 text-xs font-bold', good === null ? 'text-muted-foreground' : good ? 'text-success' : 'text-danger')}>
       <Icon className="size-3.5 shrink-0" aria-hidden />
       {value > 0 ? `+${value}` : value < 0 ? `−${-value}` : '0'}
       <span className="font-semibold text-muted-foreground">vs {vs}</span>
@@ -39,7 +39,7 @@ export function Change({ value, vs, upIsGood = true }) {
 export function Kpi({ label, value, hint, change, vs, upIsGood }) {
   return (
     <div className="flex flex-col gap-1.5 rounded-card bg-card p-5 shadow-card">
-      <dt className="text-[13px] font-semibold text-ink-3">{label}</dt>
+      <dt className="text-[13px] font-semibold text-muted-foreground">{label}</dt>
       <dd className="text-[30px] leading-none font-extrabold">{value}</dd>
       {change != null && (
         <dd>
@@ -53,7 +53,7 @@ export function Kpi({ label, value, hint, change, vs, upIsGood }) {
 
 export function Swatch({ color, children }) {
   return (
-    <span className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-3">
+    <span className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground">
       <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: color }} aria-hidden />
       {children}
     </span>
@@ -66,7 +66,7 @@ export function DonutLegend({ parts, label, share }) {
     <ul aria-label={label} className="flex min-w-40 flex-1 flex-col gap-3">
       {parts.map((p) => (
         <li key={p.name} className="flex items-center justify-between gap-3">
-          <span className="flex items-center gap-1.5 text-[13px] font-semibold whitespace-nowrap text-ink-3">
+          <span className="flex items-center gap-1.5 text-[13px] font-semibold whitespace-nowrap text-muted-foreground">
             <p.icon className="size-4 shrink-0" style={{ color: p.color }} aria-hidden />
             {p.name}
           </span>
@@ -167,18 +167,18 @@ export function AuditList({ events, label, subject = resourceLabel, values = fal
         const detail = lines.length ? null : auditDetail(e)
         const whose = subject && subject(e)
         return (
-          <li key={e.id} className="flex flex-col gap-0.5 border-b border-line py-3 first:pt-0 last:border-b-0 last:pb-0">
+          <li key={e.id} className="flex flex-col gap-0.5 border-b border-border py-3 first:pt-0 last:border-b-0 last:pb-0">
             <span className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
               <span className="font-bold">
                 {ACTION_LABEL[e.action] ?? e.action}
-                {whose && <span className="font-semibold text-ink-3"> · {whose}</span>}
+                {whose && <span className="font-semibold text-muted-foreground"> · {whose}</span>}
               </span>
               <span className="text-xs text-muted-foreground tabular">{withTime ? `${at(e.occurredAt)} WIB` : dateShort(e.occurredAt)}</span>
             </span>
-            {e.reason && <span className="text-[13px] text-ink-2">“{e.reason}”</span>}
+            {e.reason && <span className="text-[13px] text-foreground">“{e.reason}”</span>}
             {lines.map((l) => (
-              <span key={l.k} className="text-[13px] break-words text-ink-2">
-                <span className="text-ink-3">{l.label}:</span> <span className="tabular">{l.v}</span>
+              <span key={l.k} className="text-[13px] break-words text-foreground">
+                <span className="text-muted-foreground">{l.label}:</span> <span className="tabular">{l.v}</span>
               </span>
             ))}
             <span className="text-xs text-muted-foreground">
@@ -208,7 +208,7 @@ function readable(key, v) {
 // One event's before and after values, folded behind "Lihat detail".
 function AuditChanges({ e }) {
   const keys = [...new Set([...Object.keys(e.before ?? {}), ...Object.keys(e.after ?? {})])]
-  const head = 'text-xs font-bold text-ink-3'
+  const head = 'text-xs font-bold text-muted-foreground'
   return (
     <details className="group">
       <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-1.5 text-sm font-bold text-primary [&::-webkit-details-marker]:hidden">
@@ -228,9 +228,9 @@ function AuditChanges({ e }) {
             <TableBody>
               {keys.map((k) => (
                 <TableRow key={k}>
-                  <TableCell className="py-2 font-semibold text-ink-2">{FIELD_LABEL[k] ?? k}</TableCell>
-                  <TableCell className="max-w-64 py-2 break-words whitespace-normal text-ink-2">{readable(k, e.before?.[k])}</TableCell>
-                  <TableCell className="max-w-64 py-2 break-words whitespace-normal text-ink-2">{readable(k, e.after?.[k])}</TableCell>
+                  <TableCell className="py-2 font-semibold text-foreground">{FIELD_LABEL[k] ?? k}</TableCell>
+                  <TableCell className="max-w-64 py-2 break-words whitespace-normal text-foreground">{readable(k, e.before?.[k])}</TableCell>
+                  <TableCell className="max-w-64 py-2 break-words whitespace-normal text-foreground">{readable(k, e.after?.[k])}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -254,6 +254,7 @@ const RESOURCE = {
   report: { icon: ChartColumnIcon, open: 'Buka laporan', to: () => '/admin/reports' },
   config: { icon: SlidersHorizontalIcon, open: 'Buka konfigurasi', to: () => '/admin/configuration' },
   health_config: { icon: SlidersHorizontalIcon, open: 'Buka formula', to: () => '/admin/configuration/health' },
+  brand: { icon: PaletteIcon, open: 'Buka brand', to: () => '/admin/brand' },
 }
 
 // Recent admin changes as a timeline, newest first: each one opens its record, and its before/after values unfold
@@ -272,9 +273,9 @@ export function ActivityFeed({ events, label, empty }) {
               <div className="flex min-w-0 flex-col gap-0.5 pt-0.5">
                 <span className="text-[15px] font-bold">
                   {ACTION_LABEL[e.action] ?? e.action}
-                  {e.resource.label && <span className="font-semibold text-ink-3"> · {e.resource.label}</span>}
+                  {e.resource.label && <span className="font-semibold text-muted-foreground"> · {e.resource.label}</span>}
                 </span>
-                {e.reason && <span className="text-sm text-ink-2">“{e.reason}”</span>}
+                {e.reason && <span className="text-sm text-foreground">“{e.reason}”</span>}
                 <span className="text-xs text-muted-foreground">
                   {detail && `${detail} · `}oleh {e.actor.name} · <span className="tabular">{at(e.occurredAt)} WIB</span>
                 </span>
@@ -337,7 +338,7 @@ export function EditDialog({ title, description, form, changed, onSave, onClose,
       ) : (
         <form onSubmit={save} noValidate className="flex flex-col gap-5">
           <div className="flex flex-col gap-1 rounded-2xl bg-muted px-4 py-3.5">
-            <span className="text-xs font-bold text-ink-3">Yang berubah</span>
+            <span className="text-xs font-bold text-muted-foreground">Yang berubah</span>
             <span className="text-sm font-semibold">{fieldList(changed)}</span>
           </div>
           <TextAreaField label="Alasan perubahan" required rows={3} value={reason} onChange={setReason} error={error?.field === 'reason' ? error.message : undefined} hint="Contoh: koreksi sesuai KTP terbaru." />

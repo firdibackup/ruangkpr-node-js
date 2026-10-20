@@ -14,7 +14,7 @@ import { STATUS_LABEL, productName } from '@/domains/applications/meta'
 import { PRODUCT_TYPES } from './labels'
 import { AdminHeader, CountChart, Kpi, Meter, Swatch } from './shared'
 
-const head = 'text-xs font-bold text-ink-3'
+const head = 'text-xs font-bold text-muted-foreground'
 const percent = (bps) => (bps === null ? '—' : `${Math.round(bps / 100)}%`)
 const dayCount = (n) => (n === null ? '—' : `${n.toLocaleString('id-ID')} hari`)
 const span = ({ from, to }) => daysUntil({ fromDate: from, targetDate: to }) + 1
@@ -75,7 +75,7 @@ function StagesPanel({ stages }) {
           <TableBody>
             {stages.map((s) => (
               <TableRow key={s.status}>
-                <TableCell className="py-3 font-semibold text-ink-2">{STATUS_LABEL[s.status]}</TableCell>
+                <TableCell className="py-3 font-semibold text-foreground">{STATUS_LABEL[s.status]}</TableCell>
                 <TableCell className="py-3">
                   <span className="flex items-center gap-3">
                     <span className="hidden h-6 w-40 shrink-0 justify-center sm:flex lg:w-56" aria-hidden>
@@ -84,8 +84,8 @@ function StagesPanel({ stages }) {
                     <span className="font-bold tabular">{s.count}</span>
                   </span>
                 </TableCell>
-                <TableCell className="py-3 text-right text-ink-2 tabular">{percent(s.conversionBps)}</TableCell>
-                <TableCell className="py-3 text-right text-ink-2 tabular">
+                <TableCell className="py-3 text-right text-foreground tabular">{percent(s.conversionBps)}</TableCell>
+                <TableCell className="py-3 text-right text-foreground tabular">
                   <span className="flex items-center justify-end gap-2">
                     {s.avgDays === slowest && slowest > 0 && (
                       <Chip tone="warn" icon={HourglassIcon}>
@@ -133,7 +133,7 @@ function ProductsPanel({ products }) {
                     <span className="text-xs text-muted-foreground">{p.bankName}</span>
                   </span>
                 </TableCell>
-                <TableCell className="hidden py-3 text-ink-2 sm:table-cell">{productName(p)}</TableCell>
+                <TableCell className="hidden py-3 text-foreground sm:table-cell">{productName(p)}</TableCell>
                 <TableCell className="py-3 text-right font-bold tabular">
                   <span className="flex items-center justify-end gap-3">
                     <Meter value={p.count} max={products[0].count} className="hidden w-32 sm:block" />

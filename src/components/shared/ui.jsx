@@ -28,9 +28,9 @@ export function IconBox({ icon: Icon, className, size = 'md', tone = 'primary' }
   const tones = {
     primary: 'bg-secondary text-primary',
     white: 'bg-card text-primary',
-    muted: 'bg-muted text-ink-3',
+    muted: 'bg-muted text-muted-foreground',
     ok: 'bg-success-bg text-success',
-    warn: 'bg-warning-bg text-warning-text',
+    warn: 'bg-warning-bg text-warning',
     bad: 'bg-danger-bg text-danger',
     glass: 'bg-white/15 text-white',
     solid: 'bg-primary text-white',
@@ -46,8 +46,8 @@ const CHIP_TONES = {
   info: 'bg-secondary text-primary',
   ok: 'bg-success-bg text-success',
   warn: 'bg-warning-bg text-warning',
-  bad: 'bg-danger-bg text-danger-strong',
-  mute: 'bg-muted text-ink-3',
+  bad: 'bg-danger-bg text-danger',
+  mute: 'bg-muted text-muted-foreground',
   solid: 'bg-primary text-white',
   glass: 'bg-white/15 text-white',
 }
@@ -69,12 +69,12 @@ export function SummaryRows({ rows, className, size = 'md' }) {
   return (
     <dl className={cn('flex flex-col', className)}>
       {rows.filter(Boolean).map((r) => ({ ...r, tone: r.tone ?? (r.v === EMPTY || r.v === 'Belum diisi' ? 'mute' : undefined) })).map((r) => (
-        <div key={r.k} className={cn('flex items-baseline justify-between gap-4 border-b border-line last:border-b-0', size === 'sm' ? 'py-2.5 text-[13px]' : 'py-3 text-sm')}>
-          <dt className="flex min-w-0 items-center gap-2 text-ink-3">
+        <div key={r.k} className={cn('flex items-baseline justify-between gap-4 border-b border-border last:border-b-0', size === 'sm' ? 'py-2.5 text-[13px]' : 'py-3 text-sm')}>
+          <dt className="flex min-w-0 items-center gap-2 text-muted-foreground">
             {r.k}
             {r.tag}
           </dt>
-          <dd className={cn('text-right font-extrabold tabular', r.strong && 'text-base', r.tone === 'ok' && 'text-success', r.tone === 'warn' && 'text-warning-text', r.tone === 'bad' && 'text-danger', r.tone === 'mute' && 'font-semibold text-muted-foreground')}>{r.v}</dd>
+          <dd className={cn('text-right font-extrabold tabular', r.strong && 'text-base', r.tone === 'ok' && 'text-success', r.tone === 'warn' && 'text-warning', r.tone === 'bad' && 'text-danger', r.tone === 'mute' && 'font-semibold text-muted-foreground')}>{r.v}</dd>
         </div>
       ))}
     </dl>
@@ -84,17 +84,17 @@ export function SummaryRows({ rows, className, size = 'md' }) {
 export function StatTile({ label, value, tone, className }) {
   return (
     <div className={cn('flex flex-col gap-1 rounded-xl bg-muted px-4 py-3.5', className)}>
-      <span className="text-xs font-semibold text-ink-3">{label}</span>
-      <span className={cn('text-lg font-extrabold tabular', tone === 'ok' && 'text-success', tone === 'bad' && 'text-danger', tone === 'warn' && 'text-warning-text')}>{value}</span>
+      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
+      <span className={cn('text-lg font-extrabold tabular', tone === 'ok' && 'text-success', tone === 'bad' && 'text-danger', tone === 'warn' && 'text-warning')}>{value}</span>
     </div>
   )
 }
 
 const NOTICE = {
-  info: { box: 'bg-secondary text-ink-2', icon: InfoIcon, iconTone: 'text-primary' },
-  muted: { box: 'bg-muted text-ink-3', icon: InfoIcon, iconTone: 'text-primary' },
-  warn: { box: 'border border-warning-border bg-warning-soft text-[#5c4a1f]', icon: TriangleAlertIcon, iconTone: 'text-warning-text' },
-  bad: { box: 'border border-danger-border bg-danger-bg text-danger-strong', icon: CircleAlertIcon, iconTone: 'text-danger' },
+  info: { box: 'bg-secondary text-foreground', icon: InfoIcon, iconTone: 'text-primary' },
+  muted: { box: 'bg-muted text-muted-foreground', icon: InfoIcon, iconTone: 'text-primary' },
+  warn: { box: 'border border-warning-border bg-warning-bg text-warning', icon: TriangleAlertIcon, iconTone: 'text-warning' },
+  bad: { box: 'border border-danger-border bg-danger-bg text-danger', icon: CircleAlertIcon, iconTone: 'text-danger' },
   ok: { box: 'bg-success-bg text-success', icon: CircleCheckIcon, iconTone: 'text-success' },
 }
 
@@ -119,7 +119,7 @@ export function HeroCard({ className, children, scenery = 'bottom' }) {
     <section className={cn('relative isolate flex flex-col gap-4 overflow-hidden rounded-card p-6 text-white shadow-card hero-gradient sm:p-[30px]', className)}>
       {scenery && (
         <img
-          src="/card-overview.webp"
+          src="/brand/card-overview.webp"
           alt=""
           width={1672}
           height={941}
@@ -145,7 +145,7 @@ export function BankMark({ bank, size = 'md', tone = 'primary' }) {
       className={cn(
         'flex shrink-0 items-center justify-center overflow-hidden font-extrabold italic',
         size === 'lg' ? 'size-14 rounded-2xl text-base' : size === 'sm' ? 'size-10 rounded-lg text-[13px]' : 'size-[52px] rounded-xl text-[15px]',
-        logo ? 'bg-white p-1.5 ring-1 ring-border' : tone === 'primary' ? 'bg-secondary text-primary' : tone === 'glass' ? 'bg-white/15 text-white' : 'bg-muted text-ink-3',
+        logo ? 'bg-white p-1.5 ring-1 ring-border' : tone === 'primary' ? 'bg-secondary text-primary' : tone === 'glass' ? 'bg-white/15 text-white' : 'bg-muted text-muted-foreground',
       )}
       aria-hidden
     >
@@ -172,7 +172,7 @@ export function Spinner({ className }) {
 }
 
 export function Skeleton({ className }) {
-  return <div className={cn('animate-pulse rounded-md bg-[#edf0f5]', className)} aria-hidden />
+  return <div className={cn('animate-pulse rounded-md bg-muted', className)} aria-hidden />
 }
 
 export function LoadingCards({ count = 3, className, label = 'Memuat data' }) {
@@ -260,7 +260,7 @@ export function InfoTip({ label, children, className }) {
         onPointerDown={(e) => (mouse.current = e.pointerType === 'mouse')}
         // A mouse click on a tip hover already opened keeps it open instead of toggling it shut.
         onClick={(e) => e.detail && mouse.current && open && e.preventDefault()}
-        className={cn('relative inline-flex size-4 shrink-0 items-center justify-center rounded-full text-ink-3 after:absolute after:-inset-3.5 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary', className)}
+        className={cn('relative inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground after:absolute after:-inset-3.5 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary', className)}
       >
         <InfoIcon className="size-4" aria-hidden />
       </Popover.Trigger>
@@ -274,7 +274,7 @@ export function InfoTip({ label, children, className }) {
           onCloseAutoFocus={(e) => e.preventDefault()}
           onPointerEnter={hover(true)}
           onPointerLeave={hover(false)}
-          className="z-50 w-[min(340px,calc(100vw-32px))] rounded-2xl border border-border bg-card p-4 text-[13px] leading-5 font-medium text-ink-2 shadow-card"
+          className="z-50 w-[min(340px,calc(100vw-32px))] rounded-2xl border border-border bg-card p-4 text-[13px] leading-5 font-medium text-foreground shadow-card"
         >
           {children}
         </Popover.Content>

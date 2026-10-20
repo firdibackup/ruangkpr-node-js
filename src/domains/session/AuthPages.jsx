@@ -22,26 +22,27 @@ import {
   validateRegister,
   validateWelcome,
 } from "./validation";
+import { brand } from "@/brand/brand";
 
 function AuthLayout({ children }) {
   return (
-    <div className="flex min-h-dvh bg-[linear-gradient(-136deg,#003DA5_16%,#00266B_53%,#DC1C2E_84%)] p-2 sm:p-4">
+    <div className="flex min-h-dvh hero-gradient p-2 sm:p-4">
       <div className="flex min-w-0 flex-1 flex-col gap-6 rounded-[26px] bg-card px-5 py-5 sm:px-10 sm:pt-7 sm:pb-6">
         <div className="flex items-center justify-between gap-4">
           <Brand />
-          <span className="text-[13px] font-semibold text-ink-3">
-            Butuh bantuan? cs@ruangkpr.id
+          <span className="text-[13px] font-semibold text-muted-foreground">
+            Butuh bantuan? {brand.supportEmail}
           </span>
         </div>
         <div className="grid flex-1 grid-cols-1 items-stretch gap-10 lg:grid-cols-2 lg:gap-16">
           <div className="relative hidden flex-col justify-end overflow-hidden rounded-[22px] bg-muted p-9 lg:flex">
             <img
-              src="/cover-auth.webp"
+              src="/brand/cover-auth.webp"
               alt=""
               className="absolute inset-0 size-full object-cover"
             />
             <div
-              className="absolute inset-0 bg-[linear-gradient(0deg,#0B1B33E6_0%,#0B1B3399_35%,#0B1B3300_65%)]"
+              className="absolute inset-0 bg-linear-to-t from-inverse/90 from-0% via-inverse/60 via-35% to-transparent to-65%"
               aria-hidden
             />
             <div className="relative flex flex-col gap-[18px]">
@@ -70,14 +71,14 @@ function AuthLayout({ children }) {
 const LEGAL = {
   terms: {
     title: "Syarat & Ketentuan",
-    body: "RuangKPR membantu kamu memahami, mengajukan, dan memantau KPR. Semua hasil simulasi adalah estimasi dan bukan persetujuan kredit. Data hanya dikirim ke bank setelah kamu memilih satu program dan menekan Submit. Dokumen legal final masih menunggu review sebelum produksi.",
+    body: `${brand.name} membantu kamu memahami, mengajukan, dan memantau KPR. Semua hasil simulasi adalah estimasi dan bukan persetujuan kredit. Data hanya dikirim ke bank setelah kamu memilih satu program dan menekan Submit. Dokumen legal final masih menunggu review sebelum produksi.`,
   },
   privacy: {
     title: "Kebijakan Privasi",
     body: "Data pribadi, penghasilan, dan dokumen hanya dipakai untuk analisis dan pengajuan yang kamu setujui. Kami tidak pernah meminta password, PIN, atau OTP perbankan kamu. " +
       (isMock
         ? "Pada mode demo ini data disimpan di browser kamu saja."
-        : "Data disimpan di server RuangKPR dan hanya bisa dibuka olehmu serta tim yang memproses pengajuanmu."),
+        : `Data disimpan di server ${brand.name} dan hanya bisa dibuka olehmu serta tim yang memproses pengajuanmu.`),
   },
 };
 
@@ -104,7 +105,7 @@ function AuthHeading({ badge, title, children }) {
       <h1 className="text-[32px] leading-[38px] font-extrabold tracking-[-0.7px]">
         {title}
       </h1>
-      <p className="text-sm leading-[21px] text-ink-3">{children}</p>
+      <p className="text-sm leading-[21px] text-muted-foreground">{children}</p>
     </div>
   );
 }
@@ -126,7 +127,7 @@ function SubmitButton({ incomplete, pending, busyLabel, children }) {
   return (
     <Button
       type="submit"
-      className={incomplete ? "bg-border text-ink-3 hover:bg-border" : ""}
+      className={incomplete ? "bg-border text-muted-foreground hover:bg-border" : ""}
       aria-disabled={incomplete || undefined}
       disabled={pending}
       aria-busy={pending}
@@ -139,7 +140,7 @@ function SubmitButton({ incomplete, pending, busyLabel, children }) {
 
 function SwitchLine({ question, to, label }) {
   return (
-    <p className="flex flex-wrap items-center justify-center gap-1.5 text-[13px] text-ink-3">
+    <p className="flex flex-wrap items-center justify-center gap-1.5 text-[13px] text-muted-foreground">
       {question}
       <Link to={to} className="flex min-h-11 items-center font-bold text-primary">
         {label}
@@ -226,7 +227,7 @@ function ConsentFields({ form }) {
         label={
           <span>
             Saya setuju dengan {legalLink("terms")} dan {legalLink("privacy")}{" "}
-            RuangKPR.
+            {brand.name}.
           </span>
         }
         checked={form.values.acceptTerms && form.values.acceptPrivacy}
@@ -241,7 +242,7 @@ function ConsentFields({ form }) {
         onOpenChange={(o) => !o && setLegal(null)}
         title={legal ? LEGAL[legal].title : ""}
       >
-        <p className="text-sm leading-[22px] text-ink-3">
+        <p className="text-sm leading-[22px] text-muted-foreground">
           {legal && LEGAL[legal].body}
         </p>
       </FormDialog>
@@ -294,7 +295,7 @@ function CodeInput({ digits, onChange, error }) {
             maxLength={6}
             aria-label={`Digit ${i + 1} dari 6`}
             aria-invalid={error ? "true" : undefined}
-            className={`h-[60px] w-full max-w-[60px] min-w-0 flex-1 rounded-lg border bg-field text-center text-[22px] font-bold outline-none focus:border-primary focus:ring-3 focus:ring-ring/15 ${error ? "border-brand-red" : d ? "border-primary" : "border-input"}`}
+            className={`h-[60px] w-full max-w-[60px] min-w-0 flex-1 rounded-lg border bg-field text-center text-[22px] font-bold outline-none focus:border-primary focus:ring-3 focus:ring-ring/15 ${error ? "border-danger-border" : d ? "border-primary" : "border-input"}`}
           />
         ))}
       </div>
@@ -335,7 +336,7 @@ function ResendCode({ initialAt, question, send, sentMessage, onResent, onError 
     }
   };
   return (
-    <div className="flex flex-wrap items-center justify-center gap-1.5 text-[13px] text-ink-3">
+    <div className="flex flex-wrap items-center justify-center gap-1.5 text-[13px] text-muted-foreground">
       <span>{question}</span>
       <button
         type="button"
@@ -381,7 +382,7 @@ export function LoginPage() {
   return (
     <AuthLayout>
       <AuthHeading title="Masuk">
-        Masuk ke akun RuangKPR kamu untuk melanjutkan.
+        Masuk ke akun {brand.name} kamu untuk melanjutkan.
       </AuthHeading>
       <GoogleSignIn onError={setApiError} />
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-[18px]">
@@ -542,7 +543,7 @@ export function VerifyPage() {
     setPending(true);
     try {
       await api.auth.verifySignup({ token: code });
-      toast.success("Email terverifikasi. Selamat datang di RuangKPR!");
+      toast.success(`Email terverifikasi. Selamat datang di ${brand.name}!`);
       await refresh();
     } catch (err) {
       setError(err.message);
@@ -793,7 +794,7 @@ export function WelcomePage() {
         acceptTerms: v.acceptTerms,
         acceptPrivacy: v.acceptPrivacy,
       });
-      toast.success("Selamat datang di RuangKPR!");
+      toast.success(`Selamat datang di ${brand.name}!`);
       await refresh();
     } catch (e) {
       setApiError(e.message);
@@ -824,7 +825,7 @@ export function WelcomePage() {
             pending={pending}
             busyLabel="Menyimpan…"
           >
-            Mulai pakai RuangKPR
+            Mulai pakai {brand.name}
           </SubmitButton>
           <button
             type="button"

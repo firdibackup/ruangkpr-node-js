@@ -31,6 +31,8 @@ export const ACTION_LABEL = {
   'config.update': 'Ubah konfigurasi',
   'health.publish': 'Terbitkan formula KPR Health',
   'health.rollback': 'Pulihkan formula KPR Health',
+  'brand.publish': 'Terbitkan brand',
+  'brand.reset': 'Kembalikan brand ke default',
 }
 
 export const FIELD_LABEL = {
@@ -137,6 +139,12 @@ export const FIELD_LABEL = {
   salesOfficer: 'Sales Officer',
   applicantColumn: 'Kolom pemohon',
   checked: 'Checklist dokumen',
+  // Brand (spec 2026-10-20 brand CMS)
+  colors: 'Warna dasar',
+  shades: 'Shade lanjutan',
+  fonts: 'Font',
+  cardRadius: 'Radius kartu',
+  favicon: 'Favicon',
 }
 
 // Times read in WIB (open question §12 Q5 recommends Asia/Jakarta for the backend too).

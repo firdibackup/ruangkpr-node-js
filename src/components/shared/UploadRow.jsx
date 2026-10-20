@@ -5,11 +5,11 @@ import { DEFAULT_UPLOAD, acceptOf, uploadProblem } from '@/data/documentRules'
 import { ProgressBar } from './ui'
 
 const VIEW = {
-  pending: { icon: UploadIcon, box: 'bg-muted text-ink-3', chip: 'bg-muted text-ink-3', text: 'Belum diunggah', border: 'border-border' },
+  pending: { icon: UploadIcon, box: 'bg-muted text-muted-foreground', chip: 'bg-muted text-muted-foreground', text: 'Belum diunggah', border: 'border-border' },
   uploading: { icon: LoaderCircleIcon, box: 'bg-secondary text-primary', chip: 'bg-secondary text-primary', text: 'Mengunggah', border: 'border-border' },
   uploaded: { icon: FileCheckIcon, box: 'bg-success-bg text-success', chip: 'bg-success-bg text-success', text: '✓ Terunggah', border: 'border-border' },
   verified: { icon: FileCheckIcon, box: 'bg-success-bg text-success', chip: 'bg-success-bg text-success', text: '✓ Terverifikasi', border: 'border-border' },
-  needs_update: { icon: TriangleAlertIcon, box: 'bg-warning-bg text-warning-text', chip: 'bg-warning-bg text-warning', text: '⚠ Perlu diperbarui', border: 'border-[#f3d9a4]' },
+  needs_update: { icon: TriangleAlertIcon, box: 'bg-warning-bg text-warning', chip: 'bg-warning-bg text-warning', text: '⚠ Perlu diperbarui', border: 'border-warning-border' },
   error: { icon: FileXIcon, box: 'bg-danger-bg text-danger', chip: 'bg-danger-bg text-danger', text: '✕ Gagal', border: 'border-danger-border' },
 }
 
@@ -52,16 +52,16 @@ export function UploadRow({ doc, state, onUpload, readOnly = false, compact = fa
         <div className="flex min-w-[160px] flex-1 flex-col gap-0.5">
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-[15px] font-bold">{doc.label}</span>
-            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', doc.required ? 'bg-danger-bg text-danger-strong' : 'bg-muted text-ink-3')}>{doc.required ? 'Wajib' : 'Opsional'}</span>
+            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', doc.required ? 'bg-danger-bg text-danger' : 'bg-muted text-muted-foreground')}>{doc.required ? 'Wajib' : 'Opsional'}</span>
           </span>
           {sub && <span className="text-[13px] [overflow-wrap:anywhere] text-muted-foreground">{sub}</span>}
-          {status === 'needs_update' && state?.invalidReason && <span className="text-[13px] font-semibold text-warning-text">{state.invalidReason}</span>}
+          {status === 'needs_update' && state?.invalidReason && <span className="text-[13px] font-semibold text-warning">{state.invalidReason}</span>}
         </div>
         <span className={cn('rounded-full px-2.5 py-1.5 text-xs font-bold whitespace-nowrap', v.chip)} role="status">
           {status === 'uploading' ? `Mengunggah ${local?.pct ?? 0}%` : v.text}
         </span>
         {canAct && (
-          <button type="button" onClick={pick} className="h-10 rounded-full bg-secondary px-[18px] text-[13px] font-bold text-primary hover:bg-[#dbe6f8]" aria-label={`${buttonLabel} ${doc.label}`}>
+          <button type="button" onClick={pick} className="h-10 rounded-full bg-secondary px-[18px] text-[13px] font-bold text-primary hover:bg-secondary-hover" aria-label={`${buttonLabel} ${doc.label}`}>
             {buttonLabel}
           </button>
         )}

@@ -21,10 +21,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/dialogs";
 import { MarkPaidDialog, PropertyDialog } from "@/domains/mortgages/MyKprTabs";
 import { FIXED_MILESTONES } from "@/domains/mortgages/derive";
-import {
-  defaultTakeoverGoal,
-  mortgageTakeoverGaps,
-} from "@/domains/optimize/validation";
+import { defaultTakeoverGoal } from "@/domains/optimize/validation";
 import { IncomeDialog } from "@/domains/profile/ProfilePages";
 import {
   Chip,
@@ -60,11 +57,10 @@ export function MonitoringDashboard({
   // "Tetap di bank" hides the warning until the next milestone.
   const nextAt = FIXED_MILESTONES.find((h) => h < d.milestone);
 
-  // Straight to the bank list (Take Over or Refinancing) with the default goal; missing data or a failed simulation
-  // lands on the start page, which says what to complete.
+  // Straight to the bank list (Take Over or Refinancing) with the default goal; data the setup skipped is asked after a
+  // bank is picked. A failed simulation lands on the start page, which says what to complete.
   const openPrograms = async (mode) => {
     const start = `/optimize/start?mode=${mode}`;
-    if (mortgageTakeoverGaps(m, snap, mode).length) return navigate(start);
     setOpening(mode);
     try {
       await api.simulations.run({
@@ -81,7 +77,7 @@ export function MonitoringDashboard({
     <div className="flex flex-col gap-5">
       {d.mode === "warning" && m.rateWarningDismissedMilestone !== d.milestone && (
         <section
-          className="grid grid-cols-1 gap-7 rounded-card border-2 border-warning-accent bg-card p-6 shadow-card md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] sm:p-7"
+          className="grid grid-cols-1 gap-7 rounded-card border-2 border-warning-border bg-card p-6 shadow-card md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] sm:p-7"
           aria-labelledby="warn-title"
         >
           <div className="flex min-w-0 flex-col gap-4">
@@ -141,7 +137,7 @@ export function MonitoringDashboard({
             </Button>
           </div>
           <div className="flex flex-col gap-3 rounded-[18px] bg-muted p-[22px]">
-            <span className="text-[13px] font-extrabold text-ink-3">Opsi</span>
+            <span className="text-[13px] font-extrabold text-muted-foreground">Opsi</span>
             {[
               {
                 label: "Tetap di bank sekarang",

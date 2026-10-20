@@ -10,6 +10,8 @@ import { Notice } from '@/components/shared/ui'
 import { useSession } from '@/domains/session/SessionProvider'
 import { firstName, initials } from '@/lib/format'
 import { useRouteFocus } from '@/lib/hooks'
+import { brand } from '@/brand/brand'
+import { logoOf, useLiveBrand } from '@/brand/live'
 
 const NAV = [
   { to: '/', label: 'Home', icon: HouseIcon, match: (p) => p === '/' || p.startsWith('/monitoring') },
@@ -19,15 +21,14 @@ const NAV = [
   { to: '/profile', label: 'Profile', icon: UserRoundIcon, match: (p) => p.startsWith('/profile') },
 ]
 
-export function Brand({ compact = false, tagline = 'Command Center' }) {
+export function Brand({ compact = false, tagline = brand.tagline }) {
+  const logo = logoOf(useLiveBrand())
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-lg font-extrabold text-white" aria-hidden>
-        R
-      </span>
+      <img src={logo} alt="" width={36} height={36} className="size-9 shrink-0 object-contain" />
       <span className="flex flex-col leading-tight">
-        <span className={cn('font-extrabold', compact ? 'text-base' : 'text-[17px]')}>RuangKPR</span>
-        <span className="text-[11px] font-semibold tracking-[0.4px] text-brand-red">{tagline}</span>
+        <span className={cn('font-heading font-extrabold', compact ? 'text-base' : 'text-[17px]')}>{brand.name}</span>
+        <span className="text-[11px] font-semibold tracking-[0.4px] text-highlight">{tagline}</span>
       </span>
     </div>
   )
@@ -67,12 +68,12 @@ export function AppShell() {
                 key={n.to}
                 to={n.to}
                 aria-current={active ? 'page' : undefined}
-                className={cn('flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] transition-colors', active ? 'bg-secondary font-bold text-primary' : 'font-semibold text-ink-3 hover:bg-muted')}
+                className={cn('flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] transition-colors', active ? 'bg-secondary font-bold text-primary' : 'font-semibold text-muted-foreground hover:bg-muted')}
               >
                 <n.icon className="size-5" aria-hidden />
                 <span className="flex-1">{n.label}</span>
                 {n.to === '/activity' && unread > 0 && (
-                  <span className="rounded-full bg-brand-red px-2 py-0.5 text-[11px] font-bold text-white">
+                  <span className="rounded-full bg-danger-solid px-2 py-0.5 text-[11px] font-bold text-white">
                     {unreadLabel(unread)}
                     <span className="sr-only"> belum dibaca</span>
                   </span>
@@ -88,7 +89,7 @@ export function AppShell() {
           <Brand compact />
           <NavLink to="/activity" aria-label={`Aktivitas${unread ? `, ${unread} belum dibaca` : ''}`} className="relative flex size-11 items-center justify-center rounded-xl border border-border bg-card">
             <BellIcon className="size-5" aria-hidden />
-            {unread > 0 && <span className="absolute top-2 right-2 size-2.5 rounded-full bg-brand-red" />}
+            {unread > 0 && <span className="absolute top-2 right-2 size-2.5 rounded-full bg-danger-solid" />}
           </NavLink>
         </header>
         <main id="main" tabIndex={-1} className="flex-1 px-4 pt-5 pb-[calc(96px+env(safe-area-inset-bottom))] outline-none sm:px-6 lg:px-10 lg:pt-8 lg:pb-24">
@@ -115,11 +116,11 @@ export function AppShell() {
         {NAV.map((n) => {
           const active = n.match(pathname)
           return (
-            <NavLink key={n.to} to={n.to} aria-current={active ? 'page' : undefined} className={cn('relative flex min-h-[60px] flex-col items-center justify-center gap-1 text-[11px]', active ? 'font-bold text-primary' : 'font-semibold text-ink-3')}>
+            <NavLink key={n.to} to={n.to} aria-current={active ? 'page' : undefined} className={cn('relative flex min-h-[60px] flex-col items-center justify-center gap-1 text-[11px]', active ? 'font-bold text-primary' : 'font-semibold text-muted-foreground')}>
               <n.icon className="size-[22px]" aria-hidden />
               {n.label}
               {active && <span className="absolute top-0 h-[3px] w-8 rounded-b-full bg-primary" aria-hidden />}
-              {n.to === '/activity' && unread > 0 && <span className="absolute top-2 left-1/2 ml-2 size-2 rounded-full bg-brand-red" aria-hidden />}
+              {n.to === '/activity' && unread > 0 && <span className="absolute top-2 left-1/2 ml-2 size-2 rounded-full bg-danger-solid" aria-hidden />}
             </NavLink>
           )
         })}
@@ -137,7 +138,7 @@ export function LogoutDialog({ open, onOpenChange }) {
       open={open}
       onOpenChange={onOpenChange}
       destructive={false}
-      title="Keluar dari RuangKPR?"
+      title={`Keluar dari ${brand.name}?`}
       body="Draft dan data KPR yang sudah tersimpan tidak dihapus. Kamu bisa masuk lagi dengan email dan password yang sama."
       confirmLabel="Keluar"
       onConfirm={async () => {
@@ -175,7 +176,7 @@ export function PageHeader({ title, subtitle, back, crumb, actions }) {
         {actions}
         <NavLink to="/activity" aria-label={`Notifikasi${unread ? `, ${unread} belum dibaca` : ''}`} className="relative hidden size-11 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted lg:flex">
           <BellIcon className="size-5" aria-hidden />
-          {unread > 0 && <span className="absolute top-2 right-2 size-2.5 rounded-full bg-brand-red" />}
+          {unread > 0 && <span className="absolute top-2 right-2 size-2.5 rounded-full bg-danger-solid" />}
         </NavLink>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger className="hidden items-center gap-2.5 rounded-full border border-border bg-card py-1.5 pr-3 pl-1.5 hover:bg-muted data-[state=open]:bg-muted lg:flex">

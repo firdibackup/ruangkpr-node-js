@@ -79,14 +79,14 @@ function PhaseTwoBanner({ sim, app, clock, healthConfig }) {
       <HealthRing health={h} size={88} />
       <div className="flex min-w-0 flex-col items-start gap-1.5">
         <h2 id="phase2-title" className="flex items-center gap-2 text-lg font-extrabold">
-          <CircleCheckIcon className="size-5 text-success-strong" aria-hidden />
+          <CircleCheckIcon className="size-5 text-success" aria-hidden />
           Tahap 2 selesai
         </h2>
         <Chip tone={h.tone}>
           Kesehatan KPR: {h.label}
           {h.partial ? ' · parsial' : ''}
         </Chip>
-        {sentence && <p className="text-[13px] leading-5 font-semibold text-ink-2">{sentence}</p>}
+        {sentence && <p className="text-[13px] leading-5 font-semibold text-foreground">{sentence}</p>}
         <p className="text-sm font-bold text-primary">{simulationTeaser(sim)}</p>
       </div>
     </section>
@@ -154,7 +154,7 @@ export function BaselinePage() {
             <section className="flex flex-col gap-1.5 rounded-card bg-secondary px-6 py-5">
               <span className="text-xs font-extrabold text-primary">KEBUTUHAN DANA TAMBAHAN</span>
               <span className="text-2xl font-extrabold">{rupiah(sim.input.requestedTopup)}</span>
-              <span className="text-[13px] text-ink-3">
+              <span className="text-[13px] text-muted-foreground">
                 Untuk {labelOf(PURPOSES, sim.input.purpose)} · tenor {tenorLabel(sim.input.tenorMonths)}
               </span>
             </section>
@@ -193,12 +193,12 @@ export function ProgramsPage() {
         {topup && <Chip tone="glass">Butuh {rupiahShort(sim.input.requestedTopup)} · {labelOf(PURPOSES, sim.input.purpose)}</Chip>}
       </HeroCard>
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <span className="text-[15px] font-bold text-ink-3">{sim.items.length} program sesuai estimasi profil</span>
+        <span className="text-[15px] font-bold text-muted-foreground">{sim.items.length} program sesuai estimasi profil</span>
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Urutkan program">
-          <span className="text-[13px] font-semibold text-ink-3">Urutkan</span>
+          <span className="text-[13px] font-semibold text-muted-foreground">Urutkan</span>
           <div className="flex flex-wrap gap-1 rounded-full border border-border bg-card p-1">
             {sorts.map((k) => (
-              <button key={k} type="button" aria-pressed={sim.sort === k} onClick={() => setSort(k)} className={cn('h-9 rounded-full px-3.5 text-[13px] font-bold', sim.sort === k ? 'bg-primary text-white' : 'text-ink-3')}>
+              <button key={k} type="button" aria-pressed={sim.sort === k} onClick={() => setSort(k)} className={cn('h-9 rounded-full px-3.5 text-[13px] font-bold', sim.sort === k ? 'bg-primary text-white' : 'text-muted-foreground')}>
                 {TAKEOVER_SORTS[k].label}
               </button>
             ))}
@@ -227,7 +227,7 @@ function statusLine(x) {
   return null
 }
 
-const TONE_BOX = { ok: 'bg-success-bg text-success', warn: 'bg-warning-bg text-warning', bad: 'bg-danger-bg text-danger-strong' }
+const TONE_BOX = { ok: 'bg-success-bg text-success', warn: 'bg-warning-bg text-warning', bad: 'bg-danger-bg text-danger' }
 
 function ProgramCard({ x, sim, onOpen }) {
   const topup = sim.input.mode === 'topup'
@@ -278,7 +278,7 @@ function ProgramCard({ x, sim, onOpen }) {
         </div>
       )}
       <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
-        <span className={cn('text-xs', x.stale ? 'font-semibold text-warning-text' : 'text-muted-foreground')}>{x.stale ? `Data produk terakhir diperbarui ${dateShort(x.lastVerifiedAt)}. Angka bisa berbeda.` : `Data produk diperbarui ${dateShort(x.lastVerifiedAt)}`}</span>
+        <span className={cn('text-xs', x.stale ? 'font-semibold text-warning' : 'text-muted-foreground')}>{x.stale ? `Data produk terakhir diperbarui ${dateShort(x.lastVerifiedAt)}. Angka bisa berbeda.` : `Data produk diperbarui ${dateShort(x.lastVerifiedAt)}`}</span>
         <Button variant="outline" size="sm" onClick={onOpen}>
           Lihat Detail
           <ArrowRightIcon aria-hidden />
@@ -361,8 +361,8 @@ function ProgramDetail({ sim, item }) {
               </thead>
               <tbody>
                 {compareRows.map(([k, a, n, tone]) => (
-                  <tr key={k} className="border-b border-line last:border-b-0">
-                    <th scope="row" className="py-3 text-left font-normal text-ink-3">
+                  <tr key={k} className="border-b border-border last:border-b-0">
+                    <th scope="row" className="py-3 text-left font-normal text-muted-foreground">
                       {k}
                     </th>
                     <td className="py-3 font-bold tabular">{a}</td>
@@ -408,10 +408,10 @@ function ProgramDetail({ sim, item }) {
         </div>
         <aside className="flex flex-col gap-3.5 rounded-card bg-card p-6 shadow-card xl:sticky xl:top-6" aria-live="polite">
           <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <span className="text-[13px] font-extrabold text-ink-3">{topup ? 'Dana bersih diterima' : 'Selisih cicilan per bulan'}</span>
+            <span className="text-[13px] font-extrabold text-muted-foreground">{topup ? 'Dana bersih diterima' : 'Selisih cicilan per bulan'}</span>
             <Chip tone={eligTone}>{eligLabel}</Chip>
           </div>
-          <span className={cn('text-[34px] leading-tight font-extrabold tracking-[-0.6px] tabular', topup ? (x.topup?.fundingGap > 0 ? 'text-warning-text' : 'text-success-strong') : x.monthlyDiff > 0 ? 'text-success-strong' : 'text-danger')}>
+          <span className={cn('text-[34px] leading-tight font-extrabold tracking-[-0.6px] tabular', topup ? (x.topup?.fundingGap > 0 ? 'text-warning' : 'text-success') : x.monthlyDiff > 0 ? 'text-success' : 'text-danger')}>
             {topup ? (x.topup ? rupiah(x.topup.netTopup) : 'Belum tersedia') : x.monthlyDiff > 0 ? `−${rupiah(x.monthlyDiff)}` : `+${rupiah(Math.abs(x.monthlyDiff))}`}
           </span>
           <SummaryRows
@@ -501,7 +501,7 @@ export function ConfirmProgramPage() {
               topup && x.topup && { k: 'Dana bersih diterima', v: rupiah(x.topup.netTopup) },
             ]}
           />
-          <div className="flex items-center gap-2.5 rounded-xl bg-secondary px-4 py-3.5 text-[13px] font-semibold text-ink-2">
+          <div className="flex items-center gap-2.5 rounded-xl bg-secondary px-4 py-3.5 text-[13px] font-semibold text-foreground">
             <InfoIcon className="size-4 shrink-0 text-primary" aria-hidden />
             Pengajuan ini hanya dikirim ke satu bank/program. Kamu bisa memilih bank lain jika pengajuan ini tidak disetujui.
           </div>

@@ -11,7 +11,7 @@ export function KprSwitch({ current }) {
   return (
     <nav aria-label="Bagian KPR Saya" className="flex w-fit gap-1 rounded-full border border-border bg-card p-1">
       {items.map((i) => (
-        <NavLink key={i.key} to={i.to} aria-current={current === i.key ? 'page' : undefined} className={cn('flex h-10 items-center gap-2 rounded-full px-[18px] text-sm font-bold', current === i.key ? 'bg-primary text-white' : 'text-ink-3 hover:bg-muted')}>
+        <NavLink key={i.key} to={i.to} aria-current={current === i.key ? 'page' : undefined} className={cn('flex h-10 items-center gap-2 rounded-full px-[18px] text-sm font-bold', current === i.key ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-muted')}>
           <i.icon className="size-4" aria-hidden />
           {i.label}
         </NavLink>

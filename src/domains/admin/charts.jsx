@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 // Admin charts (Recharts), loaded lazily through shared.jsx so the admin pages open without it.
 const FILL = { width: '100%', height: '100%' }
 const TICK = { fontSize: 12, fill: 'var(--muted-foreground)' }
-const TOOLTIP = { borderRadius: 12, border: '1px solid var(--border)', boxShadow: '0 6px 24px #0b1b3314', fontSize: 13 }
+const TOOLTIP = { borderRadius: 12, border: '1px solid var(--border)', boxShadow: 'var(--card-shadow)', fontSize: 13 }
 const range = (from, to) => (!to || from === to ? dateShort(from) : `${dayMonth(from)} – ${dateShort(to)}`)
 
 // Counts per date bucket ({ from, to, ...counts }) as columns on one axis; `series` is [{ key, name, color }].
@@ -41,7 +41,7 @@ export function OutcomeDonut({ parts, total, unit, desc }) {
       </PieChart>
       <span className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center" aria-hidden>
         <span className="text-[26px] leading-none font-extrabold">{total}</span>
-        <span className="text-xs font-semibold text-ink-3">{unit}</span>
+        <span className="text-xs font-semibold text-muted-foreground">{unit}</span>
       </span>
     </div>
   )

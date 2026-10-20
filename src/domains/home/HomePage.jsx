@@ -306,11 +306,11 @@ function FreshProducts() {
             <button
               type="button"
               onClick={p.go}
-              className="group flex flex-1 items-center gap-3.5 rounded-[18px] bg-card px-4 py-3.5 text-left text-foreground transition-colors hover:bg-[#f7faff] sm:flex-col sm:items-start sm:gap-2 sm:p-[18px]"
+              className="group flex flex-1 items-center gap-3.5 rounded-[18px] bg-card px-4 py-3.5 text-left text-foreground transition-colors hover:bg-accent sm:flex-col sm:items-start sm:gap-2 sm:p-[18px]"
             >
               {/* Illustrations carry ~10% transparent padding; the negative margins align the drawing, not the box, with the text. */}
               <img
-                src={`/icon-service/256/${p.icon}.webp`}
+                src={`/brand/icon-service/256/${p.icon}.webp`}
                 alt=""
                 width={256}
                 height={256}
@@ -337,7 +337,7 @@ function FreshProducts() {
         title="Multiguna"
         description="Flow Multiguna belum tersedia pada versi ini."
       >
-        <p className="text-sm leading-[21px] text-ink-3">
+        <p className="text-sm leading-[21px] text-muted-foreground">
           Multiguna memakai rumah sebagai agunan untuk dana tunai. Simulasi dan
           pengajuannya akan tersedia setelah kebijakan mitra bank tervalidasi.
         </p>
@@ -352,15 +352,15 @@ function FreshProducts() {
 function MonitoringEntry() {
   return (
     // Sits above the product hero so existing-KPR owners see their path first; compact on mobile so the hero stays near the fold.
-    // Brand red deepening to burgundy with a soft top-right sheen: a highlight, not an error panel (those use danger-bg).
-    // Brightest stop stays at brand red so white body text keeps ≥4.5:1 everywhere.
+    // Secondary brand colour deepening, with a soft top-right sheen: a highlight, not an error panel (those use danger-bg).
+    // The sheen is capped at 15% over --opp so white body text keeps ≥4.5:1 everywhere.
     <section
       data-tour="monitoring-entry"
-      className="flex flex-wrap items-center gap-x-4 gap-y-4 rounded-card bg-[radial-gradient(60%_140%_at_88%_-25%,#ffffff26,transparent_70%),linear-gradient(120deg,#dc1c2e_0%,#b3141f_48%,#7a0d1c_100%)] p-5 text-white shadow-[0_14px_36px_-14px_#7a0d1c99] ring-1 ring-white/10 ring-inset sm:gap-x-5 sm:px-7 sm:py-6"
+      className="flex flex-wrap items-center gap-x-4 gap-y-4 rounded-card bg-[radial-gradient(60%_140%_at_88%_-25%,color-mix(in_srgb,white_15%,transparent),transparent_70%),linear-gradient(120deg,var(--opp)_0%,var(--opp-dark)_100%)] p-5 text-white shadow-opp ring-1 ring-white/10 ring-inset sm:gap-x-5 sm:px-7 sm:py-6"
     >
       {/* Illustration carries ~18% transparent padding; the negative margin keeps the visible tile at the old icon footprint. */}
       <img
-        src="/card-kpr.webp"
+        src="/brand/card-kpr.webp"
         alt=""
         width={800}
         height={800}
@@ -371,7 +371,7 @@ function MonitoringEntry() {
         <h2 className="text-lg leading-6 font-extrabold">
           Sudah punya KPR yang berjalan?
         </h2>
-        {/* Full white: translucent white drops under 4.5:1 on brand red. */}
+        {/* Full white: translucent white drops under 4.5:1 on the brand gradient. */}
         <p className="max-w-[62ch] text-sm leading-[21px]">
           Pantau cicilan, dapatkan reminder sebelum bunga floating, dan lihat
           kondisi KPR kamu dalam satu tempat.
@@ -381,7 +381,7 @@ function MonitoringEntry() {
         asChild
         variant="inverse"
         size="md"
-        className="w-full text-brand-red hover:bg-danger-bg focus-visible:ring-white/70 sm:w-auto"
+        className="w-full focus-visible:ring-white/70 sm:w-auto"
       >
         <Link to="/monitoring/intro">
           Pantau KPR Saya
@@ -483,11 +483,11 @@ export function ArticleCard({ article: a, cta = "Baca" }) {
   return (
     <Link
       to={`/education/${a.slug}`}
-      className="flex flex-1 flex-col items-start gap-3 rounded-card bg-card p-[22px] shadow-card transition-shadow hover:shadow-[0_10px_30px_#0b1b331f]"
+      className="flex flex-1 flex-col items-start gap-3 rounded-card bg-card p-[22px] shadow-card transition-shadow hover:shadow-card-hover"
     >
       <span className="flex items-center gap-2.5">
         <IconBox icon={Icon} size="sm" />
-        <span className="text-[11px] font-extrabold tracking-[0.5px] text-brand-red uppercase">
+        <span className="text-[11px] font-extrabold tracking-[0.5px] text-highlight uppercase">
           {a.tag}
         </span>
       </span>
@@ -640,7 +640,7 @@ function MortgageDraftHero({ mortgage, onDeleted }) {
 
 function RejectedHero({ app }) {
   return (
-    <section className="flex flex-col gap-4 rounded-card border-t-4 border-brand-red bg-card p-6 shadow-card sm:p-7">
+    <section className="flex flex-col gap-4 rounded-card border-t-4 border-danger-solid bg-card p-6 shadow-card sm:p-7">
       <Chip tone="bad" icon={CircleXIcon}>
         Pengajuan Ditolak
       </Chip>
@@ -648,7 +648,7 @@ function RejectedHero({ app }) {
         <h2 className="text-2xl leading-8 font-extrabold">
           {app.selection?.bankName} · {productName(app)}
         </h2>
-        <p className="text-[15px] leading-[23px] text-ink-3">
+        <p className="text-[15px] leading-[23px] text-muted-foreground">
           {app.rejection?.displayReason} Kamu masih bisa ajukan ke bank lain
           atau perbaiki data lalu ajukan ulang.
         </p>
@@ -697,7 +697,7 @@ function InProcessSection({ app }) {
       </div>
       <div className="flex min-w-0 flex-col gap-6">
         {pending.length > 0 && (
-          <Panel className="border-t-4 border-warning-accent">
+          <Panel className="border-t-4 border-warning-border">
             <Chip tone="warn" icon={TriangleAlertIcon}>
               Perlu Tindakan
             </Chip>
@@ -781,7 +781,7 @@ function ActiveMortgageMini({ mortgage: m, derived, takeover }) {
         ]}
       />
       {takeover && (
-        <p className="text-[13px] font-semibold text-warning-text">
+        <p className="text-[13px] font-semibold text-warning">
           Tetap bayar cicilan bank lama sampai konfirmasi pelunasan resmi
           diterima.
         </p>

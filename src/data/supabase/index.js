@@ -6,7 +6,7 @@ import { createMockApi } from '../mockApi'
 import { authApi } from './auth'
 import { supabase } from './client'
 import { must } from './errors'
-import { DOCS_BUCKET, LOGOS_BUCKET, PROOFS_BUCKET, currentSession, filePath, ownsFolder, publicUrl, removeFiles, signedUrl, uploadFile } from './storage'
+import { BRAND_BUCKET, DOCS_BUCKET, LOGOS_BUCKET, PROOFS_BUCKET, currentSession, filePath, ownsFolder, publicUrl, removeFiles, signedUrl, uploadFile } from './storage'
 import { createSupabaseStore } from './store'
 
 const fileMeta = (file) => ({ name: file.name, size: file.size, type: file.type })
@@ -38,6 +38,10 @@ async function saveBankLogo(values, previous, write) {
   if (values?.logo !== undefined && previous !== path) await removeFiles(LOGOS_BUCKET, [previous])
   return bank
 }
+
+// Every file the draft and the published brand point at; the ones neither keeps after a write leave Storage.
+const brandFiles = (b) => [b.draft, b.published].flatMap((s) => [s?.logo?.path, s?.favicon?.path]).filter(Boolean)
+const dropUnused = (before, after) => removeFiles(BRAND_BUCKET, brandFiles(before).filter((p) => !brandFiles(after).includes(p)))
 
 export function createSupabaseApi() {
   const base = createMockApi({ latencyMs: 0, store: createSupabaseStore() })
@@ -115,6 +119,44 @@ export function createSupabaseApi() {
         return signedUrl(DOCS_BUCKET, file.path, file.fileName || true)
       },
     },
+    brand: {
+      ...base.admin.brand,
+      // Logo and favicon to Storage first, then the draft; a failed save takes the new files out (spec 2026-10-20).
+      async saveDraft({ settings = {}, expectedVersion } = {}) {
+        const before = await base.admin.brand.get()
+        const files = { ...settings }
+        const uploaded = []
+        try {
+          for (const k of ['logo', 'favicon']) {
+            if (!(files[k] instanceof Blob)) continue
+            const problem = uploadProblem(files[k], LOGO_UPLOAD)
+            if (problem) throw new ApiError({ code: problem.code, message: problem.message }, { status: problem.status })
+            const path = filePath([], files[k])
+            await uploadFile(BRAND_BUCKET, path, files[k])
+            uploaded.push(path)
+            files[k] = { path, url: publicUrl(BRAND_BUCKET, path) }
+          }
+          const after = await base.admin.brand.saveDraft({ settings: files, expectedVersion })
+          await dropUnused(before, after)
+          return after
+        } catch (e) {
+          await removeFiles(BRAND_BUCKET, uploaded)
+          throw e
+        }
+      },
+      async publish(input) {
+        const before = await base.admin.brand.get()
+        const after = await base.admin.brand.publish(input)
+        await dropUnused(before, after)
+        return after
+      },
+      async reset(input) {
+        const before = await base.admin.brand.get()
+        const after = await base.admin.brand.reset(input)
+        await dropUnused(before, after)
+        return after
+      },
+    },
     banks: {
       ...base.admin.banks,
       create: ({ values, reason } = {}) => saveBankLogo(values, null, (v) => base.admin.banks.create({ values: v, reason })),
@@ -125,5 +167,13 @@ export function createSupabaseApi() {
     },
   }
 
-  return { ...base, auth: authApi, applications, mortgages, admin }
+  // Read straight from the table: a visitor who is not signed in has no store data, and RLS lets anyone read this row.
+  const brand = {
+    async published() {
+      const row = await must(supabase().from('brand_settings').select('doc').eq('id', 'published').maybeSingle())
+      return row?.doc ?? null
+    },
+  }
+
+  return { ...base, auth: authApi, applications, mortgages, admin, brand }
 }

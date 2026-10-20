@@ -1,0 +1,219 @@
+/* Brand tokens: the only file with colour values. A clone edits this file, brand.js and public/brand/
+   (see BRANDING.md). Components never use these names directly; they use the utilities from
+   src/styles/globals.css (bg-primary, text-muted-foreground, rounded-card, …).
+   Source: Pencil "Color System · Teal / Aqua" (light theme). */
+
+:root {
+  /* ── 1. Primitive palettes ── always replace. Eleven steps each:
+     50–100 surface · 200–300 subtle border · 400–500 accent · 600–700 interaction · 800–950 text / dark surface.
+     Names are roles, not hues, so another brand keeps the same names. */
+  --palette-white: #ffffff;
+
+  /* Primary / Deep teal */
+  --palette-primary-50: #edfafb;
+  --palette-primary-100: #d3f0f2;
+  --palette-primary-200: #a6dee3;
+  --palette-primary-300: #70c3cd;
+  --palette-primary-400: #3ca0ae;
+  --palette-primary-500: #187f90;
+  --palette-primary-600: #0a5b6c;
+  --palette-primary-700: #074b58;
+  --palette-primary-800: #053f48;
+  --palette-primary-900: #003036;
+  --palette-primary-950: #001d22;
+
+  /* Secondary / Teal */
+  --palette-secondary-50: #edfcf8;
+  --palette-secondary-100: #d0f8ee;
+  --palette-secondary-200: #a3efdd;
+  --palette-secondary-300: #6be2c7;
+  --palette-secondary-400: #31d2b3;
+  --palette-secondary-500: #00c0a5;
+  --palette-secondary-600: #008575;
+  --palette-secondary-700: #006a60;
+  --palette-secondary-800: #06544e;
+  --palette-secondary-900: #08453f;
+  --palette-secondary-950: #022d2a;
+
+  /* Accent / Electric aqua */
+  --palette-accent-50: #ecfffd;
+  --palette-accent-100: #cffffa;
+  --palette-accent-200: #a0fff6;
+  --palette-accent-300: #62fff2;
+  --palette-accent-400: #00fbf0;
+  --palette-accent-500: #00d8cf;
+  --palette-accent-600: #00aaa5;
+  --palette-accent-700: #008480;
+  --palette-accent-800: #086865;
+  --palette-accent-900: #0b5553;
+  --palette-accent-950: #003a39;
+
+  /* Neutral / Soft sage */
+  --palette-neutral-50: #f7f8f6;
+  --palette-neutral-100: #eef1ed;
+  --palette-neutral-200: #dee4df;
+  --palette-neutral-300: #c4cec7;
+  --palette-neutral-400: #97a69e;
+  --palette-neutral-500: #718279;
+  --palette-neutral-600: #56675f;
+  --palette-neutral-700: #425149;
+  --palette-neutral-800: #303f38;
+  --palette-neutral-900: #1d2c25;
+  --palette-neutral-950: #101c17;
+
+  /* Success / Botanical green */
+  --palette-success-50: #effaf3;
+  --palette-success-100: #d9f2e2;
+  --palette-success-200: #b6e5c8;
+  --palette-success-300: #83d1a1;
+  --palette-success-400: #4bb779;
+  --palette-success-500: #29975a;
+  --palette-success-600: #1d7946;
+  --palette-success-700: #1b603b;
+  --palette-success-800: #194d32;
+  --palette-success-900: #163f2b;
+  --palette-success-950: #092319;
+
+  /* Danger / Warm coral (the guideline's "Error") */
+  --palette-danger-50: #fff2f1;
+  --palette-danger-100: #ffe1de;
+  --palette-danger-200: #ffc6c0;
+  --palette-danger-300: #ffa098;
+  --palette-danger-400: #f97268;
+  --palette-danger-500: #e64c43;
+  --palette-danger-600: #c6322c;
+  --palette-danger-700: #a52725;
+  --palette-danger-800: #882524;
+  --palette-danger-900: #712423;
+  --palette-danger-950: #3d1010;
+
+  /* Warning / Golden amber */
+  --palette-warning-50: #fffaeb;
+  --palette-warning-100: #fff1c6;
+  --palette-warning-200: #ffe28a;
+  --palette-warning-300: #ffd04d;
+  --palette-warning-400: #ffbf00;
+  --palette-warning-500: #d99a00;
+  --palette-warning-600: #ae7200;
+  --palette-warning-700: #875400;
+  --palette-warning-800: #6f4307;
+  --palette-warning-900: #5d380c;
+  --palette-warning-950: #361d03;
+
+  /* Info / Clear blue */
+  --palette-info-50: #eff7ff;
+  --palette-info-100: #dbedfe;
+  --palette-info-200: #bedffc;
+  --palette-info-300: #91caf8;
+  --palette-info-400: #5daaf0;
+  --palette-info-500: #368be1;
+  --palette-info-600: #256cc1;
+  --palette-info-700: #22569c;
+  --palette-info-800: #214981;
+  --palette-info-900: #203e6b;
+  --palette-info-950: #152744;
+}
+
+/* Also on [data-brand-scope]: a preview box with its own palettes (admin brand page) recomputes every role. A brand
+   published from the admin overrides the palettes and a few roles inline on <html> (src/brand/live.js). */
+:root,
+[data-brand-scope] {
+  /* ── 2. Semantic tokens ── UI roles pointing at the palettes. Keep as is when the new palettes have the same
+     character (dark primary, bright accent); otherwise move a role to another step. src/brand/brand.test.js
+     checks every text/background pair against WCAG AA. */
+
+  /* Surface & content */
+  --background: var(--palette-neutral-50); /* bg/canvas */
+  --foreground: var(--palette-primary-900); /* text/primary */
+  --card: var(--palette-white); /* bg/surface */
+  --card-foreground: var(--foreground);
+  --popover: var(--palette-white);
+  --popover-foreground: var(--foreground);
+  --muted: var(--palette-neutral-100); /* bg/subtle */
+  --muted-foreground: var(--palette-neutral-600); /* text/secondary */
+  --inverse: var(--palette-primary-900); /* bg/inverse: toasts, dark panels */
+  --inverse-foreground: var(--palette-neutral-50); /* text/inverse */
+  --border: var(--palette-neutral-200); /* border/subtle: dividers, card outlines */
+  --border-strong: var(--palette-neutral-600); /* border/strong: checkbox and radio outlines */
+  --input: var(--palette-neutral-500); /* border/control: input outlines (≥ 3:1) */
+  --field: var(--palette-white); /* input fill */
+  --placeholder: var(--palette-neutral-600);
+
+  /* Interaction */
+  --primary: var(--palette-primary-900); /* action/primary */
+  --primary-foreground: var(--palette-white); /* action/on-primary */
+  --primary-hover: var(--palette-primary-600); /* action/hover */
+  --primary-pressed: var(--palette-primary-950); /* action/pressed */
+  --secondary: var(--palette-primary-50); /* soft button, chips, selected rows */
+  --secondary-foreground: var(--palette-primary-900);
+  --secondary-hover: var(--palette-primary-100);
+  --accent: var(--palette-primary-50); /* shadcn's subtle hover surface (menus), not the aqua accent */
+  --accent-foreground: var(--palette-primary-900);
+  --cta: var(--palette-accent-400); /* action/accent: CTA on dark surfaces only */
+  --cta-foreground: var(--palette-primary-900); /* action/on-accent: never white on aqua */
+  --cta-hover: var(--palette-accent-500);
+  --cta-pressed: var(--palette-accent-600);
+  --link: var(--palette-secondary-700); /* action/link */
+  --highlight: var(--palette-secondary-700); /* small brand text on light surfaces: tagline, eyebrows */
+  --ring: var(--palette-accent-700); /* focus/ring */
+  --selection: var(--palette-secondary-100);
+  --selection-foreground: var(--palette-primary-900);
+  --disabled: var(--palette-neutral-100);
+  --disabled-foreground: var(--palette-neutral-500);
+  --step-current: var(--palette-primary-400); /* current step dot in progress trackers */
+
+  /* Status: text = 700 on bg = 50, border = 600, solid = 600 with white text (warning 700).
+     Always paired with an icon and a message, never colour alone. */
+  --success: var(--palette-success-700);
+  --success-bg: var(--palette-success-50);
+  --success-border: var(--palette-success-600);
+  --success-solid: var(--palette-success-600);
+  --warning: var(--palette-warning-700);
+  --warning-bg: var(--palette-warning-50);
+  --warning-border: var(--palette-warning-600);
+  --warning-solid: var(--palette-warning-700);
+  --danger: var(--palette-danger-700);
+  --danger-bg: var(--palette-danger-50);
+  --danger-border: var(--palette-danger-600);
+  --danger-solid: var(--palette-danger-600);
+  --destructive: var(--danger-solid);
+  --info: var(--palette-info-700);
+  --info-bg: var(--palette-info-50);
+  --info-border: var(--palette-info-600);
+  --info-solid: var(--palette-info-600);
+
+  /* Hero banner gradient (white text sits on it) */
+  --hero-from: var(--palette-primary-950);
+  --hero-to: var(--palette-primary-700);
+
+  /* Opportunity tile ("potensi hemat"): kept apart from success green. White text sits on it; the centre
+     glow over --opp must leave ≥ 4.5:1. */
+  --opp: var(--palette-secondary-700);
+  --opp-dark: var(--palette-secondary-800);
+  --opp-mute: var(--palette-secondary-50);
+  --opp-mute-border: var(--palette-secondary-200);
+
+  /* Charts (Recharts reads these from SVG attributes). Series that sit side by side must stay apart for
+     colour-blind readers: principal ↔ interest/step, principal ↔ warn ↔ step, ok ↔ warn ↔ bad (status series
+     always carry an icon and a label). Warn is one step lighter than the other status series for that reason. */
+  --chart-principal: var(--palette-accent-600);
+  --chart-interest: var(--palette-info-600);
+  --chart-step: var(--palette-info-600);
+  --chart-ok: var(--palette-success-600);
+  --chart-warn: var(--palette-warning-500);
+  --chart-warn-text: var(--palette-warning-700);
+  --chart-bad: var(--palette-danger-600);
+  --chart-track: var(--palette-neutral-100);
+
+  /* Elevation, tinted by the darkest primary */
+  --card-shadow: 0 6px 24px color-mix(in srgb, var(--palette-primary-950) 8%, transparent);
+  --card-shadow-hover: 0 10px 30px color-mix(in srgb, var(--palette-primary-950) 12%, transparent);
+  --pop-shadow: 0 24px 60px color-mix(in srgb, var(--palette-primary-950) 25%, transparent);
+  --opp-shadow: 0 6px 20px color-mix(in srgb, var(--opp) 25%, transparent);
+  --opp-shadow-hover: 0 10px 28px color-mix(in srgb, var(--opp) 35%, transparent);
+
+  /* ── 3. Typography & shape ── the font must also be loaded by brand.fontsUrl, with weights 400–800. */
+  --body-font: "Plus Jakarta Sans", system-ui, sans-serif;
+  --heading-font: var(--body-font);
+  --card-radius: 24px;
+}

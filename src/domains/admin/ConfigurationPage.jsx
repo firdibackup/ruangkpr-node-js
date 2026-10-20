@@ -16,11 +16,11 @@ import { ReminderSettingsForm } from '@/domains/mortgages/ReminderSettingsForm'
 import { validateReminders } from '@/domains/mortgages/validation'
 import { AdminHeader } from './shared'
 
-const head = 'text-xs font-bold text-ink-3'
+const head = 'text-xs font-bold text-muted-foreground'
 const asErrors = (e) => Object.fromEntries((e.fieldErrors ?? []).map((x) => [x.field, x.message]))
 
 // Configuration goes live for every user at once, so each change is confirmed with a reason for the audit log.
-function ReasonDialog({ open, onOpenChange, title, body, confirmLabel, onConfirm }) {
+export function ReasonDialog({ open, onOpenChange, title, body, confirmLabel, onConfirm }) {
   const [reason, setReason] = useState('')
   return (
     <ConfirmDialog
@@ -108,7 +108,7 @@ function UploadPanel({ data, onSaved }) {
       <PanelTitle sub="Dicek di halaman user sebelum mengunggah dan lagi saat file diterima: dokumen pengajuan dan bukti pembayaran.">Unggah dokumen</PanelTitle>
       <NumberField label="Ukuran maksimal" suffix="MB per file" value={f.maxFileMb} onChange={(v) => setF((x) => ({ ...x, maxFileMb: v }))} error={errors.maxFileMb} hint="1–20 MB." />
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-semibold text-ink-2">Format yang diterima</legend>
+        <legend className="mb-2 text-sm font-semibold text-foreground">Format yang diterima</legend>
         <div className="flex flex-wrap gap-x-6">
           {Object.keys(UPLOAD_FORMATS).map((k) => (
             <CheckboxField key={k} label={k.toUpperCase()} checked={f.formats.includes(k)} onChange={toggle(k)} />
@@ -116,8 +116,8 @@ function UploadPanel({ data, onSaved }) {
         </div>
         {errors.formats && <FieldError>{errors.formats}</FieldError>}
       </fieldset>
-      <p className="text-sm text-ink-3">
-        Yang dibaca user sekarang: <span className="font-semibold text-ink-2">{uploadHint(saved)}</span>
+      <p className="text-sm text-muted-foreground">
+        Yang dibaca user sekarang: <span className="font-semibold text-foreground">{uploadHint(saved)}</span>
       </p>
       <Button className="w-fit" disabled={!dirty} onClick={review}>
         Simpan batas unggah
@@ -220,7 +220,7 @@ export function ConfigurationPage() {
             <SupportPanel data={data} onSaved={setData} />
             <Panel>
               <PanelTitle sub="Ambang dan bobot skor. Setiap perubahan terbit sebagai versi baru, jadi versi lama bisa dipulihkan.">KPR Health</PanelTitle>
-              <p className="text-sm text-ink-2">
+              <p className="text-sm text-foreground">
                 Versi {data.health.version} berlaku sejak {dateLong(data.health.publishedAt)}.
               </p>
               <Button asChild variant="outline" size="sm" className="w-fit">
@@ -295,13 +295,13 @@ function BandTable({ name, limitHead, unit, rows, onChange, error }) {
             <TableRow key={i} className="hover:bg-transparent">
               <TableCell className="py-2">
                 {b.upTo === null ? (
-                  <span className="text-sm font-semibold text-ink-2">
+                  <span className="text-sm font-semibold text-foreground">
                     Lebih dari {rows[i - 1].upTo || '…'}
                     {unit}
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
-                    <span className="hidden text-sm text-ink-3 sm:inline">sampai</span>
+                    <span className="hidden text-sm text-muted-foreground sm:inline">sampai</span>
                     <NumInput label={`${name}: batas baris ${i + 1}`} value={b.upTo} onChange={(v) => onChange(i, 'upTo', v)} suffix={unit.trim()} />
                   </span>
                 )}
@@ -322,7 +322,7 @@ function BandTable({ name, limitHead, unit, rows, onChange, error }) {
 
 const signed = (d) => (d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '0')
 // The number carries the tone, the label says it in words.
-const TONE_TEXT = { ok: 'text-success', warn: 'text-warning-text', bad: 'text-danger', mute: 'text-muted-foreground' }
+const TONE_TEXT = { ok: 'text-success', warn: 'text-warning', bad: 'text-danger', mute: 'text-muted-foreground' }
 const ScoreCell = ({ s }) => (
   <span className="flex flex-col">
     <span className={`text-[15px] font-extrabold tabular ${TONE_TEXT[s.tone]}`}>{s.score ?? '—'}</span>
@@ -344,7 +344,7 @@ function PreviewTable({ preview }) {
       <TableBody>
         {preview.items.map((x) => (
           <TableRow key={x.key}>
-            <TableCell className="min-w-36 py-3 whitespace-normal text-ink-2">{x.label}</TableCell>
+            <TableCell className="min-w-36 py-3 whitespace-normal text-foreground">{x.label}</TableCell>
             <TableCell className="py-3">
               <ScoreCell s={x.before} />
             </TableCell>
@@ -363,14 +363,14 @@ function VersionHistory({ data, onRollback }) {
   return (
     <ul aria-label="Riwayat versi" className="flex flex-col">
       {data.versions.map((v) => (
-        <li key={v.version} className="flex flex-wrap items-start justify-between gap-3 border-b border-line py-3 first:pt-0 last:border-b-0 last:pb-0">
+        <li key={v.version} className="flex flex-wrap items-start justify-between gap-3 border-b border-border py-3 first:pt-0 last:border-b-0 last:pb-0">
           <span className="flex min-w-0 flex-col gap-0.5">
             <span className="flex items-center gap-2 text-sm font-bold">
               v{v.version}
               {v.version === data.active.version && <Chip tone="ok">Aktif</Chip>}
-              {v.rollbackOf && <span className="text-xs font-semibold text-ink-3">dipulihkan dari v{v.rollbackOf}</span>}
+              {v.rollbackOf && <span className="text-xs font-semibold text-muted-foreground">dipulihkan dari v{v.rollbackOf}</span>}
             </span>
-            <span className="text-[13px] text-ink-2">“{v.reason}”</span>
+            <span className="text-[13px] text-foreground">“{v.reason}”</span>
             <span className="text-xs text-muted-foreground">
               {dateShort(v.publishedAt)}
               {v.publishedBy && ` · oleh ${v.publishedBy.name}`}
@@ -441,7 +441,7 @@ function HealthEditor({ data, setData }) {
           </Panel>
           <Panel>
             <PanelTitle sub="Bunga floating, atau sisa masa fixed.">Risiko bunga</PanelTitle>
-            <span className="flex items-center justify-between gap-3 text-sm font-semibold text-ink-2">
+            <span className="flex items-center justify-between gap-3 text-sm font-semibold text-foreground">
               Sudah floating
               <NumInput label="Risiko bunga: skor floating" value={f.floating} onChange={set('floating')} />
             </span>
@@ -449,11 +449,11 @@ function HealthEditor({ data, setData }) {
           </Panel>
           <Panel>
             <PanelTitle sub="Skor = dasar + tambahan × porsi pokok yang sudah lunas, maksimal 100.">Progres pinjaman</PanelTitle>
-            <span className="flex items-center justify-between gap-3 text-sm font-semibold text-ink-2">
+            <span className="flex items-center justify-between gap-3 text-sm font-semibold text-foreground">
               Skor dasar
               <NumInput label="Progres pinjaman: skor dasar" value={f.base} onChange={set('base')} />
             </span>
-            <span className="flex items-center justify-between gap-3 text-sm font-semibold text-ink-2">
+            <span className="flex items-center justify-between gap-3 text-sm font-semibold text-foreground">
               Tambahan saat pokok lunas 100%
               <NumInput label="Progres pinjaman: tambahan" value={f.perPaid} onChange={set('perPaid')} />
             </span>
@@ -463,19 +463,19 @@ function HealthEditor({ data, setData }) {
             <PanelTitle sub="Skor akhir = rata-rata berbobot dari komponen yang datanya ada. Bobot 0 = tampil tapi tidak dihitung.">Bobot dan label</PanelTitle>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {Object.entries(COMPONENT).map(([k, name]) => (
-                <span key={k} className="flex items-center justify-between gap-3 text-sm font-semibold text-ink-2">
+                <span key={k} className="flex items-center justify-between gap-3 text-sm font-semibold text-foreground">
                   {name}
                   <NumInput label={`Bobot ${name}`} value={f.weights[k]} onChange={(v) => setF((x) => ({ ...x, weights: { ...x.weights, [k]: v } }))} />
                 </span>
               ))}
             </div>
             {errors.weights && <FieldError>{errors.weights}</FieldError>}
-            <div className="grid grid-cols-1 gap-3 border-t border-line pt-4 sm:grid-cols-2">
-              <span className="flex items-center justify-between gap-3 text-sm font-semibold text-ink-2">
+            <div className="grid grid-cols-1 gap-3 border-t border-border pt-4 sm:grid-cols-2">
+              <span className="flex items-center justify-between gap-3 text-sm font-semibold text-foreground">
                 Sehat mulai skor
                 <NumInput label="Sehat mulai skor" value={f.healthy} onChange={set('healthy')} />
               </span>
-              <span className="flex items-center justify-between gap-3 text-sm font-semibold text-ink-2">
+              <span className="flex items-center justify-between gap-3 text-sm font-semibold text-foreground">
                 Perlu perhatian mulai skor
                 <NumInput label="Perlu perhatian mulai skor" value={f.attention} onChange={set('attention')} />
               </span>

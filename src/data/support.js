@@ -1,7 +1,9 @@
+import { brand } from '@/brand/brand'
+
 // Customer service contact (admin configuration `support`): one WhatsApp number and one booking page for every
 // user. The booking page shows only the slots the marketing team's calendar has free. `calendarId` is that Google
 // Calendar (cal.com writes bookings into it), shown to admins on /admin/schedule.
-export const DEFAULT_SUPPORT = { whatsapp: '', bookingUrl: 'https://cal.com/creative-karsindo-wr7vhx/konsultasi-kpr', calendarId: '' }
+export const DEFAULT_SUPPORT = { whatsapp: '', bookingUrl: brand.bookingUrl, calendarId: '' }
 
 // 0812…, +62 812…, 62-812… all become 62812…
 const waDigits = (s) => String(s ?? '').replace(/\D/g, '').replace(/^0/, '62')

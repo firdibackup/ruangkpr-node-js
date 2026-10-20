@@ -51,7 +51,7 @@ export function PrimaryMilestone({ milestone, app, go }) {
           {error.code === 'CALCULATION_INPUT_INCOMPLETE' ? error.message : 'Periksa koneksi, lalu coba lagi. Kamu tetap bisa lanjut mengisi.'}
         </Notice>
       ) : (
-        <div role="status" className="flex min-h-[132px] items-center justify-center gap-2 rounded-2xl bg-muted text-[13px] font-semibold text-ink-3">
+        <div role="status" className="flex min-h-[132px] items-center justify-center gap-2 rounded-2xl bg-muted text-[13px] font-semibold text-muted-foreground">
           <Spinner className="text-primary" />
           Menghitung dari data kamu…
         </div>

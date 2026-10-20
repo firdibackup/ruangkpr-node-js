@@ -25,7 +25,7 @@ function MeterRow({ label, value, max, note }) {
   return (
     <li className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-3 text-sm">
-        <span className="font-semibold text-ink-2">{label}</span>
+        <span className="font-semibold text-foreground">{label}</span>
         <span className="font-extrabold tabular">
           {value}
           {note && <span className="ml-1.5 font-semibold text-muted-foreground">{note}</span>}
@@ -62,7 +62,7 @@ function FlowPanel({ byStatus }) {
             <ol aria-label={g.owner} className="grid grid-cols-[repeat(auto-fit,minmax(104px,1fr))] gap-2">
               {g.stages.map((s) => (
                 <li key={s} className="flex flex-col-reverse justify-end gap-1.5 rounded-xl bg-muted px-3.5 py-3">
-                  <span className="text-xs leading-4 font-semibold text-ink-3">{STATUS_LABEL[s]}</span>
+                  <span className="text-xs leading-4 font-semibold text-muted-foreground">{STATUS_LABEL[s]}</span>
                   <span className={cn('text-2xl leading-none font-extrabold', !n(s) && 'text-muted-foreground')}>{n(s)}</span>
                 </li>
               ))}
@@ -117,7 +117,7 @@ function OutcomePanel({ byStatus, funnel }) {
           <DonutLegend parts={parts} label="Hasil pengajuan" share={share} />
         </div>
       )}
-      <div className="flex flex-col gap-3.5 border-t border-line pt-4">
+      <div className="flex flex-col gap-3.5 border-t border-border pt-4">
         <h3 className="text-sm font-bold">Konversi</h3>
         <ul className="flex flex-col gap-3.5">
           <MeterRow label="Diajukan" value={funnel.submitted} max={max} />
@@ -142,9 +142,9 @@ function QueuePanel({ queue }) {
         <Table aria-labelledby={titleId}>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="text-xs font-bold text-ink-3">Pemohon & program</TableHead>
-              <TableHead className="text-xs font-bold text-ink-3">Status</TableHead>
-              <TableHead className="text-right text-xs font-bold text-ink-3">Menunggu</TableHead>
+              <TableHead className="text-xs font-bold text-muted-foreground">Pemohon & program</TableHead>
+              <TableHead className="text-xs font-bold text-muted-foreground">Status</TableHead>
+              <TableHead className="text-right text-xs font-bold text-muted-foreground">Menunggu</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -187,11 +187,11 @@ function ProductsPanel({ products }) {
       <Table aria-labelledby={titleId}>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="text-xs font-bold text-ink-3">Produk</TableHead>
-            <TableHead className="text-xs font-bold text-ink-3">Jenis</TableHead>
-            <TableHead className="text-xs font-bold text-ink-3">Berlaku sampai</TableHead>
-            <TableHead className="text-right text-xs font-bold text-ink-3">Sisa</TableHead>
-            <TableHead className="text-xs font-bold text-ink-3">Verifikasi data</TableHead>
+            <TableHead className="text-xs font-bold text-muted-foreground">Produk</TableHead>
+            <TableHead className="text-xs font-bold text-muted-foreground">Jenis</TableHead>
+            <TableHead className="text-xs font-bold text-muted-foreground">Berlaku sampai</TableHead>
+            <TableHead className="text-right text-xs font-bold text-muted-foreground">Sisa</TableHead>
+            <TableHead className="text-xs font-bold text-muted-foreground">Verifikasi data</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -205,8 +205,8 @@ function ProductsPanel({ products }) {
                   <span className="text-xs text-muted-foreground">{p.bankName}</span>
                 </span>
               </TableCell>
-              <TableCell className="py-3 text-ink-2">{productTypeLabel(p.productTypes)}</TableCell>
-              <TableCell className="py-3 text-ink-2 tabular">{dateShort(p.effectiveUntil)}</TableCell>
+              <TableCell className="py-3 text-foreground">{productTypeLabel(p.productTypes)}</TableCell>
+              <TableCell className="py-3 text-foreground tabular">{dateShort(p.effectiveUntil)}</TableCell>
               <TableCell className="py-3 text-right font-bold tabular">{days(p.daysLeft)}</TableCell>
               <TableCell className="py-3">
                 {p.stale ? (
@@ -214,7 +214,7 @@ function ProductsPanel({ products }) {
                     Data usang
                   </Chip>
                 ) : (
-                  <span className="text-ink-2 tabular">{dateShort(p.lastVerifiedAt)}</span>
+                  <span className="text-foreground tabular">{dateShort(p.lastVerifiedAt)}</span>
                 )}
               </TableCell>
             </TableRow>

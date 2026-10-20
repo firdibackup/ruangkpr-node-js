@@ -19,7 +19,7 @@ import { PRODUCT_TYPES } from './labels'
 import { AdminHeader, DonutLegend, OutcomeDonut, StatusChip } from './shared'
 
 const STATUSES = ['submitted', 'docs_verification', 'additional_docs_requested', 'bank_processing', 'appraisal', 'approved', 'old_mortgage_settlement', 'akad', 'disbursed', 'rejected']
-const head = 'text-xs font-bold text-ink-3'
+const head = 'text-xs font-bold text-muted-foreground'
 const days = (n) => (n === 0 ? 'Hari ini' : `${n} hari`)
 const program = (x) => [productName(x), x.bankName, x.productName].filter(Boolean).join(' · ')
 
@@ -50,7 +50,7 @@ export function ApplicationListPage() {
       {!data && !error && <PageSkeleton />}
       {data && (
         <Panel>
-          <p className="text-sm font-semibold text-ink-3">{data.items.length} pengajuan</p>
+          <p className="text-sm font-semibold text-muted-foreground">{data.items.length} pengajuan</p>
           {data.items.length === 0 ? (
             <p className="text-sm text-muted-foreground">Tidak ada pengajuan yang cocok dengan filter ini.</p>
           ) : (
@@ -77,7 +77,7 @@ export function ApplicationListPage() {
                     <TableCell className="py-3">
                       <StatusChip status={a.status} />
                     </TableCell>
-                    <TableCell className="py-3 text-ink-2 tabular">{dateShort(a.submittedAt)}</TableCell>
+                    <TableCell className="py-3 text-foreground tabular">{dateShort(a.submittedAt)}</TableCell>
                     <TableCell className="py-3 text-right font-bold tabular">{days(a.waitingDays)}</TableCell>
                   </TableRow>
                 ))}
@@ -102,9 +102,9 @@ const ACTIONS = {
   rejected: 'Tolak pengajuan',
 }
 const DOC_STATUS = { uploaded: ['Terunggah', 'info'], verified: ['Terverifikasi', 'ok'], needs_update: ['Perlu diperbarui', 'warn'] }
-const row = 'flex items-center justify-between gap-3 border-b border-line py-3 first:pt-0 last:border-b-0 last:pb-0'
+const row = 'flex items-center justify-between gap-3 border-b border-border py-3 first:pt-0 last:border-b-0 last:pb-0'
 // The Button's `disabled:` look for an aria-disabled button (it stays focusable), as PrimaryWizard does.
-const looksDisabled = 'border-transparent bg-border text-ink-3 hover:bg-border'
+const looksDisabled = 'border-transparent bg-border text-muted-foreground hover:bg-border'
 
 // Required documents by where they stand, for the ring at the top of the documents panel.
 const DOC_PARTS = [
@@ -189,8 +189,8 @@ function DocumentsPanel({ data, onSaved, onReload, onSend }) {
         })}
       </ul>
       {reviewing && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-          <span className="text-sm font-semibold text-ink-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          <span className="text-sm font-semibold text-muted-foreground">
             {checked} dari {required.length} dokumen wajib diperiksa{drafts > 0 && ` · ${drafts} ditolak`}
           </span>
           <Button type="button" size="sm" variant="outline" disabled={!drafts || !!busy} onClick={onSend}>
@@ -296,7 +296,7 @@ function StagesPanel({ app, asOf }) {
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
         <PanelTitle sub="Diagram yang sama dengan tracker di aplikasi user.">Tahapan pengajuan</PanelTitle>
         {n != null && (
-          <span className="text-sm font-bold text-ink-3 tabular">
+          <span className="text-sm font-bold text-muted-foreground tabular">
             {closed ? `${span(n)} sampai ${STATUS_LABEL[app.status].toLowerCase()}` : `${span(n)} sejak diajukan`}
           </span>
         )}
@@ -321,7 +321,7 @@ function HistoryPanel({ app, asOf }) {
         {spans.map((x) => (
           <li key={`${x.status}-${x.at}`} className="flex flex-col gap-1.5">
             <span className="flex items-baseline justify-between gap-3">
-              <span className={x.open ? 'text-sm font-extrabold' : 'text-sm font-semibold text-ink-2'}>{STATUS_LABEL[x.status] ?? x.status}</span>
+              <span className={x.open ? 'text-sm font-extrabold' : 'text-sm font-semibold text-foreground'}>{STATUS_LABEL[x.status] ?? x.status}</span>
               <span className="text-xs text-muted-foreground tabular">
                 {dateShort(x.at)}
                 {x.days != null && <span className={x.open ? 'font-bold text-primary' : undefined}> · {x.open ? `berjalan ${span(x.days)}` : span(x.days)}</span>}
@@ -540,8 +540,8 @@ function NotesPanel({ data, onSaved }) {
       {data.notes.length > 0 && (
         <ul aria-label="Catatan internal" className="flex flex-col">
           {data.notes.map((n) => (
-            <li key={n.id} className="flex flex-col gap-0.5 border-b border-line py-3 last:border-b-0">
-              <span className="text-sm text-ink-2">{n.text}</span>
+            <li key={n.id} className="flex flex-col gap-0.5 border-b border-border py-3 last:border-b-0">
+              <span className="text-sm text-foreground">{n.text}</span>
               <span className="text-xs text-muted-foreground">
                 {n.author.name} · {dateShort(n.createdAt)}
               </span>
@@ -638,7 +638,7 @@ function TransitionDialog({ data, toStatus, onClose, onDone, onReload }) {
       <form onSubmit={submit} noValidate className="flex flex-col gap-5">
         {toStatus === 'additional_docs_requested' && (
           <div className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-ink-2">Dikirim ke user untuk diunggah ulang</span>
+            <span className="text-sm font-semibold text-foreground">Dikirim ke user untuk diunggah ulang</span>
             <ul aria-label="Dokumen yang ditolak" className="flex flex-col gap-1.5">
               {app.documents
                 .filter((d) => d.file?.review)

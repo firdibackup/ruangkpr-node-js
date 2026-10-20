@@ -5,14 +5,14 @@ import { cn } from '@/lib/utils'
 import { thousands } from '@/lib/format'
 
 const shell = 'flex h-[54px] items-center gap-2 rounded-lg border bg-field px-[18px] transition-colors focus-within:border-primary focus-within:ring-3 focus-within:ring-ring/15'
-const tone = (error, highlight) => (error ? 'border-brand-red' : highlight ? 'border-warning-accent bg-warning-soft' : 'border-input')
+const tone = (error, highlight) => (error ? 'border-danger-border' : highlight ? 'border-warning-border bg-warning-bg' : 'border-input')
 
 // `required` adds the visual * only; each control sets aria-required itself, so labels keep their accessible names.
 export function FieldShell({ id, label, hint, error, optional, required, span, className, children, labelFor = true }) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-2', span && 'sm:col-span-2', className)}>
       {label && (
-        <div className="flex items-baseline gap-2 text-sm leading-5 font-semibold text-ink-2">
+        <div className="flex items-baseline gap-2 text-sm leading-5 font-semibold text-foreground">
           {labelFor ? <label htmlFor={id}>{label}</label> : <span id={`${id}-label`}>{label}</span>}
           {required && (
             <span className="-ml-1.5 text-danger" aria-hidden>
@@ -67,7 +67,7 @@ export function TextField({ label, name, value, onChange, onBlur, error, hint, o
           aria-required={required || undefined}
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={describedBy(id, hint, error)}
-          className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-[#8a93a3]"
+          className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-placeholder"
         />
         {suffix && <span className="text-sm font-semibold whitespace-nowrap text-muted-foreground">{suffix}</span>}
         {trailing}
@@ -131,7 +131,7 @@ export function TextAreaField({ label, name, value, onChange, onBlur, error, hin
         aria-required={required || undefined}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy(id, hint, error)}
-        className={cn('w-full resize-y rounded-lg border bg-field px-[18px] py-3.5 text-[15px] leading-[22px] font-medium outline-none placeholder:text-[#8a93a3] focus:border-primary focus:ring-3 focus:ring-ring/15', tone(error, highlight))}
+        className={cn('w-full resize-y rounded-lg border bg-field px-[18px] py-3.5 text-[15px] leading-[22px] font-medium outline-none placeholder:text-placeholder focus:border-primary focus:ring-3 focus:ring-ring/15', tone(error, highlight))}
       />
     </FieldShell>
   )
@@ -151,7 +151,7 @@ export function SelectField({ label, name, value, onChange, onBlur, error, hint,
           aria-required={required || undefined}
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={describedBy(id, hint, error)}
-          className={cn('h-[54px] w-full cursor-pointer appearance-none rounded-lg border bg-field pr-11 pl-[18px] text-[15px] font-medium outline-none focus:border-primary focus:ring-3 focus:ring-ring/15', tone(error, highlight), !value && 'text-[#6b7587]')}
+          className={cn('h-[54px] w-full cursor-pointer appearance-none rounded-lg border bg-field pr-11 pl-[18px] text-[15px] font-medium outline-none focus:border-primary focus:ring-3 focus:ring-ring/15', tone(error, highlight), !value && 'text-placeholder')}
         >
           <option value="">{placeholder}</option>
           {options.map((o) => (
@@ -237,7 +237,7 @@ export function ComboboxField({ label, name, value, onChange, onBlur, error, hin
             onBlur?.()
           }}
           onKeyDown={onKeyDown}
-          className={cn('h-[54px] w-full rounded-lg border bg-field pr-11 pl-[18px] text-[15px] font-medium outline-none placeholder:text-[#8a93a3] focus:border-primary focus:ring-3 focus:ring-ring/15', tone(error, highlight))}
+          className={cn('h-[54px] w-full rounded-lg border bg-field pr-11 pl-[18px] text-[15px] font-medium outline-none placeholder:text-placeholder focus:border-primary focus:ring-3 focus:ring-ring/15', tone(error, highlight))}
         />
         <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-4 size-[18px] -translate-y-1/2 text-muted-foreground" aria-hidden />
         {open && (
@@ -304,17 +304,17 @@ export function RadioCards({ label, name, value, onChange, onBlur, error, hint, 
                 : 'min-h-[54px] items-start gap-3 rounded-lg border px-4 py-3.5 text-[15px] font-semibold data-[state=checked]:border-primary data-[state=checked]:bg-secondary data-[state=checked]:text-primary',
               // basis sets width in a row but height in a column, so only rows share the line
               variant !== 'pill' && layout !== 'column' && 'flex-1 basis-[150px]',
-              error && !custom ? 'border-brand-red' : 'border-input bg-card',
+              error && !custom ? 'border-danger-border' : 'border-input bg-card',
             )}
           >
             {variant !== 'pill' && (
-              <span className="mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border-2 border-[#b8c2d3] group-data-[state=checked]:border-primary">
+              <span className="mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border-2 border-border-strong group-data-[state=checked]:border-primary">
                 <RadioGroupPrimitive.Indicator className="size-2 rounded-full bg-primary" />
               </span>
             )}
             <span className="flex flex-col gap-1">
               <span>{o.label}</span>
-              {o.description && <span className="text-[13px] leading-[19px] font-medium text-muted-foreground group-data-[state=checked]:text-ink-3">{o.description}</span>}
+              {o.description && <span className="text-[13px] leading-[19px] font-medium text-muted-foreground">{o.description}</span>}
             </span>
           </RadioGroupPrimitive.Item>
         ))}
@@ -337,7 +337,7 @@ export function RadioCards({ label, name, value, onChange, onBlur, error, hint, 
             aria-required={required || undefined}
             aria-invalid={invalid}
             aria-describedby={describedBy(id, hint, error)}
-            className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-[#8a93a3]"
+            className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-placeholder"
           />
         </div>
       )}
@@ -351,7 +351,7 @@ export function CheckboxField({ label, checked, onChange, error, hint, boxed = f
     <div className={cn('flex flex-col gap-2', span && 'sm:col-span-2')}>
       <label
         htmlFor={id}
-        className={cn('flex min-h-11 cursor-pointer items-start gap-3 text-sm leading-[21px] font-semibold text-ink-2', boxed && 'items-center rounded-lg border border-input bg-card px-4 py-3.5', boxed && checked && 'border-primary', disabled && 'cursor-not-allowed text-muted-foreground')}
+        className={cn('flex min-h-11 cursor-pointer items-start gap-3 text-sm leading-[21px] font-semibold text-foreground', boxed && 'items-center rounded-lg border border-input bg-card px-4 py-3.5', boxed && checked && 'border-primary', disabled && 'cursor-not-allowed text-muted-foreground')}
       >
         <CheckboxPrimitive.Root
           id={id}
@@ -361,7 +361,7 @@ export function CheckboxField({ label, checked, onChange, error, hint, boxed = f
           onCheckedChange={(v) => onChange(v === true)}
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={describedBy(id, hint, error)}
-          className={cn('mt-px flex size-[22px] shrink-0 items-center justify-center rounded-[7px] border-2 border-[#b8c2d3] bg-card text-white outline-none focus-visible:ring-3 focus-visible:ring-ring/40 data-[state=checked]:border-primary data-[state=checked]:bg-primary disabled:bg-muted', error && 'border-brand-red')}
+          className={cn('mt-px flex size-[22px] shrink-0 items-center justify-center rounded-[7px] border-2 border-border-strong bg-card text-white outline-none focus-visible:ring-3 focus-visible:ring-ring/40 data-[state=checked]:border-primary data-[state=checked]:bg-primary disabled:bg-muted', error && 'border-danger-border')}
         >
           <CheckboxPrimitive.Indicator>
             <CheckIcon className="size-3.5" strokeWidth={3} />
@@ -369,7 +369,7 @@ export function CheckboxField({ label, checked, onChange, error, hint, boxed = f
         </CheckboxPrimitive.Root>
         <span className="flex flex-wrap items-center gap-2">
           {label}
-          {tag && <span className="rounded-full bg-border px-2 py-0.5 text-[11px] font-bold text-ink-3">{tag}</span>}
+          {tag && <span className="rounded-full bg-border px-2 py-0.5 text-[11px] font-bold text-muted-foreground">{tag}</span>}
         </span>
       </label>
       {hint && <span id={`${id}-hint`} className="text-xs text-muted-foreground">{hint}</span>}
@@ -381,8 +381,8 @@ export function CheckboxField({ label, checked, onChange, error, hint, boxed = f
 export function ReadonlyField({ label, value, sub, onEdit, span }) {
   return (
     <div className={cn('flex flex-col gap-2', span && 'sm:col-span-2')}>
-      <span className="text-sm font-semibold text-ink-2">{label}</span>
-      <div className="flex min-h-[54px] items-center justify-between gap-3 rounded-lg border border-dashed border-[#d5dbe6] px-[18px] py-2">
+      <span className="text-sm font-semibold text-foreground">{label}</span>
+      <div className="flex min-h-[54px] items-center justify-between gap-3 rounded-lg border border-dashed border-input px-[18px] py-2">
         <span className="flex flex-col">
           <span className="text-[15px] font-bold">{value}</span>
           {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
@@ -405,7 +405,7 @@ export function FormGrid({ children, className }) {
 export function ErrorSummary({ show, count }) {
   if (!show) return null
   return (
-    <div role="alert" className="flex items-center gap-2.5 rounded-2xl border border-danger-border bg-danger-bg px-4 py-3 text-sm font-semibold text-danger-strong">
+    <div role="alert" className="flex items-center gap-2.5 rounded-2xl border border-danger-border bg-danger-bg px-4 py-3 text-sm font-semibold text-danger">
       <CircleAlertIcon className="size-4 shrink-0" aria-hidden />
       Periksa kembali {count} field yang ditandai.
     </div>

@@ -95,15 +95,15 @@ export function StatusStepper({ steps, label = 'Tahapan pengajuan' }) {
                   'flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-white',
                   s.state === 'done' && 'border-primary bg-primary',
                   s.state === 'current' && 'border-primary bg-card',
-                  s.state === 'rejected' && 'border-brand-red bg-brand-red',
-                  s.state === 'todo' && 'border-[#d5dce6] bg-muted',
+                  s.state === 'rejected' && 'border-danger-solid bg-danger-solid',
+                  s.state === 'todo' && 'border-input bg-muted',
                 )}
               >
                 {s.state === 'done' && <CheckIcon className="size-3.5" strokeWidth={3} aria-hidden />}
                 {s.state === 'rejected' && <XIcon className="size-3.5" strokeWidth={3} aria-hidden />}
                 {s.state === 'current' && <span className="size-2.5 rounded-full bg-primary" />}
               </span>
-              {next && <span className={cn('mx-1.5 h-[3px] flex-1 rounded-full', s.state === 'done' && next.state !== 'todo' ? (next.state === 'rejected' ? 'bg-brand-red' : 'bg-primary') : 'bg-border')} />}
+              {next && <span className={cn('mx-1.5 h-[3px] flex-1 rounded-full', s.state === 'done' && next.state !== 'todo' ? (next.state === 'rejected' ? 'bg-danger-solid' : 'bg-primary') : 'bg-border')} />}
             </div>
             <div className="flex flex-col gap-0.5 pr-2">
               <span className={cn('text-[13px]', s.state === 'todo' ? 'font-semibold text-muted-foreground' : 'font-extrabold', s.state === 'current' && 'text-primary', s.state === 'rejected' && 'text-danger')}>{s.label}</span>
@@ -135,15 +135,15 @@ export function Timeline({ steps, label }) {
             <span
               className={cn(
                 'flex size-[22px] shrink-0 items-center justify-center rounded-full border-2 text-white',
-                s.state === 'done' && 'border-success-strong bg-success-strong',
+                s.state === 'done' && 'border-success-border bg-success-solid',
                 s.state === 'current' && 'border-primary bg-primary',
-                s.state === 'estimate' && 'border-warning-accent bg-card',
-                s.state === 'todo' && 'border-[#c9d2e0] bg-card',
+                s.state === 'estimate' && 'border-warning-border bg-card',
+                s.state === 'todo' && 'border-input bg-card',
               )}
             >
               {s.state === 'done' && <CheckIcon className="size-3" strokeWidth={3} aria-hidden />}
             </span>
-            {i < steps.length - 1 && <span className={cn('min-h-5 w-0.5 flex-1', s.state === 'done' ? 'bg-success-strong' : 'bg-border')} />}
+            {i < steps.length - 1 && <span className={cn('min-h-5 w-0.5 flex-1', s.state === 'done' ? 'bg-success-solid' : 'bg-border')} />}
           </div>
           <div className="flex flex-1 justify-between gap-3 pb-3.5">
             <span className="flex flex-col gap-0.5">

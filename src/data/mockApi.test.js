@@ -1227,6 +1227,17 @@ describe('take over simulation', () => {
     expect(await api.applications.create({ productType: 'primary' })).toMatchObject({ documents: {}, data: { loan: {} } })
   })
 
+  it('bank picked first: old-loan details asked afterwards keep it, a new outstanding drops it', async () => {
+    mockControls.reset('mortgage_active_floating')
+    const [m] = (await api.dashboard.getSnapshot()).mortgages
+    const sim = await api.simulations.run({ source: { type: 'mortgage', id: m.id }, input: { mode: 'takeover', goal: 'lower_payment', tenorMonths: 180 } })
+    let app = await api.simulations.apply({ bankProductId: sim.items[0].productId, tenorMonths: 180 })
+    app = await api.applications.saveStep(app.id, { step: 2, values: { oldLoan: { productName: 'KPR Lama', startDate: '2020-01-15', penaltyBps: null } } })
+    expect(app.selection).not.toBeNull()
+    app = await api.applications.saveStep(app.id, { step: 2, values: { oldLoan: { outstanding: m.outstandingPrincipal - 10_000_000 } } })
+    expect(app.selection).toBeNull()
+  })
+
   it('a draft created from a monitored KPR is prefilled, with Peluang default goal, so only the missing forms are left', async () => {
     mockControls.reset('mortgage_active_floating')
     const { mortgages: [m], clock } = await api.dashboard.getSnapshot()

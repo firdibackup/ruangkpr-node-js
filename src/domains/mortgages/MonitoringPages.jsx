@@ -33,7 +33,7 @@ export function MonitoringIntro() {
           <h2 className="text-[28px] font-extrabold tracking-[-0.4px]">
             Pantau KPR kamu
           </h2>
-          <p className="text-[15px] text-ink-3">Tambahkan data KPR untuk:</p>
+          <p className="text-[15px] text-muted-foreground">Tambahkan data KPR untuk:</p>
           <ul className="flex flex-col gap-3">
             {[
               "Mendapat reminder pembayaran",
@@ -56,7 +56,7 @@ export function MonitoringIntro() {
               </li>
             ))}
           </ul>
-          <p className="text-[13px] leading-5 text-ink-3">
+          <p className="text-[13px] leading-5 text-muted-foreground">
             2 langkah: data KPR lalu reminder. Penghasilan dan data properti
             bisa dilengkapi nanti.
           </p>
@@ -82,7 +82,7 @@ export function MonitoringIntro() {
                 className="mt-0.5 size-5 shrink-0 text-primary"
                 aria-hidden
               />
-              <span className="text-sm leading-[21px] text-ink-2">{text}</span>
+              <span className="text-sm leading-[21px] text-foreground">{text}</span>
             </div>
           ))}
         </div>

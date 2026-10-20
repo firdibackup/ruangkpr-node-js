@@ -186,30 +186,43 @@ test('old setup draft resumes on the last step in the new 2-step language', asyn
   await expect(page.locator('main ol > li')).toHaveText([/Data KPR/, /Reminder/])
 })
 
-test('penghasilan from the Home pop-up fills Take Over; data the setup no longer asks comes before the bank choices', async ({ page }) => {
+test('penghasilan from the Take Over start fills Take Over; bank choices come first, data the setup skipped after the pick', async ({ page }) => {
   await useScenario(page, 'fresh', '/monitoring/intro')
   await page.getByRole('button', { name: 'Mulai Tambahkan KPR' }).click()
   await fillKprStep(page)
   await activate(page)
   await page.getByRole('button', { name: 'Lihat Dashboard' }).click()
-  await fillIncome(page)
 
-  // The warning card's Take Over skips the bank list until the missing data is filled.
+  // Explore's Take Over: no data gate, only the income the bank list ranks by.
+  await page.goto('/optimize/start?mode=takeover')
+  const noIncome = page.getByText('Penghasilan bulanan belum diisi, jadi pilihan bank belum dapat dihitung.')
+  await expect(noIncome).toBeVisible()
+  await fillIncome(page)
+  await expect(noIncome).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Lihat Kondisi KPR' })).toBeVisible()
+  await page.goto('/')
+
+  // The warning card's Take Over opens the bank list although data pribadi, pekerjaan and properti are still missing.
   await page.getByRole('button', { name: 'Bandingkan Take Over' }).click()
-  await expect(page).toHaveURL(/optimize\/start\?mode=takeover$/)
-  await expect(page.getByText('Lengkapi data pengajuan dulu')).toBeVisible()
-  await expect(page.getByText(/belum lengkap: data pribadi, pekerjaan, data properti\./)).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Lihat Kondisi KPR' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Lengkapi Data' }).click()
+  await expect(page).toHaveURL(/optimize\/programs$/)
+  await expect(page.getByRole('heading', { name: 'Pilihan Take Over' })).toBeVisible()
+  await expect(page.getByText('Rekomendasi dari kami').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Lihat Detail' }).first().click()
+  await page.getByRole('button', { name: /^Ajukan / }).click()
+  await page.getByRole('button', { name: 'Lanjut Dokumen' }).click()
+  // Bank picked: the missing forms come before Dokumen.
   await expect(page).toHaveURL(/optimize\/1$/)
+  await expect(page.getByText('Lengkapi data pengajuan', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Isi contoh data' }).click()
   await save(page)
   await expect(page).toHaveURL(/optimize\/1\/pekerjaan$/)
   await expect(page.getByLabel('Penghasilan bulanan (gross)')).toHaveValue('15.000.000') // not typed again
   await page.getByRole('button', { name: 'Isi contoh data' }).click()
+  // New debts would change the price and drop the picked bank; none here, so the pick stays.
+  await page.getByLabel('Cicilan kendaraan').fill('0')
+  await page.getByLabel('Kartu kredit / paylater').fill('0')
   await save(page)
   await expect(page).toHaveURL(/optimize\/4$/) // Data KPR lama is known from the monitored KPR
-  await expect(page.getByText('Lengkapi data pengajuan', { exact: true })).toBeVisible()
   await page.getByLabel('Jenis properti').selectOption('landed_house')
   await page.getByLabel('Kota / Kabupaten').fill('bekasi')
   await page.getByRole('option', { name: /^Kota Bekasi/ }).click()
@@ -218,13 +231,6 @@ test('penghasilan from the Home pop-up fills Take Over; data the setup no longer
   await page.getByLabel('Luas bangunan').fill('45')
   await page.getByLabel('Status sertifikat').selectOption('shm')
   await save(page)
-  // No Tujuan step: the goal Peluang suggested opens the bank list, as when nothing was missing.
-  await expect(page).toHaveURL(/optimize\/programs$/)
-  await expect(page.getByRole('heading', { name: 'Pilihan Take Over' })).toBeVisible()
-  await expect(page.getByText('Rekomendasi dari kami').first()).toBeVisible()
-  await page.getByRole('button', { name: 'Lihat Detail' }).first().click()
-  await page.getByRole('button', { name: /^Ajukan / }).click()
-  await page.getByRole('button', { name: 'Lanjut Dokumen' }).click()
   await expect(page).toHaveURL(/optimize\/6/) // nothing left to ask
   await page.getByRole('button', { name: 'Unggah semua (demo)' }).click()
   await expect(page.getByRole('button', { name: 'Simpan & Lanjutkan' })).toHaveAttribute('aria-disabled', 'false', { timeout: 30_000 })

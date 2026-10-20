@@ -8,15 +8,14 @@ import { Button } from '@/components/ui/button'
 import { ErrorSummary, FormGrid, MoneyField, RadioCards, SelectField, TextField } from '@/components/shared/fields'
 import { ErrorPanel, IconBox, Notice, Panel, PageSkeleton, Spinner } from '@/components/shared/ui'
 import { productName, resumePath } from '@/domains/applications/meta'
+import { IncomeDialog } from '@/domains/profile/ProfilePages'
 import { OptimizeHeader, modeName, useOptimize } from './shared'
-import { mortgageTakeoverGaps, takeoverGaps, validateGoal } from './validation'
+import { validateGoal } from './validation'
 
 const TENORS = [5, 10, 15, 20, 25].map((y) => ({ value: String(y * 12), label: `${y} tahun` }))
-// Forms the KPR setup can skip.
-const SKIPPABLE = { '/optimize/1': 'data pribadi', '/optimize/1/pekerjaan': 'pekerjaan', '/optimize/2': 'data KPR lama', '/optimize/4': 'data properti' }
 
 // Entry from Explore with an active mortgage: reuse its data, ask only the priorities or funds of the chosen ?mode (no
-// duplicate wizard), or first the forms its setup skipped.
+// duplicate wizard). Bank choices come first; the forms the KPR setup skipped are asked once a bank is picked.
 export function GoalStartPage() {
   const [params] = useSearchParams()
   const initialMode = params.get('mode') === 'topup' ? 'topup' : 'takeover'
@@ -27,6 +26,7 @@ export function GoalStartPage() {
   const form = useForm({ mode: initialMode, goal: 'lower_payment', tenorMonths: String((initialMode === 'topup' ? Math.max(years, 20) : years) * 12), maxPayment: '', requestedTopup: moneyInput(initialMode === 'topup' ? 100_000_000 : null), purpose: initialMode === 'topup' ? 'renovation' : '', purposeOther: '' }, validateGoal)
   const [pending, setPending] = useState(false)
   const [apiError, setApiError] = useState('')
+  const [askIncome, setAskIncome] = useState(false)
   if (!snap) return error ? <ErrorPanel onRetry={reload} /> : <PageSkeleton />
   if (!m) return <Navigate to={`/optimize/intro?mode=${initialMode}`} replace />
   // The reminder-only setup may not know the old loan's balance yet: ask for it before simulating.
@@ -51,45 +51,8 @@ export function GoalStartPage() {
   }
   const existing = app ?? otherApp
   const v = form.values
-  const missing = mortgageTakeoverGaps(m, snap, initialMode).filter((p) => SKIPPABLE[p])
-
-  // Bank choices need the data skipped in the KPR setup: a prefilled draft opens only those forms, then the bank list.
-  const completeData = async () => {
-    setPending(true)
-    setApiError('')
-    try {
-      const draft = await api.applications.create({ productType: 'takeover', mode: initialMode, mortgageId: m.id })
-      navigate(takeoverGaps(draft.data, { today: snap.clock, mode: initialMode })[0] ?? '/optimize/5', { state: { from: 'gaps' } })
-    } catch (e) {
-      setApiError(e.message)
-      setPending(false)
-    }
-  }
-  if (missing.length) {
-    return (
-      <>
-        <OptimizeHeader title={`Pengajuan ${modeName(initialMode)}`} subtitle="Memakai data KPR yang kamu pantau. Tidak ada data yang dikirim ke bank." back="/explore" />
-        <Notice
-          tone="warn"
-          title="Lengkapi data pengajuan dulu"
-          action={existing && <Link className="text-[13px] font-bold text-primary underline" to={existing.status === 'draft' ? resumePath(existing) : '/my-kpr/application'}>Buka {productName(existing)}</Link>}
-        >
-          {existing
-            ? `Masih ada pengajuan ${productName(existing)}. Lanjutkan atau hapus dulu.`
-            : `Data KPR kamu belum lengkap: ${missing.map((p) => SKIPPABLE[p]).join(', ')}. Isi dulu, lalu pilihan bank ditampilkan. Data yang sudah ada tidak perlu diisi ulang.`}
-        </Notice>
-        {apiError && <Notice tone="bad" role="alert">{apiError}</Notice>}
-        {!existing && (
-          <div className="flex justify-end">
-            <Button onClick={completeData} disabled={pending} aria-busy={pending}>
-              {pending && <Spinner />}
-              Lengkapi Data
-            </Button>
-          </div>
-        )}
-      </>
-    )
-  }
+  // The bank list ranks by what the user can afford, so income is the one thing asked before it.
+  const hasIncome = m.finance?.monthlyIncome > 0
 
   const onSubmit = form.submit(async (x) => {
     setPending(true)
@@ -144,6 +107,11 @@ export function GoalStartPage() {
             Nilai properti belum diisi, jadi dana Top-up belum dapat dihitung.
           </Notice>
         )}
+        {!hasIncome && (
+          <Notice tone="warn" action={<Button type="button" size="xs" onClick={() => setAskIncome(true)}>Isi penghasilan</Button>}>
+            Penghasilan bulanan belum diisi, jadi pilihan bank belum dapat dihitung.
+          </Notice>
+        )}
         {apiError && <Notice tone="bad" role="alert" title="Simulasi tidak dapat dihitung">{apiError}</Notice>}
         <div className="flex justify-end">
           <Button type="submit" disabled={pending} aria-busy={pending}>
@@ -152,6 +120,16 @@ export function GoalStartPage() {
           </Button>
         </div>
       </form>
+      {askIncome && (
+        <IncomeDialog
+          finance={m.finance}
+          onClose={() => setAskIncome(false)}
+          onSaved={() => {
+            setAskIncome(false)
+            reload()
+          }}
+        />
+      )}
     </>
   )
 }

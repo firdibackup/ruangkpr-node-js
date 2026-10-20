@@ -48,7 +48,7 @@ export function PrimaryCompareStep({ app, go, fromReview }) {
     <div className="flex flex-col gap-5">
       {data && <CapacityHero capacity={data.capacity} income={income} debts={debts} />}
       <div className="flex flex-wrap items-center gap-2.5" role="group" aria-label="Urutkan program">
-        <span className="text-[13px] font-semibold text-ink-3">Urutkan</span>
+        <span className="text-[13px] font-semibold text-muted-foreground">Urutkan</span>
         {SORTS.map(([k, label]) => (
           <button key={k} type="button" aria-pressed={sort === k} onClick={() => setSort(k)} className={cn('h-10 rounded-full border px-4 text-[13px] font-bold', sort === k ? 'border-primary bg-primary text-white' : 'border-border bg-card text-foreground hover:bg-muted')}>
             {label}
@@ -118,7 +118,7 @@ export function PrimaryCompareStep({ app, go, fromReview }) {
                   <span className="text-muted-foreground">Total bayar {tenorLabel(app.data.loan.tenorMonths)}</span>
                   <span className="font-bold">{rupiahShort(x.totalPayment)}</span>
                 </div>
-                <span className={cn('text-xs', x.stale ? 'font-semibold text-warning-text' : 'text-muted-foreground')}>
+                <span className={cn('text-xs', x.stale ? 'font-semibold text-warning' : 'text-muted-foreground')}>
                   {x.stale ? `Data produk terakhir diverifikasi ${dateShort(x.lastVerifiedAt)}. Angka bisa berbeda.` : `Data produk per ${dateShort(x.lastVerifiedAt)} · floating estimasi ${percentBps(x.floatingRateBps)}`}
                 </span>
                 <Button variant="secondary" size="sm" className="mt-auto justify-between" onClick={() => go(`/apply/primary/5/${x.productId}`, { state: fromReview ? { from: 'review' } : undefined })}>
@@ -216,13 +216,13 @@ function ProgramSimulator({ app, item, capacity, onSaved, go, fromReview }) {
         <dl className="flex flex-col rounded-[18px] bg-muted px-[18px] py-1.5" aria-live="polite">
           {[
             ['Cicilan per bulan (masa fixed)', rupiah(sim.payment), 'text-[22px]'],
-            ...(sim.paymentAfterFixed ? [['Cicilan setelah fixed (estimasi)', rupiah(sim.paymentAfterFixed), 'text-[15px] text-warning-text']] : []),
+            ...(sim.paymentAfterFixed ? [['Cicilan setelah fixed (estimasi)', rupiah(sim.paymentAfterFixed), 'text-[15px] text-warning']] : []),
             [`Total bunga (${years} tahun)`, rupiah(sim.totalInterest), 'text-[15px]'],
             ['Total bayar', rupiah(sim.totalPayment), 'text-[15px]'],
             ['Biaya admin + provisi', rupiah(Math.round((plafon * item.product.fees.provisionBps) / 10_000) + item.product.fees.admin), 'text-[15px]'],
           ].map(([k, v, cls]) => (
             <div key={k} className="flex items-center justify-between gap-3 border-b border-border py-3.5 last:border-b-0">
-              <dt className="text-sm text-ink-3">{k}</dt>
+              <dt className="text-sm text-muted-foreground">{k}</dt>
               <dd className={cn('font-extrabold tabular', cls)}>{v}</dd>
             </div>
           ))}
@@ -235,8 +235,8 @@ function ProgramSimulator({ app, item, capacity, onSaved, go, fromReview }) {
             <span className="text-muted-foreground">Kapasitas kamu</span>
             <span className="font-extrabold">{rupiah(Math.max(0, capacity.remainingCapacity))}/bln</span>
           </div>
-          <div className="relative h-3.5 rounded-full bg-[#edf0f5]" role="img" aria-label={`Cicilan ${rupiah(sim.payment)} dibanding kapasitas ${rupiah(capacity.remainingCapacity)}`}>
-            <div className={cn('absolute inset-y-0 left-0 rounded-full', room < 0 ? 'bg-warning-accent' : 'bg-primary')} style={{ width: `${(sim.payment / scale) * 100}%` }} />
+          <div className="relative h-3.5 rounded-full bg-muted" role="img" aria-label={`Cicilan ${rupiah(sim.payment)} dibanding kapasitas ${rupiah(capacity.remainingCapacity)}`}>
+            <div className={cn('absolute inset-y-0 left-0 rounded-full', room < 0 ? 'bg-chart-warn' : 'bg-primary')} style={{ width: `${(sim.payment / scale) * 100}%` }} />
             <div className="absolute -inset-y-1.5 w-[3px] rounded-sm bg-foreground" style={{ left: `${(Math.max(0, capacity.remainingCapacity) / scale) * 100}%` }} title="Batas kapasitas" />
           </div>
           <div className="flex justify-between text-xs text-muted-foreground">

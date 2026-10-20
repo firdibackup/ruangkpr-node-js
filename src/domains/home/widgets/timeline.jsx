@@ -38,7 +38,7 @@ export function FixedCountdownWidget({ m, d }) {
   if (d.mode === "floating") {
     return (
       <Panel className="gap-2">
-        <span className="text-[13px] font-extrabold text-ink-3">
+        <span className="text-[13px] font-extrabold text-muted-foreground">
           Hitung Mundur Fixed
         </span>
         <span className="text-[1.5em] leading-tight font-extrabold">
@@ -63,7 +63,7 @@ export function FixedCountdownWidget({ m, d }) {
   const next = milestones.find((x) => !x.passed);
   return (
     <Panel className="gap-3">
-      <span className="text-[13px] font-extrabold text-ink-3">
+      <span className="text-[13px] font-extrabold text-muted-foreground">
         Hitung Mundur Fixed
       </span>
       <div className="flex flex-col gap-1">
@@ -71,7 +71,7 @@ export function FixedCountdownWidget({ m, d }) {
           <span className="text-[2.25em] leading-none font-extrabold tabular">
             {d.daysUntilFixedEnd}
           </span>
-          <span className="text-sm font-bold text-ink-3">hari lagi</span>
+          <span className="text-sm font-bold text-muted-foreground">hari lagi</span>
         </span>
         <span className="text-[13px] text-muted-foreground">
           Fixed berakhir {dateShort(m.fixedUntil)}
@@ -87,7 +87,7 @@ export function FixedCountdownWidget({ m, d }) {
               <span
                 className={cn(
                   "absolute top-[7px] right-1/2 left-[-50%] h-0.5",
-                  x.passed ? "bg-warning-accent" : "bg-border",
+                  x.passed ? "bg-chart-warn" : "bg-border",
                 )}
                 aria-hidden
               />
@@ -96,17 +96,17 @@ export function FixedCountdownWidget({ m, d }) {
               className={cn(
                 "relative size-4 rounded-full border-2",
                 x.passed
-                  ? "border-warning-accent bg-warning-accent"
+                  ? "border-warning-border bg-chart-warn"
                   : x === next
                     ? "border-primary bg-card ring-2 ring-primary/25"
-                    : "border-[#c9d2e0] bg-card",
+                    : "border-input bg-card",
               )}
               aria-hidden
             />
             <span
               className={cn(
                 "text-xs",
-                x === next ? "font-extrabold text-primary" : "text-ink-3",
+                x === next ? "font-extrabold text-primary" : "text-muted-foreground",
               )}
             >
               H-{x.days}
@@ -124,7 +124,7 @@ export function FixedCountdownWidget({ m, d }) {
 const DUE_STATE = {
   paid: {
     label: "Lunas",
-    className: "bg-success-strong text-white",
+    className: "bg-success-solid text-white",
     icon: CheckIcon,
   },
   unpaid: {
@@ -175,7 +175,7 @@ export function PaymentHistoryWidget({ m, d, clock }) {
               <span
                 className={cn(
                   "text-xs",
-                  isNext ? "font-extrabold text-primary" : "text-ink-3",
+                  isNext ? "font-extrabold text-primary" : "text-muted-foreground",
                 )}
                 aria-hidden
               >

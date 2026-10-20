@@ -1,5 +1,5 @@
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { CalendarDaysIcon, ChartColumnIcon, FileStackIcon, KeyRoundIcon, LandmarkIcon, LayoutDashboardIcon, LogOutIcon, NewspaperIcon, ScrollTextIcon, ShieldAlertIcon, SlidersHorizontalIcon, UsersIcon } from 'lucide-react'
+import { CalendarDaysIcon, ChartColumnIcon, FileStackIcon, KeyRoundIcon, LandmarkIcon, LayoutDashboardIcon, LogOutIcon, NewspaperIcon, PaletteIcon, ScrollTextIcon, ShieldAlertIcon, SlidersHorizontalIcon, UsersIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { initials } from '@/lib/format'
 import { useRouteFocus } from '@/lib/hooks'
@@ -19,6 +19,7 @@ const NAV = [
   { to: '/admin/articles', module: 'articles', label: 'Articles', icon: NewspaperIcon },
   { to: '/admin/reports', module: 'reports', label: 'Reports', icon: ChartColumnIcon },
   { to: '/admin/configuration', module: 'configuration', label: 'Configuration', icon: SlidersHorizontalIcon },
+  { to: '/admin/brand', module: 'brand', label: 'Brand', icon: PaletteIcon },
   { to: '/admin/audit-log', module: 'audit', label: 'Audit Log', icon: ScrollTextIcon },
 ]
 
@@ -35,7 +36,7 @@ function NavItem({ item, row = false }) {
       className={cn(
         'flex min-h-11 items-center gap-3 transition-colors',
         row ? 'shrink-0 rounded-full px-4 text-sm whitespace-nowrap' : 'rounded-xl px-3.5 py-3 text-[15px]',
-        active ? 'bg-secondary font-bold text-primary' : 'font-semibold text-ink-3 hover:bg-muted',
+        active ? 'bg-secondary font-bold text-primary' : 'font-semibold text-muted-foreground hover:bg-muted',
       )}
     >
       <item.icon className="size-5 shrink-0" aria-hidden />

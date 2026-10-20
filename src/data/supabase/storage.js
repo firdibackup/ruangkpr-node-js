@@ -1,4 +1,5 @@
-// Files in Supabase Storage: application documents, payment proofs (spec 2026-10-09 §4.3) and bank logos (spec 2026-10-19).
+// Files in Supabase Storage: application documents, payment proofs (spec 2026-10-09 §4.3), bank logos (spec 2026-10-19)
+// and the brand's logo and favicon (spec 2026-10-20 brand CMS).
 import { ApiError } from '../apiError'
 import { supabase } from './client'
 import { toApiError } from './errors'
@@ -6,6 +7,7 @@ import { toApiError } from './errors'
 export const DOCS_BUCKET = 'application-documents'
 export const PROOFS_BUCKET = 'payment-proofs'
 export const LOGOS_BUCKET = 'bank-logos'
+export const BRAND_BUCKET = 'brand-assets'
 
 const make = (code, message, status, extra = {}) => new ApiError({ code, message, ...extra }, { status })
 
@@ -61,7 +63,7 @@ export async function removeFiles(bucket, paths) {
   if (list.length) await supabase().storage.from(bucket).remove(list).catch(() => {})
 }
 
-// Public bucket (bank logos): a plain, permanent URL.
+// Public buckets (bank logos, brand assets): a plain, permanent URL.
 export const publicUrl = (bucket, path) => supabase().storage.from(bucket).getPublicUrl(path).data.publicUrl
 
 // `download` (a file name, or true) makes Storage answer with Content-Disposition: attachment.

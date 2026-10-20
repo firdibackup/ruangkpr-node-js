@@ -125,4 +125,19 @@ describe('planWrites', () => {
     edited.config.version = 3
     expect(planWrites(after, edited, versions)).toEqual([{ op: 'update', table: 'app_config', id: 1, values: { doc: { version: 3 } } }])
   })
+
+  it('brand rows: a draft, its publish, and the way back to the default', () => {
+    const before = base()
+    const drafted = { ...structuredClone(before), brand: { draft: { version: 1 }, published: null } }
+    expect(planWrites(before, drafted, versions)).toEqual([{ op: 'insert', table: 'brand_settings', values: { id: 'draft', doc: { version: 1 } } }])
+    const published = { ...structuredClone(drafted), brand: { draft: { version: 1 }, published: { version: 1, publishedBy: 'A' } } }
+    expect(planWrites(drafted, published, versions)).toEqual([{ op: 'insert', table: 'brand_settings', values: { id: 'published', doc: { version: 1, publishedBy: 'A' } } }])
+    const edited = { ...structuredClone(published), brand: { ...published.brand, draft: { version: 2 } } }
+    expect(planWrites(published, edited, versions)).toEqual([{ op: 'update', table: 'brand_settings', id: 'draft', values: { doc: { version: 2 } } }])
+    const reset = { ...structuredClone(edited), brand: { draft: null, published: null } }
+    expect(planWrites(edited, reset, versions)).toEqual([
+      { op: 'delete', table: 'brand_settings', id: 'draft' },
+      { op: 'delete', table: 'brand_settings', id: 'published' },
+    ])
+  })
 })

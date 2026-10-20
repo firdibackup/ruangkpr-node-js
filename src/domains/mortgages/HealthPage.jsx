@@ -13,8 +13,8 @@ import { HEALTH_V1, deriveMortgage } from './derive'
 import { PropertyDialog } from './MyKprTabs'
 import { progressGap } from './setupMeta'
 
-const BAR = { ok: 'bg-success-strong', warn: 'bg-warning-accent', bad: 'bg-brand-red' }
-const TEXT = { ok: 'text-success', warn: 'text-warning-text', bad: 'text-danger' }
+const BAR = { ok: 'bg-chart-ok', warn: 'bg-chart-warn', bad: 'bg-chart-bad' }
+const TEXT = { ok: 'text-success', warn: 'text-warning', bad: 'text-danger' }
 const MEANING = {
   ok: 'Secara umum KPR kamu aman.',
   warn: 'Belum berisiko, tapi ada yang perlu dipantau.',
@@ -107,18 +107,18 @@ export function HealthPage() {
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <Panel className="gap-1.5 sm:p-7">
           {h.score == null ? (
-            <p className="mb-2.5 text-[15px] leading-[22px] font-semibold text-ink-2">Lengkapi data di bawah untuk melihat KPR Health.</p>
+            <p className="mb-2.5 text-[15px] leading-[22px] font-semibold text-foreground">Lengkapi data di bawah untuk melihat KPR Health.</p>
           ) : (
             <div className="mb-2.5 flex items-center gap-4">
               <HealthRing health={h} size={96} />
               <div className="flex min-w-0 flex-col items-start gap-2">
                 <Chip tone={h.tone}>{h.label}</Chip>
-                <p className="text-[15px] leading-[22px] font-semibold text-ink-2">{h.tone === 'ok' ? 'Kondisi KPR kamu sehat.' : HEALTH_SENTENCE[weakest?.key]}</p>
+                <p className="text-[15px] leading-[22px] font-semibold text-foreground">{h.tone === 'ok' ? 'Kondisi KPR kamu sehat.' : HEALTH_SENTENCE[weakest?.key]}</p>
               </div>
             </div>
           )}
           {h.score != null && (
-            <div className="flex flex-col gap-2.5 rounded-2xl bg-muted px-4 py-3.5 text-[13px] leading-5 text-ink-2">
+            <div className="flex flex-col gap-2.5 rounded-2xl bg-muted px-4 py-3.5 text-[13px] leading-5 text-foreground">
               <p>
                 Skor ini gabungan {counted.length} komponen di bawah. {MEANING[h.tone]}
               </p>
@@ -141,7 +141,7 @@ export function HealthPage() {
               const rows = bandRows(c.key, p, d)
               const hint = componentHint(c.key, p, rows)
               return (
-                <li key={c.key} className="flex flex-col gap-2 border-b border-line py-3.5 last:border-b-0">
+                <li key={c.key} className="flex flex-col gap-2 border-b border-border py-3.5 last:border-b-0">
                   <div className="flex items-center justify-between gap-3 text-[15px] font-extrabold">
                     <span className="flex items-center gap-2">
                       {c.name}
@@ -157,7 +157,7 @@ export function HealthPage() {
                             ))}
                           </ul>
                         )}
-                        {hint && <p className="mt-2.5 text-ink-3">{hint}</p>}
+                        {hint && <p className="mt-2.5 text-muted-foreground">{hint}</p>}
                       </InfoTip>
                     </span>
                     {c.score !== null ? (
@@ -173,9 +173,9 @@ export function HealthPage() {
                     )}
                   </div>
                   {c.score !== null && <ProgressBar value={c.score} label={`${c.name} ${c.score} dari 100`} barClassName={BAR[c.tone]} />}
-                  <span className="text-[13px] text-ink-3">{evidence[c.key]}</span>
+                  <span className="text-[13px] text-muted-foreground">{evidence[c.key]}</span>
                   {c.key === 'rate' && fi && (
-                    <span className="text-[13px] text-ink-3">
+                    <span className="text-[13px] text-muted-foreground">
                       {`Cicilan ${rupiahShort(fi.currentPayment)} → estimasi ${rupiahShort(fi.estimatedNextPayment)} setelah fixed (${sign(fi.monthlyDelta)}${rupiahShort(fi.monthlyDelta)}/bln, ${sign(fi.relativeDelta)}${percentRatio(fi.relativeDelta)})`}
                     </span>
                   )}
@@ -191,13 +191,13 @@ export function HealthPage() {
             <ul className="flex flex-col gap-2.5">
               {todo.map((t) => (
                 <li key={t} className="flex gap-2.5 text-sm leading-[21px]">
-                  <CircleDotIcon className="mt-0.5 size-4 shrink-0 text-warning-accent" aria-hidden />
+                  <CircleDotIcon className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
                   {t}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-ink-3">Tidak ada hal mendesak. Tetap bayar tepat waktu.</p>
+            <p className="text-sm text-muted-foreground">Tidak ada hal mendesak. Tetap bayar tepat waktu.</p>
           )}
           <Button className="w-fit" onClick={() => navigate('/explore')}>
             Lihat Pilihan

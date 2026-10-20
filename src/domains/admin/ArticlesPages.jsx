@@ -12,7 +12,7 @@ import { Chip, Disclaimer, ErrorPanel, Notice, PageSkeleton, Panel, PanelTitle, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AdminHeader } from './shared'
 
-const head = 'text-xs font-bold text-ink-3'
+const head = 'text-xs font-bold text-muted-foreground'
 // Keys of ARTICLE_ICONS on Home; a new icon starts there.
 const ICON_LABEL = { percent: 'Persen (bunga)', wallet: 'Dompet (uang muka)', receipt: 'Struk (biaya)', repeat: 'Panah putar (take over)', 'hand-coins': 'Uang (dana tambahan)' }
 const ARTICLE_STATUS = { draft: ['Draft', 'mute'], published: ['Terbit', 'ok'], archived: ['Diarsipkan', 'mute'] }
@@ -52,7 +52,7 @@ export function ArticleListPage() {
       {!data && !error && <PageSkeleton />}
       {data && (
         <Panel>
-          <p className="text-sm font-semibold text-ink-3">{data.length} artikel</p>
+          <p className="text-sm font-semibold text-muted-foreground">{data.length} artikel</p>
           {data.length === 0 ? (
             <p className="text-sm text-muted-foreground">Tidak ada artikel yang cocok.</p>
           ) : (
@@ -79,11 +79,11 @@ export function ArticleListPage() {
                         </span>
                       </span>
                     </TableCell>
-                    <TableCell className="py-3 text-ink-2">{a.tag || '—'}</TableCell>
+                    <TableCell className="py-3 text-foreground">{a.tag || '—'}</TableCell>
                     <TableCell className="py-3">
                       <ArticleStatus status={a.status} />
                     </TableCell>
-                    <TableCell className="py-3 text-ink-2 tabular">{dateShort(a.updatedAt)}</TableCell>
+                    <TableCell className="py-3 text-foreground tabular">{dateShort(a.updatedAt)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -266,7 +266,7 @@ function ArticleForm({ data, setData }) {
           {archived && <Notice tone="muted">Artikel diarsipkan dan tidak tampil ke user.</Notice>}
           <Panel aria-label="Pratinjau">
             <PanelTitle sub="Seperti yang dibaca user di halaman edukasi.">Pratinjau</PanelTitle>
-            <article className="flex flex-col gap-3 text-[15px] leading-[26px] text-ink-2">
+            <article className="flex flex-col gap-3 text-[15px] leading-[26px] text-foreground">
               <span className="flex flex-col gap-1">
                 <span className="text-xl leading-tight font-extrabold text-foreground">{preview.title || 'Judul artikel'}</span>
                 <span className="text-sm text-muted-foreground">

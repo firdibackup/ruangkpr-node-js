@@ -20,7 +20,7 @@ export function InterestLeftWidget({ d }) {
       <span className="text-[13px] text-muted-foreground">
         {percentRatio(share, 0)} dari sisa cicilan kamu
       </span>
-      <span className={cn(TALL_ONLY, "text-ink-3")}>
+      <span className={cn(TALL_ONLY, "text-muted-foreground")}>
         Rata-rata {rupiahShort(perMonth)} bunga per bulan
       </span>
     </StatWidget>
@@ -40,10 +40,10 @@ export function EquityWidget({ m, d }) {
       <span
         role="img"
         aria-label={`Equity ${percentRatio(share, 0)} dari estimasi nilai rumah`}
-        className="flex h-2.5 overflow-hidden rounded-full bg-[var(--chart-interest)]"
+        className="flex h-2.5 overflow-hidden rounded-full bg-chart-interest"
       >
         <span
-          className="bg-success-strong"
+          className="bg-success-solid"
           style={{ width: `${share * 100}%` }}
         />
       </span>
@@ -52,7 +52,7 @@ export function EquityWidget({ m, d }) {
           ? "Sisa pokok melebihi estimasi nilai rumah"
           : `${percentRatio(share, 0)} rumah sudah milik kamu`}
       </span>
-      <span className={cn(TALL_ONLY, "text-ink-3")}>
+      <span className={cn(TALL_ONLY, "text-muted-foreground")}>
         Estimasi nilai {rupiahShort(value)} · LTV {percentRatio(ltvRatio, 0)}
       </span>
     </StatWidget>
@@ -75,7 +75,7 @@ export function DtiWidget({ d }) {
       to="/my-kpr/health"
       className="gap-2 border border-transparent transition-colors hover:border-primary/30"
     >
-      <span className="flex items-center justify-between gap-2 text-[13px] font-extrabold text-ink-3">
+      <span className="flex items-center justify-between gap-2 text-[13px] font-extrabold text-muted-foreground">
         Rasio Cicilan
         <Chip tone={tone}>{DTI_ZONE[tone][0]}</Chip>
       </span>

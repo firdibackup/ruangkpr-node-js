@@ -90,15 +90,15 @@ export function ActivityPage() {
                     {list.map((a) => {
                       const [Icon, tone] = ICON[a.category] ?? ICON.reminder
                       return (
-                        <li key={a.id} className="flex gap-4 border-b border-line py-4 last:border-b-0">
+                        <li key={a.id} className="flex gap-4 border-b border-border py-4 last:border-b-0">
                           <IconBox icon={Icon} tone={tone} />
                           <div className="flex min-w-0 flex-1 flex-col gap-1">
                             <span className="flex items-center gap-2 text-sm leading-[21px] font-extrabold">
-                              {!a.readAt && <span className="size-2 shrink-0 rounded-full bg-brand-red" aria-hidden />}
+                              {!a.readAt && <span className="size-2 shrink-0 rounded-full bg-danger-solid" aria-hidden />}
                               {a.title}
                               {!a.readAt && <span className="sr-only">(belum dibaca)</span>}
                             </span>
-                            <span className="text-sm leading-[21px] text-ink-3">{a.body}</span>
+                            <span className="text-sm leading-[21px] text-muted-foreground">{a.body}</span>
                             <span className="flex flex-wrap items-center gap-4">
                               {a.action && (
                                 <Link to={a.action.route} onClick={() => markRead(a)} className="flex min-h-11 items-center text-[13px] font-bold text-primary">

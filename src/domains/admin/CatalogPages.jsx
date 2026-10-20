@@ -14,7 +14,7 @@ import { BankMark, Chip, ErrorPanel, Notice, PageSkeleton, Panel, PanelTitle, Sp
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AdminHeader } from './shared'
 
-const head = 'text-xs font-bold text-ink-3'
+const head = 'text-xs font-bold text-muted-foreground'
 const TYPE_LABEL = { primary: 'KPR Primary', takeover: 'Take Over', topup: 'Take Over + Top-up' }
 const PRODUCT_STATUS = { draft: ['Draft', 'mute'], published: ['Terbit', 'ok'], archived: ['Diarsipkan', 'mute'] }
 
@@ -29,7 +29,7 @@ function ProductStatus({ status }) {
 
 // Banks & Products share one nav item; these tabs switch between the two lists.
 function CatalogTabs() {
-  const tab = ({ isActive }) => cn('flex min-h-11 items-center rounded-full px-4 text-sm transition-colors', isActive ? 'bg-secondary font-bold text-primary' : 'font-semibold text-ink-3 hover:bg-muted')
+  const tab = ({ isActive }) => cn('flex min-h-11 items-center rounded-full px-4 text-sm transition-colors', isActive ? 'bg-secondary font-bold text-primary' : 'font-semibold text-muted-foreground hover:bg-muted')
   return (
     <nav aria-label="Katalog" className="flex gap-1.5">
       <NavLink to="/admin/products" className={tab}>
@@ -98,7 +98,7 @@ export function ProductListPage() {
       {data && (
         <Panel>
           <div className="flex min-h-11 flex-wrap items-center gap-3">
-            <p className="text-sm font-semibold text-ink-3">{picked.length ? `${picked.length} dari ${data.length} produk dipilih` : `${data.length} produk`}</p>
+            <p className="text-sm font-semibold text-muted-foreground">{picked.length ? `${picked.length} dari ${data.length} produk dipilih` : `${data.length} produk`}</p>
             {picked.length > 0 && (
               <>
                 {targets.publish.length > 0 && (
@@ -150,7 +150,7 @@ export function ProductListPage() {
                         </span>
                       </span>
                     </TableCell>
-                    <TableCell className="py-3 text-ink-2">{p.productTypes.map((t) => TYPE_LABEL[t]).join(', ')}</TableCell>
+                    <TableCell className="py-3 text-foreground">{p.productTypes.map((t) => TYPE_LABEL[t]).join(', ')}</TableCell>
                     <TableCell className="py-3">
                       <span className="flex flex-wrap gap-1.5">
                         <ProductStatus status={p.status} />
@@ -161,14 +161,14 @@ export function ProductListPage() {
                         )}
                       </span>
                     </TableCell>
-                    <TableCell className="py-3 text-ink-2 tabular">{p.effectiveUntil ? dateShort(p.effectiveUntil) : '—'}</TableCell>
+                    <TableCell className="py-3 text-foreground tabular">{p.effectiveUntil ? dateShort(p.effectiveUntil) : '—'}</TableCell>
                     <TableCell className="py-3">
                       {p.stale ? (
                         <Chip tone="warn" className="whitespace-nowrap">
                           Data usang
                         </Chip>
                       ) : (
-                        <span className="text-ink-2 tabular">{p.lastVerifiedAt ? dateShort(p.lastVerifiedAt) : '—'}</span>
+                        <span className="text-foreground tabular">{p.lastVerifiedAt ? dateShort(p.lastVerifiedAt) : '—'}</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -275,7 +275,7 @@ function CheckGroup({ legend, options, value, onChange, error, custom }) {
   }
   return (
     <fieldset className="flex flex-col gap-1 sm:col-span-2">
-      <legend className="mb-2 text-sm font-semibold text-ink-2">{legend}</legend>
+      <legend className="mb-2 text-sm font-semibold text-foreground">{legend}</legend>
       <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
         {all.map((o) => (
           <CheckboxField key={o.value} label={o.label} checked={value.includes(o.value)} onChange={(on) => onChange(on ? [...value, o.value] : value.filter((x) => x !== o.value))} />
@@ -601,7 +601,7 @@ export function BankListPage() {
                       </span>
                     </span>
                   </TableCell>
-                  <TableCell className="py-3 text-ink-2 tabular">
+                  <TableCell className="py-3 text-foreground tabular">
                     {b.published} dari {b.products}
                   </TableCell>
                   <TableCell className="py-3">

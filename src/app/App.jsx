@@ -32,6 +32,8 @@ import { ReportsPage } from '@/domains/admin/ReportsPage'
 import { ConfigurationPage, HealthConfigPage } from '@/domains/admin/ConfigurationPage'
 import { SchedulePage } from '@/domains/admin/SchedulePage'
 import { AuditLogPage } from '@/domains/admin/AuditLogPage'
+import { BrandPage, BrandPreviewBar } from '@/domains/admin/BrandPage'
+import { useLiveBrand } from '@/brand/live'
 import { NotFoundPage } from './NotFoundPage'
 import { DevPanel } from './DevPanel'
 
@@ -41,14 +43,16 @@ const HOME_OF = { guest: '/login', pending: '/verify', recovery: '/reset-passwor
 // Anyone not signed in, or halfway through a code, may go back to these.
 const SIGNED_OUT = ['guest', 'pending', 'recovery']
 
-// B2C pages send staff to their admin home (roles.js); /admin answers everyone else with a 403, never a silent
-// redirect. UX only: every admin operation checks the role again in the data layer.
+// B2C pages send staff to their admin home (roles.js), except while they preview a brand draft on the whole site;
+// /admin answers everyone else with a 403, never a silent redirect. UX only: every admin operation checks the role
+// again in the data layer.
 function RequireAuth({ admin = false }) {
   const { session } = useSession()
+  const { preview } = useLiveBrand()
   if (session.status !== 'authenticated') return <Navigate to={HOME_OF[session.status]} replace />
   const home = STAFF[session.role]?.home
   if (admin && !home) return <ForbiddenPage />
-  if (!admin && home) return <Navigate to={home} replace />
+  if (!admin && home && !preview) return <Navigate to={home} replace />
   return <Outlet />
 }
 
@@ -95,6 +99,7 @@ const router = createBrowserRouter([
           { path: 'articles/:articleId', element: <ArticleFormPage /> },
           { path: 'reports', element: <ReportsPage /> },
           { path: 'configuration', element: <ConfigurationPage /> },
+          { path: 'brand', element: <BrandPage /> },
           { path: 'configuration/health', element: <HealthConfigPage /> },
           { path: 'audit-log', element: <AuditLogPage /> },
           { path: 'password', element: <ChangePasswordPage admin /> },
@@ -158,8 +163,9 @@ export function App() {
       <Toaster
         position="bottom-center"
         offset={88}
-        toastOptions={{ style: { background: '#0B1B33', color: '#fff', border: 'none', borderRadius: 14, fontFamily: 'inherit', fontWeight: 600, fontSize: 14 } }}
+        toastOptions={{ style: { background: 'var(--inverse)', color: 'var(--inverse-foreground)', border: 'none', borderRadius: 14, fontFamily: 'inherit', fontWeight: 600, fontSize: 14 } }}
       />
+      <BrandPreviewBar onBack={() => router.navigate('/admin/brand')} />
       {import.meta.env.DEV && isMock && <DevPanel />}
     </SessionProvider>
   )

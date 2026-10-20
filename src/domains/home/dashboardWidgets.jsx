@@ -69,7 +69,7 @@ export const healthMissing = (health) =>
       .filter((c) => c.score === null)
       .map((c) => HEALTH_MISSING[c.key]),
   );
-const TONE_COLOR = { ok: "#1B8A5A", warn: "#E0A100", bad: "#DC1C2E" };
+const TONE_COLOR = { ok: "var(--chart-ok)", warn: "var(--chart-warn)", bad: "var(--chart-bad)" };
 
 export function HealthRing({ health, size = 112 }) {
   const color = TONE_COLOR[health.tone];
@@ -79,7 +79,7 @@ export function HealthRing({ health, size = 112 }) {
       style={{
         width: size,
         height: size,
-        background: `conic-gradient(${color} 0 ${health.score}%, #EEF1F6 ${health.score}% 100%)`,
+        background: `conic-gradient(${color} 0 ${health.score}%, var(--chart-track) ${health.score}% 100%)`,
       }}
       role="img"
       aria-label={`KPR Health ${health.score} dari 100${health.partial ? ", skor parsial" : ""}`}
@@ -151,7 +151,7 @@ function OpportunityWidget({
   const has = opportunityPotential(opp);
   const card = (
     <section
-      className="grid h-full grid-cols-1 content-start gap-4 rounded-card border border-[#cfdcf3] bg-[#f3f7fe] p-6 shadow-card @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] @2xl:gap-x-7"
+      className="grid h-full grid-cols-1 content-start gap-4 rounded-card border border-secondary-hover bg-secondary p-6 shadow-card @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] @2xl:gap-x-7"
       aria-labelledby="opp-title"
     >
       <div className="flex flex-col gap-4">
@@ -174,7 +174,7 @@ function OpportunityWidget({
           </h2>
           <p
             className={cn(
-              "text-sm leading-[21px] text-ink-3",
+              "text-sm leading-[21px] text-muted-foreground",
               STACKED_SHORT_HIDDEN,
             )}
           >
@@ -231,7 +231,7 @@ function OpportunityWidget({
         </div>
       ) : (
         // Seen only while arranging or in the gallery: Home drops the card while there is no potential.
-        <p className="rounded-xl border border-opp-mute-border bg-opp-mute px-4 py-3.5 text-sm leading-[21px] text-ink-3 @2xl:row-span-2">
+        <p className="rounded-xl border border-opp-mute-border bg-opp-mute px-4 py-3.5 text-sm leading-[21px] text-muted-foreground @2xl:row-span-2">
           Belum ada potensi Take Over atau Refinancing saat ini. Kartu ini
           tampil di Home saat ada potensi.
         </p>
@@ -323,18 +323,18 @@ function HealthWidget({ d, onAskIncome }) {
         size={d.mode === "normal" ? "7em" : "5.75em"}
       />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="flex items-center gap-1.5 text-[13px] font-extrabold text-ink-3">
+        <span className="flex items-center gap-1.5 text-[13px] font-extrabold text-muted-foreground">
           KPR Health
           <InfoTip label="Tentang KPR Health">{HEALTH_ABOUT}</InfoTip>
         </span>
         <Chip tone={health.tone}>{health.label}</Chip>
-        <p className="text-sm leading-[21px] text-ink-2 [@container(max-height:14rem)]:hidden">
+        <p className="text-sm leading-[21px] text-foreground [@container(max-height:14rem)]:hidden">
           {health.tone === "ok"
             ? "Kondisi KPR kamu sehat."
             : HEALTH_SENTENCE[weakest?.key]}
         </p>
         {health.partial && (
-          <p className="text-xs text-warning-text">
+          <p className="text-xs text-warning">
             Skor sementara — lengkapi {healthMissing(health)}.
           </p>
         )}
@@ -372,11 +372,11 @@ function NextPaymentWidget({ d, onMarkPaid }) {
         "gap-2.5",
         pay &&
           (pay.tone === "bad"
-            ? "border-2 border-brand-red"
-            : "border-2 border-warning-accent"),
+            ? "border-2 border-danger-border"
+            : "border-2 border-warning-border"),
       )}
     >
-      <span className="text-[13px] font-extrabold text-ink-3">
+      <span className="text-[13px] font-extrabold text-muted-foreground">
         Pembayaran Berikutnya
       </span>
       <span className="text-[1.75em] font-extrabold tracking-[-0.4px] tabular">
@@ -385,7 +385,7 @@ function NextPaymentWidget({ d, onMarkPaid }) {
       <span
         className={cn(
           "flex items-center gap-2 text-sm",
-          pay?.tone === "bad" ? "font-bold text-danger" : "text-ink-3",
+          pay?.tone === "bad" ? "font-bold text-danger" : "text-muted-foreground",
         )}
       >
         <CalendarClockIcon className="size-4" aria-hidden />
@@ -438,7 +438,7 @@ function AmortizationWidget({ d }) {
           <caption className="sr-only">
             Cicilan berikutnya. Tanda * = bunga estimasi.
           </caption>
-          <thead className="text-xs font-extrabold text-ink-3">
+          <thead className="text-xs font-extrabold text-muted-foreground">
             <tr>
               <th scope="col" className="py-2 pr-2 text-left">
                 Jatuh tempo
@@ -458,7 +458,7 @@ function AmortizationWidget({ d }) {
             {upcoming.map((r, i) => (
               <tr
                 key={r.month}
-                className={cn("border-t border-line", EXTRA_ROWS[i - 3])}
+                className={cn("border-t border-border", EXTRA_ROWS[i - 3])}
               >
                 <th scope="row" className="py-2.5 pr-2 text-left font-bold">
                   {monthYear(r.dueDate)}
@@ -534,7 +534,7 @@ function MyKprWidget({ m, d }) {
       <div className="flex flex-col gap-2.5 rounded-2xl bg-muted p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2.5">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[13px] text-ink-3">
+            <span className="text-[13px] text-muted-foreground">
               Sisa pokok
               {(m.outstandingEstimated || m.outstandingProjected) &&
                 " (estimasi)"}
@@ -550,7 +550,7 @@ function MyKprWidget({ m, d }) {
           )}
         </div>
         {d.paidRatio == null ? (
-          <span className="flex flex-wrap items-center gap-x-2 text-[13px] text-ink-3">
+          <span className="flex flex-wrap items-center gap-x-2 text-[13px] text-muted-foreground">
             Progres pelunasan belum diketahui.
             <Link
               to={progressGap(m, "home").to}
@@ -678,7 +678,7 @@ export function StatWidget({ to, label, value, children }) {
       to={to}
       className="gap-1.5 border border-transparent transition-colors hover:border-primary/30"
     >
-      <span className="flex items-center justify-between gap-2 text-[13px] font-extrabold text-ink-3">
+      <span className="flex items-center justify-between gap-2 text-[13px] font-extrabold text-muted-foreground">
         {label}
         <ChevronRightIcon className="size-4 shrink-0" aria-hidden />
       </span>
@@ -734,7 +734,7 @@ function RateWidget({ m, d }) {
             : "Masa fixed belum diketahui"}
       </span>
       {!floating && m.estimatedFloatingRateBps != null && (
-        <span className={cn(TALL_ONLY, "text-ink-3")}>
+        <span className={cn(TALL_ONLY, "text-muted-foreground")}>
           Estimasi floating {percentBps(m.estimatedFloatingRateBps)}
         </span>
       )}
