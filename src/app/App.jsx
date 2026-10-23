@@ -1,4 +1,4 @@
-import { Navigate, Outlet, RouterProvider, createBrowserRouter } from 'react-router-dom'
+import { Navigate, Outlet, RouterProvider, createBrowserRouter, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { SessionProvider, useSession } from '@/domains/session/SessionProvider'
@@ -7,6 +7,8 @@ import { ChangePasswordPage, ForgotPasswordPage, LoginPage, RegisterPage, ResetP
 import { isMock } from '@/data/api'
 import { HomePage } from '@/domains/home/HomePage'
 import { PrimaryWizard } from '@/domains/applications/PrimaryWizard'
+import { CalculatorHandoffPage } from '@/domains/applications/CalculatorHandoffPage'
+import { pendingCalculatorHandoff } from '@/domains/applications/calculatorHandoff'
 import { ApplicationTracker } from '@/domains/applications/ApplicationTracker'
 import { MonitoringIntro } from '@/domains/mortgages/MonitoringPages'
 import { MortgageSetupWizard } from '@/domains/mortgages/MortgageSetupWizard'
@@ -48,20 +50,23 @@ const SIGNED_OUT = ['guest', 'pending', 'recovery']
 // again in the data layer.
 function RequireAuth({ admin = false }) {
   const { session } = useSession()
+  const location = useLocation()
   const { preview } = useLiveBrand()
   if (session.status !== 'authenticated') return <Navigate to={HOME_OF[session.status]} replace />
   const home = STAFF[session.role]?.home
   if (admin && !home) return <ForbiddenPage />
   if (!admin && home && !preview) return <Navigate to={home} replace />
+  if (!admin && location.pathname === '/' && pendingCalculatorHandoff()) return <Navigate to="/from-calculator" replace />
   return <Outlet />
 }
 
 function SessionGate({ allow }) {
   const { session } = useSession()
-  return allow.includes(session.status) ? <Outlet /> : <Navigate to={HOME_OF[session.status]} replace />
+  return allow.includes(session.status) ? <Outlet /> : <Navigate to={session.status === 'authenticated' && pendingCalculatorHandoff() ? '/from-calculator' : HOME_OF[session.status]} replace />
 }
 
 const router = createBrowserRouter([
+  { path: '/from-calculator', element: <CalculatorHandoffPage /> },
   {
     element: <SessionGate allow={SIGNED_OUT} />,
     children: [

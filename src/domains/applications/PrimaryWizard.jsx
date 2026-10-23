@@ -20,6 +20,7 @@ import { PRIMARY_PHASES, PRIMARY_STEPS, primaryProgress, productName, resumePath
 import { PrimaryDetailsStep } from './PrimaryDetailsStep'
 import { PrimaryCompareStep, PrimaryProgramDetail } from './PrimaryCompare'
 import { PrimaryMilestone } from './PrimaryMilestone'
+import { CALCULATOR_PHASES, calculatorBackPath, calculatorGaps, calculatorNextPath, calculatorProgress, isCalculatorFlow } from './calculatorFlow'
 
 const HEADERS = {
   1: ['Data diri', 'KPR Primary · isi sesuai KTP'],
@@ -51,24 +52,27 @@ export function PrimaryWizard() {
   if (app && app.productType !== 'primary') return <OtherDraftNotice app={app} onDeleted={reload} />
   if (primary && primary.status !== 'draft') return <Navigate to="/my-kpr/application" replace />
   if (n > 1 && !primary) return <Navigate to="/" replace />
-  if (primary && n > primary.currentStep) return <Navigate to={`/apply/primary/${primary.currentStep}`} replace />
+  const bankFirst = isCalculatorFlow(primary)
+  if (primary && !bankFirst && n > primary.currentStep) return <Navigate to={`/apply/primary/${primary.currentStep}`} replace />
+  if (bankFirst && n >= 6 && calculatorGaps(primary, snap.clock).length) return <Navigate to={calculatorNextPath(primary, snap.clock)} replace />
   // Documents and Review come after a program is picked (also catches drafts saved under the old order).
   if (primary && n >= 6 && !primary.selection) return <Navigate to="/apply/primary/5" replace />
 
   const setApp = (next) => setData((s) => ({ ...s, applications: s.applications.map((a) => (a.id === next.id ? next : a)) }))
   const fromReview = location.state?.from === 'review'
   // Set only right after saving screen 2 / 4; shown on the next phase's first screen (3 / 5).
-  const milestone = !productId && location.state?.milestone
+  const milestone = !bankFirst && !productId && location.state?.milestone
   const go = (to, opts) => navigate(to, opts)
   const [title, subtitle] = milestone ? [`Tahap ${milestone} selesai`, 'KPR Primary · hasil dari data kamu'] : HEADERS[n]
-  const back = fromReview ? `/apply/primary/${LAST}` : n === 1 ? '/' : `/apply/primary/${n - 1}`
-  const shown = primaryProgress(n)
-  const furthest = primaryProgress(Math.max(n, Math.min(primary?.currentStep ?? 1, LAST)))
+  const back = fromReview ? `/apply/primary/${LAST}` : bankFirst ? (n === 5 ? '/' : calculatorBackPath(primary, `/apply/primary/${n}`)) : n === 1 ? '/' : `/apply/primary/${n - 1}`
+  const shown = bankFirst ? calculatorProgress(primary, `/apply/primary/${n}`) : primaryProgress(n)
+  const furthest = bankFirst ? shown : primaryProgress(Math.max(n, Math.min(primary?.currentStep ?? 1, LAST)))
 
   return (
     <>
       <PageHeader title={productId ? 'Detail program' : title} subtitle={productId ? 'Simulasi cicilan' : subtitle} back={productId ? '/apply/primary/5' : back} />
-      <WizardProgress label={`Bagian ${shown.phase} dari 3 · ${shown.label}`} steps={PHASE_LABELS} current={shown.phase} reached={furthest.position} percent={furthest.percent} />
+      {bankFirst && n <= 4 && <Notice tone="info" title="Data kalkulator sudah terisi">Periksa angka yang sudah terisi dan lengkapi data pengajuan. Pilihan bank kamu tetap tersimpan untuk dihitung ulang.</Notice>}
+      <WizardProgress label={`Bagian ${shown.phase} dari 3 · ${shown.label}`} steps={bankFirst ? CALCULATOR_PHASES : PHASE_LABELS} current={shown.phase} reached={furthest.position} percent={furthest.percent} />
       {milestone && <PrimaryMilestone milestone={milestone} app={primary} go={go} />}
       {!milestone && n <= 4 && (
         <PrimaryDetailsStep
@@ -187,7 +191,7 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules }) {
           </div>
         </Panel>
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Button variant="neutral" onClick={() => go(fromReview ? '/apply/primary/7' : '/apply/primary/5')}>
+          <Button variant="neutral" onClick={() => go(fromReview ? '/apply/primary/7' : isCalculatorFlow(app) ? '/apply/primary/2' : '/apply/primary/5')}>
             Kembali
           </Button>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">

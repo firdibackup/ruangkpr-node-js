@@ -51,6 +51,7 @@ export function simulateLoan({ product, principal, termMonths }) {
 const RANK = { estimated_eligible: 0, needs_review: 1, not_eligible: 2 }
 
 function eligibilityFromDti(dtiRatio, maxDtiBps) {
+  if (dtiRatio === null) return 'needs_review'
   const max = maxDtiBps / 10_000
   if (dtiRatio <= max) return 'estimated_eligible'
   return dtiRatio <= max + 0.05 ? 'needs_review' : 'not_eligible'
@@ -59,7 +60,7 @@ function eligibilityFromDti(dtiRatio, maxDtiBps) {
 export function evaluatePrimaryProduct({ product, input, asOf }) {
   const e = product.eligibility
   const excluded = []
-  if (input.monthlyIncome < e.minimumIncome) excluded.push('Penghasilan di bawah minimum program')
+  if (input.monthlyIncome > 0 && input.monthlyIncome < e.minimumIncome) excluded.push('Penghasilan di bawah minimum program')
   // Jobs typed under "Lainnya" (user) and "Tambah manual" (admin) match ignoring case and spaces around.
   const job = String(input.occupation ?? '').trim().toLowerCase()
   if (job && !e.occupations.some((o) => o.toLowerCase() === job)) excluded.push('Jenis pekerjaan belum didukung program')
@@ -73,7 +74,7 @@ export function evaluatePrimaryProduct({ product, input, asOf }) {
   const sim = simulateLoan({ product, principal: input.loanAmount, termMonths: input.tenorMonths })
   const provision = Math.round((input.loanAmount * product.fees.provisionBps) / 10_000)
   const fees = { provision, admin: product.fees.admin, total: provision + product.fees.admin }
-  const dtiRatio = (sim.payment + input.existingDebt) / input.monthlyIncome
+  const dtiRatio = input.monthlyIncome > 0 ? (sim.payment + input.existingDebt) / input.monthlyIncome : null
   return {
     productId: product.id,
     productVersion: product.version,
@@ -101,13 +102,13 @@ export const PRIMARY_SORTS = {
 }
 
 export function comparePrimaryPrograms({ products, input, asOf, sort = 'total', ratioBps = CAPACITY_RATIO_BPS }) {
-  const capacity = calculatePaymentCapacity({ monthlyIncome: input.monthlyIncome, existingDebt: input.existingDebt, ratioBps })
+  const capacity = input.monthlyIncome > 0 ? calculatePaymentCapacity({ monthlyIncome: input.monthlyIncome, existingDebt: input.existingDebt, ratioBps }) : null
   const evaluated = products
     .filter((p) => p.productTypes.includes('primary') && isAvailable(p, asOf))
     .map((product) => evaluatePrimaryProduct({ product, input, asOf }))
   const items = evaluated
     .filter((x) => !x.excluded.length)
-    .map((x) => ({ ...x, withinCapacity: x.payment <= capacity.remainingCapacity }))
+    .map((x) => ({ ...x, withinCapacity: capacity ? x.payment <= capacity.remainingCapacity : null }))
     .sort(PRIMARY_SORTS[sort].compare)
   const recommended = items.find((x) => x.eligibility === 'estimated_eligible' && x.withinCapacity && !x.stale)
   return {
@@ -242,10 +243,11 @@ export function evaluateTakeoverProduct({ product, baseline, input, asOf, plafon
         })
       : null
 
-  const dtiRatio = (sim.payment + input.otherDebt) / input.monthlyIncome
+  const dtiRatio = input.monthlyIncome > 0 ? (sim.payment + input.otherDebt) / input.monthlyIncome : null
   const reasons = []
   let eligibility = eligibilityFromDti(dtiRatio, product.eligibility.maximumDtiBps)
-  if (eligibility !== 'estimated_eligible') reasons.push(`Rasio cicilan di atas batas ${product.eligibility.maximumDtiBps / 100}% ${product.bank.name}`)
+  if (dtiRatio === null) reasons.push('Penghasilan belum diisi; kelayakan akan dihitung setelah data lengkap')
+  else if (eligibility !== 'estimated_eligible') reasons.push(`Rasio cicilan di atas batas ${product.eligibility.maximumDtiBps / 100}% ${product.bank.name}`)
   // No purposes recorded (catalog rows filled outside the admin form) = no top-up purpose accepted, as the form shows it.
   const purposeOk = !topup || (product.eligibility.purposes ?? []).includes(input.purpose)
   if (!purposeOk) {
@@ -348,7 +350,7 @@ export function compareTakeoverPrograms({ products, baseline, input, asOf, sort 
     const best = [...fresh].sort(TAKEOVER_SORTS.rekomendasi.compare)[0]
     match = best && best.eligibility === 'estimated_eligible' && gapOf(best) === 0 ? best : undefined
   } else {
-    match = fresh.filter((x) => x.eligibility !== 'not_eligible').sort(TAKEOVER_SORTS[GOAL_SORT[input.goal] ?? 'total'].compare)[0]
+    match = input.monthlyIncome > 0 ? fresh.filter((x) => x.eligibility !== 'not_eligible').sort(TAKEOVER_SORTS[GOAL_SORT[input.goal] ?? 'total'].compare)[0] : undefined
   }
   return { asOf, sort: activeSort, items: items.map((x) => ({ ...x, recommended: x === match })) }
 }

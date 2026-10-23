@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { CheckboxField } from '@/components/shared/fields'
 import { BankMark, Chip, Disclaimer, EmptyState, ErrorPanel, EstimateTag, HeroCard, IconBox, LoadingCards, Notice, Panel, Spinner, StatTile } from '@/components/shared/ui'
+import { calculatorNextPath, isCalculatorFlow } from './calculatorFlow'
 
 const SORTS = [
   ['total', 'Total pembayaran'],
@@ -46,7 +47,9 @@ export function PrimaryCompareStep({ app, go, fromReview }) {
 
   return (
     <div className="flex flex-col gap-5">
-      {data && <CapacityHero capacity={data.capacity} income={income} debts={debts} />}
+      {app.data.calculator && <Notice tone="info" title="Pilihan dari kalkulator">{app.data.calculator.productName ?? 'Produk pilihan'}. Lanjutkan dengan program pilihanmu atau bandingkan program lain.{app.data.calculator.additionalCosts > 0 && ` Biaya tambahan kalkulator ${rupiah(app.data.calculator.additionalCosts)} belum termasuk hitungan aplikasi.`}</Notice>}
+      {data?.capacity && <CapacityHero capacity={data.capacity} income={income} debts={debts} />}
+      {data && !data.capacity && <Notice tone="info" title="Simulasi awal">Cicilan sudah dapat dihitung. Kemampuan bayar akan diperiksa setelah penghasilan dilengkapi.</Notice>}
       <div className="flex flex-wrap items-center gap-2.5" role="group" aria-label="Urutkan program">
         <span className="text-[13px] font-semibold text-muted-foreground">Urutkan</span>
         {SORTS.map(([k, label]) => (
@@ -99,8 +102,9 @@ export function PrimaryCompareStep({ app, go, fromReview }) {
                     </Chip>
                   )}
                   {selected && <Chip tone="solid">Dipilih</Chip>}
+                  {app.data.calculator?.productId === x.productId && <Chip tone="info">Pilihan kalkulator</Chip>}
                   <Chip tone={eligTone}>{eligLabel}</Chip>
-                  {!x.withinCapacity && (
+                   {x.withinCapacity === false && (
                     <Chip tone="warn" icon={TriangleAlertIcon}>
                       Melebihi kapasitas cicilan
                     </Chip>
@@ -132,11 +136,11 @@ export function PrimaryCompareStep({ app, go, fromReview }) {
       )}
       <Disclaimer>Rekomendasi berbasis aturan dari data produk terbaru, bukan jaminan persetujuan. Bunga floating setelah masa fixed adalah estimasi; angka final mengikuti penawaran bank.</Disclaimer>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="neutral" onClick={() => go(fromReview ? '/apply/primary/7' : '/apply/primary/4')}>
+        <Button variant="neutral" onClick={() => go(fromReview ? '/apply/primary/7' : isCalculatorFlow(app) ? '/' : '/apply/primary/4')}>
           Kembali
         </Button>
         {app.selection && (
-          <Button onClick={() => go(fromReview ? '/apply/primary/7' : '/apply/primary/6')}>
+          <Button onClick={() => go(fromReview ? '/apply/primary/7' : isCalculatorFlow(app) ? calculatorNextPath(app) : '/apply/primary/6')}>
             Lanjut dengan {app.selection.bankName}
             <ArrowRightIcon aria-hidden />
           </Button>
@@ -181,8 +185,8 @@ function ProgramSimulator({ app, item, capacity, onSaved, go, fromReview }) {
   const [pending, setPending] = useState(false)
   const [apiError, setApiError] = useState('')
   const sim = useMemo(() => simulateLoan({ product: item.product, principal: plafon, termMonths: years * 12 }), [item.product, plafon, years])
-  const room = capacity.remainingCapacity - sim.payment
-  const scale = Math.max(sim.payment, capacity.remainingCapacity, 1) * 1.15
+  const room = capacity ? capacity.remainingCapacity - sim.payment : null
+  const scale = Math.max(sim.payment, capacity?.remainingCapacity ?? 0, 1) * 1.15
 
   const confirm = async () => {
     if (item.stale && !ackStale) return setApiError('Centang konfirmasi data produk dulu.')
@@ -192,7 +196,7 @@ function ProgramSimulator({ app, item, capacity, onSaved, go, fromReview }) {
       const saved = await api.applications.selectProgram(app.id, { bankProductId: item.productId, loanAmount: plafon, tenorMonths: years * 12 })
       onSaved(saved)
       toast('Program tersimpan.')
-      go(fromReview ? '/apply/primary/7' : '/apply/primary/6')
+      go(fromReview ? '/apply/primary/7' : isCalculatorFlow(saved) ? calculatorNextPath(saved) : '/apply/primary/6')
     } catch (e) {
       setApiError(e.message)
       setPending(false)
@@ -229,7 +233,9 @@ function ProgramSimulator({ app, item, capacity, onSaved, go, fromReview }) {
         </dl>
       </Panel>
       <div className="flex min-w-0 flex-col gap-6">
-        <Panel>
+        {app.data.calculator?.productId === item.productId && <Notice tone="info" title="Pilihan dari kalkulator">Bank, plafon, dan tenor sudah terisi. Lanjutkan untuk melengkapi pengajuan.{app.data.calculator.productVersion !== item.productVersion && ' Program telah diperbarui; angka di halaman ini memakai versi terbaru.'}{app.data.calculator.additionalCosts > 0 && ` Biaya tambahan kalkulator ${rupiah(app.data.calculator.additionalCosts)} belum termasuk estimasi ini.`}</Notice>}
+        {!capacity && <Notice tone="info" title="Penghasilan dilengkapi nanti">Estimasi cicilan tersedia. Kemampuan bayar belum dinilai karena penghasilan belum diisi.</Notice>}
+        {capacity && <Panel>
           <h2 className="text-lg font-extrabold">Cicilan vs kapasitas</h2>
           <div className="flex justify-between text-[13px]">
             <span className="text-muted-foreground">Kapasitas kamu</span>
@@ -253,7 +259,7 @@ function ProgramSimulator({ app, item, capacity, onSaved, go, fromReview }) {
             </Chip>
           )}
           <Disclaimer>Geser plafon atau tenor untuk melihat perubahan cicilan. Simulasi ini tidak mengubah data pengajuan sampai kamu konfirmasi.</Disclaimer>
-        </Panel>
+        </Panel>}
         {item.stale && (
           <Notice tone="warn" title="Data produk perlu dicek ulang">
             Data {item.bank.name} terakhir diverifikasi {dateShort(item.lastVerifiedAt)}. Angka bisa berbeda saat pengajuan diproses.

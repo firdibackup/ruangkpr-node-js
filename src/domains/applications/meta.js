@@ -1,4 +1,5 @@
 import { dayMonth } from "@/lib/format";
+import { calculatorNextPath, calculatorProgress, isCalculatorFlow } from './calculatorFlow';
 
 export const PRIMARY_STEPS = [
   "Data Diri",
@@ -67,7 +68,7 @@ export function takeoverScreenOf(app) {
 
 // Home "Lanjutkan pengajuan" card: the same phase, label and percent the wizard shows.
 export const draftProgress = (app) =>
-  app.productType === "primary"
+  isCalculatorFlow(app) ? calculatorProgress(app, calculatorNextPath(app)) : app.productType === "primary"
     ? primaryProgress(Math.min(app.currentStep, PRIMARY_STEPS.length))
     : takeoverProgress(takeoverScreenOf(app));
 
@@ -81,6 +82,7 @@ export const stepsOf = (app) =>
   app.productType === "primary" ? PRIMARY_STEPS : TAKEOVER_STEPS;
 
 export function resumePath(app) {
+  if (isCalculatorFlow(app)) return calculatorNextPath(app);
   if (app.productType === "primary")
     return `/apply/primary/${Math.min(app.currentStep, PRIMARY_STEPS.length)}`;
   if (app.currentStep >= 6 && app.selection)

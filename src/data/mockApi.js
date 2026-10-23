@@ -10,6 +10,8 @@ import { defaultTakeoverGoal, takeoverDataFromMortgage, takeoverGaps, validateEm
 import { validatePersonal } from '@/domains/applications/validation'
 import { STAGE_NOTE_STATUSES, STATUS_LABEL } from '@/domains/applications/meta'
 import { DEFAULT_OFFICE, PRINTABLE_STATUSES, letterInput, letterIssues, letterRows, officeInput, officeIssues, prefillLetter, variantOf } from '@/domains/admin/coverLetter'
+import { calculatorDraftData, parseCalculatorHandoff } from '@/domains/applications/calculatorHandoff'
+import { calculatorGaps, isCalculatorFlow } from '@/domains/applications/calculatorFlow'
 import { filledOnly, validateReminders } from '@/domains/mortgages/validation'
 import { CONSENT_TYPES, CONSENT_VERSION, validateChangePassword, validateEmail, validateLogin, validateNewPassword, validateRegister, validateWelcome } from '@/domains/session/validation'
 import { dateLong, markOf, maskEmail, maskNik } from '@/lib/format'
@@ -281,24 +283,24 @@ const touch = (db, entity) => {
 // Profile part of the Primary input (steps 1–2): enough for the affordability milestone.
 function profileInput(app) {
   const { employment: e = {}, personal = {} } = app.data
-  if (!(e.monthlyIncome > 0)) fail('CALCULATION_INPUT_INCOMPLETE', 'Penghasilan bulanan belum diisi.', 400)
+  if (!(e.monthlyIncome > 0) && !isCalculatorFlow(app)) fail('CALCULATION_INPUT_INCOMPLETE', 'Penghasilan bulanan belum diisi.', 400)
   return {
     occupation: e.occupation,
     birthDate: personal.birthDate,
-    monthlyIncome: e.monthlyIncome + (e.jointIncome ? e.partnerIncome ?? 0 : 0),
+    monthlyIncome: (e.monthlyIncome ?? 0) + (e.jointIncome ? e.partnerIncome ?? 0 : 0),
     existingDebt: (e.vehicleDebt ?? 0) + (e.cardDebt ?? 0) + (e.otherDebt ?? 0),
   }
 }
 
 function primaryInput(app) {
   const { employment: e = {}, property: p = {}, loan: l = {} } = app.data
-  if (!(e.monthlyIncome > 0) || !(p.price > 0) || !(l.amount > 0) || !(l.tenorMonths > 0)) {
+  if ((!(e.monthlyIncome > 0) && !isCalculatorFlow(app)) || !(p.price > 0) || !(l.amount > 0) || !(l.tenorMonths > 0)) {
     fail('CALCULATION_INPUT_INCOMPLETE', 'Lengkapi data pinjaman dan penghasilan dulu.', 400)
   }
   return { loanAmount: l.amount, tenorMonths: l.tenorMonths, propertyPrice: p.price, propertyType: p.propertyType, ...profileInput(app) }
 }
 
-// What prices or qualifies a program (profileInput, primaryInput, simulationSource): a change drops the chosen program.
+// What prices or qualifies a program: calculator flows refresh their choice; other flows clear it.
 // KTP data, company, job title and the old loan's other details (start date, product name…) keep it.
 const OLD_LOAN_PRICING = ['outstanding', 'rateBps', 'rateType', 'fixedUntil', 'floatingRateBps', 'remainingMonths', 'currentPayment', 'penaltyBps', 'dueDay']
 function pricingInputs(app) {
@@ -307,6 +309,8 @@ function pricingInputs(app) {
     app.data.loan,
     p.price,
     p.estimatedValue,
+    p.propertyType,
+    app.data.personal?.birthDate,
     p.disputed,
     OLD_LOAN_PRICING.map((k) => o[k] ?? null),
     app.data.goal,
@@ -617,7 +621,8 @@ function simulationSource(db, source) {
     const f = app.data.finance ?? {}
     const e = app.data.employment ?? {}
     return {
-      oldBank: { name: o.bankName, mark: bankFor(db, o)?.mark ?? null, logoUrl: bankFor(db, o)?.logoUrl ?? null, productName: o.productName, estimated: o.source === 'estimate' },
+      partialAllowed: isCalculatorFlow(app),
+      oldBank: { name: o.bankName || 'Bank lama belum diisi', mark: bankFor(db, o)?.mark ?? null, logoUrl: bankFor(db, o)?.logoUrl ?? null, productName: o.productName, estimated: o.source === 'estimate' || app.data.calculator?.currentPayment === 0 },
       loan: { outstanding: o.outstanding, rateBps: o.rateBps, rateType: o.rateType, fixedUntil: o.fixedUntil, floatingRateBps: o.floatingRateBps, remainingMonths: o.remainingMonths, currentPayment: o.currentPayment, penaltyBps: o.penaltyBps, dueDay: o.dueDay },
       goal: g,
       propertyValue: p.estimatedValue ?? null,
@@ -646,7 +651,7 @@ function runSimulation(db, sim, sort) {
   if (!(l.outstanding > 0) || !(l.remainingMonths > 0) || !(l.rateBps > 0) || !(l.currentPayment > 0)) {
     fail('CALCULATION_INPUT_INCOMPLETE', 'Data KPR lama belum lengkap untuk simulasi.', 400)
   }
-  if (!(src.monthlyIncome > 0)) fail('CALCULATION_INPUT_INCOMPLETE', 'Penghasilan bulanan belum diisi.', 400)
+  if (!(src.monthlyIncome > 0) && !src.partialAllowed) fail('CALCULATION_INPUT_INCOMPLETE', 'Penghasilan bulanan belum diisi.', 400)
   const input = {
     mode: sim.input.mode,
     goal: sim.input.goal,
@@ -660,13 +665,43 @@ function runSimulation(db, sim, sort) {
     otherDebt: src.otherDebt,
   }
   try {
-    const baseline = takeoverBaseline({ ...l, asOf: db.clock })
+    const baseline = takeoverBaseline({ ...l, dueDay: l.dueDay ?? (src.partialAllowed ? Number(db.clock.slice(8, 10)) : undefined), asOf: db.clock })
     const comparison = compareTakeoverPrograms({ products: productsOf(db), baseline, input, asOf: db.clock, sort })
     return { id: sim.id, source: sim.source, oldBank: src.oldBank, input, baseline, excludedProductIds: src.excludedProductIds, ...comparison }
   } catch (e) {
     if (e instanceof CalculationError) fail('CALCULATION_FAILED', e.message, 400)
     throw e
   }
+}
+
+// Completing calculator application data refreshes the quote, not the user's bank choice.
+// Catalog availability/version is still checked at submission.
+function repriceCalculatorSelection(db, app, previous) {
+  const product = productsOf(db).find(p => p.id === previous.bankProductId)
+  if (!product || !isAvailable(product, db.clock) || (previous.productVersion && product.version !== previous.productVersion)) return previous.productVersion ? previous : null
+  let x
+  if (app.productType === 'primary') {
+    x = simulateLoan({ product, principal: app.data.loan.amount, termMonths: app.data.loan.tenorMonths })
+  } else {
+    const sim = runSimulation(db, { source: { type: 'application', id: app.id }, input: app.data.goal })
+    x = evaluateTakeoverProduct({ product, baseline: sim.baseline, input: sim.input, asOf: db.clock })
+  }
+  return selectionFrom(product, {
+    fixedRateBps: x.fixedRateBps,
+    fixedMonths: x.fixedMonths,
+    floatingRateBps: x.floatingRateBps,
+    loanAmount: app.productType === 'primary' ? app.data.loan.amount : x.principal,
+    tenorMonths: app.productType === 'primary' ? app.data.loan.tenorMonths : x.tenorMonths,
+    estimatedPayment: x.payment,
+    paymentAfterFixed: x.paymentAfterFixed,
+    totalPayment: x.totalPayment,
+    ...(app.productType === 'takeover' ? {
+      feesTotal: x.feesTotal,
+      netTopup: x.topup?.netTopup ?? null,
+      breakEvenMonth: x.breakEven.month,
+    } : {}),
+    lastVerifiedAt: product.lastVerifiedAt,
+  })
 }
 
 // The team's move (relaying the bank included); additional_docs_requested waits on the user instead.
@@ -1453,8 +1488,15 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
 
     applications: {
       get: call('applications.get', (db, id) => decorate(findApp(db, id))),
-      create: call('applications.create', (db, { productType, purchaseType, mode, mortgageId }) => {
+      create: call('applications.create', (db, { productType, purchaseType, mode, mortgageId, calculatorSearch }) => {
+        const handoff = calculatorSearch ? parseCalculatorHandoff(calculatorSearch) : null
+        if (handoff) {
+          productType = handoff.mode === 'primary' ? 'primary' : 'takeover'
+          mode = handoff.mode === 'primary' ? null : handoff.mode
+        }
         const current = activeApplication(db.applications)
+        // A retried import resumes the same draft; never overwrite another application.
+        if (handoff && current?.status === 'draft' && current.data.calculator?.handoffSearch === calculatorSearch) return decorate(current)
         if (current) fail('ACTIVE_DRAFT_EXISTS', 'Kamu masih punya pengajuan aktif. Lanjutkan atau hapus dulu.', 409, { details: { applicationId: current.id } })
         if (productType === 'primary' && activeMortgageOf(db)) {
           fail('ACTIVE_MORTGAGE_EXISTS', 'Versi ini mendukung satu KPR aktif per akun.', 409)
@@ -1468,12 +1510,22 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           return app
         }
         // A cancelled application left what was typed behind (see cancel): start from it.
-        const kept = structuredClone(db.kept?.[productType] ?? {})
+        const kept = handoff ? {} : structuredClone(db.kept?.[productType] ?? {})
         const data =
           productType === 'primary'
             ? { personal: prefilledPersonal(db), employment: prefilledEmployment(db), property: kept.property ?? { purchaseType }, loan: kept.loan ?? {} }
             : { personal: prefilledPersonal(db), employment: prefilledEmployment(db), oldLoan: kept.oldLoan ?? {}, goal: { mode: mode ?? null }, property: kept.property ?? {}, finance: kept.finance ?? {} }
-        return newApplication(db, { productType, mode, data })
+        if (handoff) {
+          const imported = calculatorDraftData(handoff, db.clock)
+          const product = catalogOf(db).find(p => p.id === handoff.productId && p.bank.id === handoff.bankId && p.productTypes.includes(handoff.mode))
+          imported.calculator.productName = product?.name ?? null
+          imported.calculator.productMatched = !!product
+          for (const [section, values] of Object.entries(imported)) data[section] = { ...(data[section] ?? {}), ...values }
+          data.calculator.handoffSearch = calculatorSearch
+        }
+        const created = newApplication(db, { productType, mode, data })
+        if (handoff) created.currentStep = productType === 'primary' ? 5 : 6
+        return created
       }),
       saveStep: call('applications.saveStep', (db, id, { step, values }) => {
         const app = findApp(db, id)
@@ -1489,8 +1541,14 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           delete app.documents.property_document
         }
         if (app.selection && before !== pricingInputs(app)) {
-          app.selection = null
-          if (app.productType === 'primary') app.currentStep = Math.min(app.currentStep, 5)
+          const previous = app.selection
+          if (isCalculatorFlow(app)) app.data.calculator.preferredProductId = previous.bankProductId
+          app.selection = isCalculatorFlow(app) ? repriceCalculatorSelection(db, app, previous) : null
+          if (!app.selection && app.productType === 'primary') app.currentStep = Math.min(app.currentStep, 5)
+        }
+        // Recover a confirmed choice cleared by the earlier calculator flow.
+        if (!app.selection && isCalculatorFlow(app) && app.data.calculator.bankConfirmed) {
+          app.selection = repriceCalculatorSelection(db, app, { bankProductId: app.data.calculator.preferredProductId ?? app.data.calculator.productId })
         }
         syncProfile(db, values)
         app.currentStep = Math.min(app.stepCount, Math.max(app.currentStep, step + 1))
@@ -1559,12 +1617,14 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           lastVerifiedAt: product.lastVerifiedAt,
         })
         app.currentStep = Math.max(app.currentStep, app.productType === 'primary' ? 6 : 5)
+        if (isCalculatorFlow(app)) Object.assign(app.data.calculator, { bankConfirmed: true, preferredProductId: product.id })
         touch(db, app)
         return decorate(app)
       }),
       submit: call('applications.submit', (db, id, { consents }) => {
         const app = decorate(findApp(db, id))
         if (app.status !== 'draft') fail('APPLICATION_ALREADY_SUBMITTED', 'Pengajuan ini sudah dikirim.', 409)
+        if (isCalculatorFlow(app) && calculatorGaps(app, db.clock).length) fail('VALIDATION_FAILED', 'Lengkapi data pengajuan dulu.', 400)
         const missing = app.requiredDocuments.filter((d) => d.required && !['uploaded', 'verified'].includes(app.documents[d.type]?.status))
         if (missing.length) fail('DOCUMENTS_INCOMPLETE', `Lengkapi dokumen wajib: ${missing.map((d) => d.label).join(', ')}.`, 422)
         if (!app.selection) fail('VALIDATION_FAILED', 'Pilih satu program bank dulu.', 400)
@@ -1823,6 +1883,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           db.simulation = { ...sim, source: { type: 'application', id: app.id } }
         }
         app.selection = selection
+        if (isCalculatorFlow(app)) Object.assign(app.data.calculator, { bankConfirmed: true, preferredProductId: product.id })
         app.currentStep = Math.max(app.currentStep, 6)
         touch(db, app)
         return decorate(app)

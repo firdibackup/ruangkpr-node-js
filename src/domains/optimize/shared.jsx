@@ -5,6 +5,7 @@ import { WizardProgress } from '@/components/shared/progress'
 import { SummaryRows } from '@/components/shared/ui'
 import { activeApplication } from '@/domains/home/selectHomeState'
 import { TAKEOVER_PHASES, takeoverProgress } from '@/domains/applications/meta'
+import { CALCULATOR_PHASES, calculatorProgress, isCalculatorFlow } from '@/domains/applications/calculatorFlow'
 
 export const modeName = (mode) => (mode === 'topup' ? 'Refinancing + Top-up' : 'Take Over')
 
@@ -21,16 +22,17 @@ const PHASE_LABELS = TAKEOVER_PHASES.map((p) => p.label)
 
 // `screen` is the Take Over progress screen on display (1–9, see takeoverProgress); `reached` the furthest
 // saved one, so stepping back to edit never lowers the percent. No `screen` → no progress (intro, Explore).
-export function OptimizeHeader({ screen, reached = screen, title, subtitle, back, saving }) {
-  const shown = screen && takeoverProgress(screen)
-  const furthest = screen && takeoverProgress(Math.max(screen, reached))
+export function OptimizeHeader({ screen, reached = screen, title, subtitle, back, saving, app, path }) {
+  const bankFirst = isCalculatorFlow(app)
+  const shown = screen && (bankFirst ? calculatorProgress(app, path) : takeoverProgress(screen))
+  const furthest = bankFirst ? shown : screen && takeoverProgress(Math.max(screen, reached))
   return (
     <>
       <PageHeader title={title} subtitle={subtitle} back={back} />
       {screen && (
         <WizardProgress
           label={`Bagian ${shown.phase} dari 3 · ${shown.label}`}
-          steps={PHASE_LABELS}
+          steps={bankFirst ? CALCULATOR_PHASES : PHASE_LABELS}
           current={shown.phase}
           reached={furthest.position}
           percent={furthest.percent}

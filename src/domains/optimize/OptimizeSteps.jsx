@@ -84,6 +84,7 @@ import {
   validatePersonal,
 } from "@/domains/applications/validation";
 import { takeoverScreenOf } from "@/domains/applications/meta";
+import { calculatorBackPath, calculatorGaps, calculatorNextPath, isCalculatorFlow } from '@/domains/applications/calculatorFlow';
 import {
   HEALTH_SENTENCE,
   HealthRing,
@@ -153,6 +154,9 @@ export function OptimizeStepPage({ employment = false }) {
   if (!app) return <Navigate to="/optimize/intro" replace />;
   if (app.status !== "draft")
     return <Navigate to="/my-kpr/application" replace />;
+  const bankFirst = isCalculatorFlow(app);
+  if (bankFirst && n >= 6 && (calculatorGaps(app, snap.clock).length || !app.selection))
+    return <Navigate to={calculatorNextPath(app, snap.clock)} replace />;
   if (n >= 6 && !app.selection)
     return <Navigate to="/optimize/baseline" replace />;
   // A draft from a monitored KPR skips the data steps: every way into Tujuan/Dokumen/Review asks the missing ones first.
@@ -160,9 +164,9 @@ export function OptimizeStepPage({ employment = false }) {
     today: snap.clock,
     mode: app.optimizationMode,
   });
-  if (n >= 5 && gaps.length)
+  if (!bankFirst && n >= 5 && gaps.length)
     return <Navigate to={gaps[0]} state={{ from: "gaps" }} replace />;
-  if (n > app.currentStep)
+  if (!bankFirst && n > app.currentStep)
     return (
       <Navigate
         to={
@@ -194,6 +198,7 @@ export function OptimizeStepPage({ employment = false }) {
     navigate("/optimize/programs"); // runs the draft's simulation (ProgramPages useSimulation)
   };
   const next = (to, saved = app) => {
+    if (bankFirst && !fromReview && n < 6) return navigate(calculatorNextPath(saved, snap.clock));
     if (!fromGaps) return navigate(fromReview ? "/optimize/7" : to);
     if (app.selection && !saved.selection) toast("Data baru mengubah hitungan, jadi pilihan bank dihitung ulang.");
     if (gap) return navigate(gap, { state: { from: "gaps" } });
@@ -219,11 +224,13 @@ export function OptimizeStepPage({ employment = false }) {
   return (
     <>
       <OptimizeHeader
+        app={app}
+        path={location.pathname}
         screen={screen}
         reached={takeoverScreenOf(app)}
         title={milestone ? "Tahap 1 selesai" : `Pengajuan ${PN}`}
         subtitle={milestone ? `${PN} · gambaran KPR lama kamu` : subtitle}
-        back={fromReview ? "/optimize/7" : back}
+        back={fromReview ? "/optimize/7" : bankFirst ? calculatorBackPath(app, location.pathname) : back}
       />
       {fromGaps && (
         <Notice tone="info" title="Lengkapi data pengajuan">
@@ -231,6 +238,7 @@ export function OptimizeStepPage({ employment = false }) {
           {app.selection ? "unggah dokumen" : "melihat pilihan bank"}.
         </Notice>
       )}
+      {n === 1 && !employment && app.data.calculator && <Notice tone="info" title="Data kalkulator sudah terisi">{app.data.calculator.productName ?? 'Pilihan bank tersimpan'}. Lengkapi data diri dan detail KPR lama.</Notice>}
       {n === 1 &&
         (employment ? (
           <EmploymentStep {...props} />
@@ -882,7 +890,7 @@ function GoalStep({ app, setApp, navigate, fromReview }) {
         input: saved.data.goal,
       });
       navigate(
-        fromReview && saved.selection ? "/optimize/7" : "/optimize/baseline",
+         fromReview && saved.selection ? "/optimize/7" : isCalculatorFlow(saved) ? calculatorNextPath(saved) : "/optimize/baseline",
       );
     } catch (err) {
       setSimError(err.message);
@@ -933,7 +941,7 @@ function GoalStep({ app, setApp, navigate, fromReview }) {
             />
             <SelectField
               label="Tenor baru yang diinginkan"
-              options={TENOR_OPTIONS}
+              options={v.tenorMonths && !TENOR_OPTIONS.some(t => t.value === v.tenorMonths) ? [...TENOR_OPTIONS, { value: v.tenorMonths, label: `${v.tenorMonths} bulan` }] : TENOR_OPTIONS}
               {...form.bind("tenorMonths")}
             />
             <MoneyField

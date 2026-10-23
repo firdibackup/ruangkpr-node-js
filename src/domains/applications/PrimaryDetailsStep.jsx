@@ -12,6 +12,7 @@ import { UnsavedChangesGuard } from '@/components/shared/dialogs'
 import { Disclaimer, IconBox, Notice, Panel, Spinner } from '@/components/shared/ui'
 import { Aside } from '@/domains/optimize/shared'
 import { toEmployment, toPersonal, validateEmployment, validatePersonal, validatePrimaryLoan, validatePrimaryProperty } from './validation'
+import { calculatorBackPath, calculatorNextPath, isCalculatorFlow } from './calculatorFlow'
 
 const TENORS = [5, 10, 15, 20, 25, 30].map((y) => ({ value: String(y * 12), label: `${y} tahun` }))
 const PURCHASE = [
@@ -176,7 +177,8 @@ export function PrimaryDetailsStep({ step, app, snapshot, onCreated, onSaved, fr
       onSaved(saved)
       toast('Tersimpan otomatis.')
       // Saving the last screen of a phase (2 / 4) opens its milestone insight first.
-      if (!fromReview) go(`/apply/primary/${step + 1}`, step === 2 || step === 4 ? { state: { milestone: step / 2 } } : undefined)
+       if (isCalculatorFlow(saved) && !fromReview) go(calculatorNextPath(saved, clock))
+       else if (!fromReview) go(`/apply/primary/${step + 1}`, step === 2 || step === 4 ? { state: { milestone: step / 2 } } : undefined)
       else if (!backToReview) go('/apply/primary/4', { state: { from: 'review' } })
       else go(saved.selection ? '/apply/primary/7' : '/apply/primary/5')
     } catch (e) {
@@ -256,7 +258,7 @@ export function PrimaryDetailsStep({ step, app, snapshot, onCreated, onSaved, fr
               <>
                 <MoneyField label="Uang Muka (DP)" placeholder="100.000.000" hint={price && dp !== null && price > 0 ? `${percentRatio(dp / price)} dari harga properti ${rupiah(price)}` : `Harga properti ${rupiah(price)}.`} {...b('downPayment')} onChange={setMoney('downPayment')} />
                 <MoneyField label="Jumlah Pinjaman" placeholder="400.000.000" hint={v.amountEdited ? 'Diubah manual. Maksimal Harga − DP.' : 'Otomatis dari Harga − DP. Bisa diubah manual.'} {...b('amount')} onChange={setMoney('amount')} />
-                <SelectField label="Tenor" options={TENORS} placeholder="Pilih tenor" {...b('tenorMonths')} />
+                <SelectField label="Tenor" options={v.tenorMonths && !TENORS.some(t => t.value === v.tenorMonths) ? [...TENORS, { value: v.tenorMonths, label: `${v.tenorMonths} bulan` }] : TENORS} placeholder="Pilih tenor" {...b('tenorMonths')} />
                 <MoneyField label="Dana tabungan / dana siap pakai" optional placeholder="0" {...b('savings')} />
               </>
             )}
@@ -276,7 +278,7 @@ export function PrimaryDetailsStep({ step, app, snapshot, onCreated, onSaved, fr
 
         {apiError && <Notice tone="bad" role="alert" title="Belum tersimpan">{apiError} Data yang kamu isi tetap ada.</Notice>}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Button variant="neutral" onClick={() => go(fromReview ? '/apply/primary/7' : step === 1 ? '/' : `/apply/primary/${step - 1}`)}>
+          <Button variant="neutral" onClick={() => go(fromReview ? '/apply/primary/7' : isCalculatorFlow(app) ? calculatorBackPath(app, `/apply/primary/${step}`) : step === 1 ? '/' : `/apply/primary/${step - 1}`)}>
             Kembali
           </Button>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">

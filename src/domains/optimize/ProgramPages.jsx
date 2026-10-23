@@ -15,6 +15,7 @@ import { takeoverScreenOf } from '@/domains/applications/meta'
 import { HEALTH_SENTENCE, HealthRing } from '@/domains/home/dashboardWidgets'
 import { applicationHealth, simulationTeaser } from './insights'
 import { OptimizeHeader, modeName, useOptimize } from './shared'
+import { calculatorNextPath, isCalculatorFlow } from '@/domains/applications/calculatorFlow'
 
 const ELIG = { estimated_eligible: ['Estimasi layak', 'ok'], needs_review: ['Perlu ditinjau', 'warn'], not_eligible: ['Berisiko ditolak', 'bad'] }
 const COST_LABEL = {
@@ -33,7 +34,7 @@ function useSimulation(sort) {
     const snap = await api.dashboard.getSnapshot()
     const app = activeApplication(snap.applications)
     const draft = app?.productType === 'takeover' && app.status === 'draft' && app.currentStep >= 6 ? app : null
-    if (draft && snap.simulation?.source?.id !== draft.id) await api.simulations.run({ source: { type: 'application', id: draft.id }, input: draft.data.goal })
+    if (draft && (isCalculatorFlow(draft) || snap.simulation?.source?.id !== draft.id)) await api.simulations.run({ source: { type: 'application', id: draft.id }, input: draft.data.goal })
     // `draft` rides along so the progress keeps the furthest saved screen (Dokumen/Review) when revisiting programs.
     return { ...(await api.simulations.getCurrent({ sort })), draft }
   }, [sort])
@@ -65,7 +66,7 @@ function NoSimulation({ error, onRetry }) {
 
 function Header({ sim, title, subtitle, back }) {
   const fromApp = sim?.source.type === 'application'
-  return <OptimizeHeader screen={fromApp ? 7 : null} reached={sim?.draft ? takeoverScreenOf(sim.draft) : 7} title={title} subtitle={subtitle} back={back} />
+  return <OptimizeHeader app={sim?.draft} path="/optimize/programs" screen={fromApp ? 7 : null} reached={sim?.draft ? takeoverScreenOf(sim.draft) : 7} title={title} subtitle={subtitle} back={back} />
 }
 
 // Phase 2 milestone (application flow only): the now-complete KPR Health score + one teaser from the simulation.
@@ -179,7 +180,8 @@ export function ProgramsPage() {
   const sorts = topup ? ['rekomendasi', 'cicilan', 'total'] : ['total', 'cicilan', 'fixed', 'bunga']
   return (
     <>
-      <Header sim={sim} title={`Pilihan ${modeName(sim.input.mode)}`} subtitle="Estimasi berdasarkan profil kamu. Pilih satu program." back="/optimize/baseline" />
+      <Header sim={sim} title={`Pilihan ${modeName(sim.input.mode)}`} subtitle="Estimasi berdasarkan data kamu. Pilih satu program." back={isCalculatorFlow(sim.draft) ? '/' : '/optimize/baseline'} />
+      {sim.draft?.data.calculator && <Notice tone="info" title="Pilihan dari kalkulator">{sim.draft.data.calculator.productName ?? 'Produk pilihan'}. Lanjutkan dengan program pilihanmu atau bandingkan program lain. Biaya bank lama dan biaya tambahan dihitung ulang oleh aplikasi.</Notice>}
       <HeroCard scenery={false} className="flex-row flex-wrap items-center justify-between gap-4 px-[22px] py-[18px] sm:px-[22px] sm:py-[18px]">
         <div className="flex items-center gap-3">
           <BankMark bank={sim.oldBank} tone="glass" size="sm" />
@@ -264,6 +266,7 @@ function ProgramCard({ x, sim, onOpen }) {
         </div>
         <div className="flex flex-wrap gap-2">
           {x.recommended && <Chip tone="solid" icon={StarIcon}>Rekomendasi dari kami</Chip>}
+          {sim.draft?.data.calculator?.productId === x.productId && <Chip tone="info">Pilihan kalkulator</Chip>}
           {x.recommended && !topup && <Chip tone="info">Sesuai tujuan kamu</Chip>}
           <Chip tone={eligTone}>{eligLabel}</Chip>
           {sim.excludedProductIds.includes(x.productId) && <Chip tone="bad">Pernah ditolak</Chip>}
@@ -343,6 +346,7 @@ function ProgramDetail({ sim, item }) {
   return (
     <>
       <Header sim={sim} title={`${x.bank.name} · ${x.name}`} subtitle="Detail program & simulasi" back="/optimize/programs" />
+      {sim.draft?.data.calculator && <Notice tone="info" title="Simulasi dari kalkulator">Angka KPR dan kebutuhan dana sudah terisi. Data KPR lama dan data pribadi dilengkapi setelah memilih bank.{!(sim.input.monthlyIncome > 0) && ' Penghasilan belum diisi; kemampuan bayar belum dinilai.'}{sim.draft.data.calculator.productId === x.productId && sim.draft.data.calculator.productVersion !== x.productVersion && ' Program telah diperbarui; simulasi memakai versi terbaru.'} Biaya keluar bank lama dan biaya tambahan mengikuti estimasi aplikasi.</Notice>}
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-5">
           <Panel className="relative gap-0 overflow-x-auto px-6 py-6 sm:px-7">
@@ -470,9 +474,9 @@ export function ConfirmProgramPage() {
     setPending(true)
     setApiError('')
     try {
-      await api.simulations.apply({ bankProductId: x.productId, tenorMonths: x.tenorMonths, plafon: topup ? x.principal : null })
-      toast(`${x.bank.name} dipilih. Lanjut unggah dokumen.`)
-      navigate('/optimize/6')
+      const app = await api.simulations.apply({ bankProductId: x.productId, tenorMonths: x.tenorMonths, plafon: topup ? x.principal : null })
+      toast(`${x.bank.name} dipilih. ${isCalculatorFlow(app) ? 'Lanjut lengkapi pengajuan.' : 'Lanjut unggah dokumen.'}`)
+      navigate(isCalculatorFlow(app) ? calculatorNextPath(app) : '/optimize/6')
     } catch (e) {
       setApiError(e.message)
       setPending(false)
@@ -516,7 +520,7 @@ export function ConfirmProgramPage() {
             </Button>
             <Button className="flex-[1_1_200px]" onClick={apply} disabled={pending} aria-busy={pending}>
               {pending && <Spinner />}
-              Lanjut Dokumen
+              {isCalculatorFlow(sim.draft) ? 'Lanjutkan Pengajuan' : 'Lanjut Dokumen'}
             </Button>
           </div>
         </section>
