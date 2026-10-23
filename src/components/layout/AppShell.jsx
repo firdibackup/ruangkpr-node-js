@@ -11,6 +11,7 @@ import { useSession } from '@/domains/session/SessionProvider'
 import { firstName, initials } from '@/lib/format'
 import { useRouteFocus } from '@/lib/hooks'
 import { brand } from '@/brand/brand'
+import { BrandIdentity } from '@/brand/BrandIdentity'
 import { logoOf, useLiveBrand } from '@/brand/live'
 
 const NAV = [
@@ -23,15 +24,7 @@ const NAV = [
 
 export function Brand({ compact = false, tagline = brand.tagline }) {
   const logo = logoOf(useLiveBrand())
-  return (
-    <div className="flex items-center gap-2.5">
-      <img src={logo} alt="" width={36} height={36} className="size-9 shrink-0 object-contain" />
-      <span className="flex flex-col leading-tight">
-        <span className={cn('font-heading font-extrabold', compact ? 'text-base' : 'text-[17px]')}>{brand.name}</span>
-        <span className="text-[11px] font-semibold tracking-[0.4px] text-highlight">{tagline}</span>
-      </span>
-    </div>
-  )
+  return <BrandIdentity logo={logo} compact={compact} tagline={tagline} />
 }
 
 const unreadLabel = (n) => (n > 9 ? '9+' : String(n))

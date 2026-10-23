@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { PrinterIcon } from 'lucide-react'
 import { api } from '@/data/api'
+import { brand } from '@/brand/brand'
 import { productName } from '@/domains/applications/meta'
 import { useResource } from '@/lib/hooks'
 import { dateLong, moneyInput, terbilang, toInt } from '@/lib/format'
@@ -196,7 +197,7 @@ function CoverLetterSheet({ letter: l, variant, rows, onToggle, zoom }) {
     >
       <header className="flex items-center justify-between gap-4 border-b-2 border-black pb-[3mm]">
         <div className="flex shrink-0 flex-col items-start">
-          <img src="/remax-logo.jpg" alt="RE/MAX" className="h-[11mm] w-auto" />
+          <img src={brand.logo} alt={brand.name} className="h-[11mm] w-auto" />
           {l.logoLabel && <span className="pl-[4.5mm] text-[13pt] leading-none font-extrabold">{l.logoLabel}</span>}
         </div>
         <h2 className="text-center text-[14pt] font-extrabold">SURAT PENGANTAR APLIKASI KPR</h2>

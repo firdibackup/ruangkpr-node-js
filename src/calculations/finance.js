@@ -1,4 +1,4 @@
-// RuangKPR calculation engine — see ruangkpr-docs/03-FINANCIAL-CALCULATION-SPEC.md.
+// Maxi calculation engine — see ruangkpr-docs/03-FINANCIAL-CALCULATION-SPEC.md.
 // Pure functions only: explicit inputs, integer Rupiah, integer basis points, no Date.now/DOM/locale.
 import { addMonths, parseIsoDate } from './dates'
 

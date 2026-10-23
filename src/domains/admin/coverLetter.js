@@ -17,7 +17,7 @@ export const DEFAULT_OFFICE = Object.fromEntries(OFFICE_FIELDS.map((k) => [k, ''
 export const officeInput = (v = {}) => Object.fromEntries(OFFICE_FIELDS.map((k) => [k, String(v[k] ?? '').trim()]))
 export const officeIssues = (v) => Object.fromEntries(OFFICE_FIELDS.filter((k) => v[k].length > 160).map((k) => [k, 'Maksimal 160 karakter.']))
 
-// `docs` names the RuangKPR documents behind a row, per product (Take Over + Top-up reads `takeover`). A row starts
+// `docs` names the Maxi documents behind a row, per product (Take Over + Top-up reads `takeover`). A row starts
 // ticked when all of them are verified; a row without them is ticked by hand.
 const row = (key, label, docs = {}) => ({ key, label, docs })
 const APPLICANT_ROWS = [

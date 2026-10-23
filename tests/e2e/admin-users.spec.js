@@ -99,7 +99,7 @@ test('a finance edit tells the admin which figures were recalculated', async ({ 
   // The admin edit, old → new, above the user's own earlier edits.
   const history = page.getByRole('list', { name: 'Riwayat perubahan', exact: true })
   await expect(history.getByRole('listitem').first()).toContainText('Penghasilan bulanan: Rp16.000.000 → Rp20.000.000')
-  await expect(history.getByRole('listitem').first()).toContainText('oleh Admin RuangKPR')
+  await expect(history.getByRole('listitem').first()).toContainText('oleh Admin Maxi')
   await expect(history).toContainText('Nomor ponsel: 081200000100 → 081200000105')
   await expect(history).toContainText('oleh Sari Wulandari (user)')
 })

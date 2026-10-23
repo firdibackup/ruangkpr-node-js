@@ -100,14 +100,14 @@ test('Google (mock) signs in, asks consent once, and lands on Home', async ({ pa
   await page.getByRole('button', { name: 'Lanjut dengan Google' }).click()
   await expect(page).toHaveURL(/\/welcome$/)
   await expect(page.getByLabel('Nama Lengkap')).toHaveValue('Firdi Audi')
-  await page.getByRole('button', { name: 'Mulai pakai RuangKPR' }).click({ force: true })
+  await page.getByRole('button', { name: 'Mulai pakai Maxi' }).click({ force: true })
   await expect(page.getByText('Centang persetujuan Syarat & Ketentuan dan Kebijakan Privasi untuk lanjut.')).toBeVisible()
   await page.getByRole('button', { name: 'Kebijakan Privasi' }).click() // the link opens the text without ticking the box
   await expect(page.getByRole('dialog', { name: 'Kebijakan Privasi' })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('checkbox', { name: /Syarat & Ketentuan dan Kebijakan Privasi/ })).not.toBeChecked()
   await page.getByRole('checkbox', { name: /Syarat & Ketentuan dan Kebijakan Privasi/ }).check()
-  await page.getByRole('button', { name: 'Mulai pakai RuangKPR' }).click()
+  await page.getByRole('button', { name: 'Mulai pakai Maxi' }).click()
   await expect(page).toHaveURL(HOME)
 })
 

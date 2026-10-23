@@ -430,7 +430,7 @@ export const pickAccount = (db) => Object.fromEntries(ACCOUNT_KEYS.filter((k) =>
 export const newAccount = (user = null) => ({ user, profile: {}, finance: {}, applications: [], mortgages: [], simulation: null, activities: [] })
 
 // Staff sign in on the same login page with these emails (roles in roles.js).
-const ADMIN = { id: 'usr_admin_01', name: 'Admin RuangKPR', contact: 'admin@ruangkpr.id', contactType: 'email', role: 'super_admin', createdAt: '2026-09-01T02:00:00.000Z' }
+const ADMIN = { id: 'usr_admin_01', name: 'Admin Maxi', contact: 'admin@ruangkpr.id', contactType: 'email', role: 'super_admin', createdAt: '2026-09-01T02:00:00.000Z' }
 // A second super admin, so the audit log can be tried with more than one admin.
 const ADMIN_2 = { id: 'usr_admin_02', name: 'Sinta Maharani', contact: 'sinta@ruangkpr.id', contactType: 'email', role: 'super_admin', createdAt: '2026-09-01T02:00:00.000Z' }
 const WRITER = { id: 'usr_writer_01', name: 'Penulis Konten', contact: 'penulis@ruangkpr.id', contactType: 'email', role: 'content_writer', createdAt: '2026-09-01T02:00:00.000Z' }

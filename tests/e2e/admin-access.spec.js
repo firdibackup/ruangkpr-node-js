@@ -16,7 +16,7 @@ test('a guest opening /admin is sent to sign in', async ({ page }) => {
 
 test('the admin signs in with email and password, lands on /admin without B2C navigation, and survives a refresh', async ({ page }) => {
   await useScenario(page, 'guest', '/login')
-  await signIn(page, 'Admin RuangKPR', 'admin@ruangkpr.id')
+  await signIn(page, 'Admin Maxi', 'admin@ruangkpr.id')
 
   await expect(page).toHaveURL(/\/admin$/)
   await expect(adminNav(page)).toBeVisible()

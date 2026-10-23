@@ -9,7 +9,7 @@ const settle = (page) => page.waitForTimeout(800)
 
 test('fresh home: tour runs once by itself, walks every step, replays from Panduan, Esc ends it', async ({ page }) => {
   await useScenario(page, 'fresh', '/', { tours: true })
-  await expect(tooltip(page)).toContainText('Selamat datang di RuangKPR')
+  await expect(tooltip(page)).toContainText('Selamat datang di Maxi')
   await expect(tooltip(page)).toContainText('1 dari 5')
   for (let i = 0; i < 4; i++) await next(page).click()
   await expect(tooltip(page)).toContainText('5 dari 5')

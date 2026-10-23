@@ -53,7 +53,7 @@ test('admin reviews each document, sends the rejected one with its reason, and f
   await page.goto('/profile')
   await page.getByRole('button', { name: 'Keluar' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Keluar' }).click()
-  await signIn(page, 'Admin RuangKPR', 'admin@ruangkpr.id')
+  await signIn(page, 'Admin Maxi', 'admin@ruangkpr.id')
   await openApplication(page, 'Rina Hartati')
   await page.getByRole('button', { name: 'Sesuai NPWP' }).click()
   await expect(page.getByRole('button', { name: 'Teruskan ke bank' })).toBeEnabled()

@@ -5,6 +5,7 @@ import { ArrowRightIcon, CircleCheckIcon, EyeIcon, ImageIcon, RotateCcwIcon, Tri
 import { api } from '@/data/api'
 import { LOGO_UPLOAD, acceptOf, uploadHint, uploadProblem } from '@/data/documentRules'
 import { brand } from '@/brand/brand'
+import { BrandIdentity } from '@/brand/BrandIdentity'
 import { loadFonts, previewBrand, setPublishedBrand, useLiveBrand } from '@/brand/live'
 import { DEFAULT_SETTINGS, EDITABLE, FONTS, HEX_HINT, STEPS, brandIssues, brandVars, isHex } from '@/brand/theme'
 import { useResource } from '@/lib/hooks'
@@ -22,8 +23,8 @@ const COLORS = [
 ]
 const PALETTE_LABEL = { primary: 'Utama', secondary: 'Pendamping', accent: 'Aksen', neutral: 'Netral' }
 const FILES = [
-  ['logo', 'Logo', '/brand/logo.svg', 'Persegi, tampil 36 px di samping nama.'],
-  ['favicon', 'Favicon', '/brand/favicon.svg', 'Persegi, ikon di tab browser.'],
+  ['logo', 'Logo utama', brand.logo, 'Logo lengkap dengan nama, horizontal ±3:1, latar transparan. Ditampilkan proporsional di header.'],
+  ['favicon', 'Favicon', brand.favicon, 'Ikon persegi tanpa tulisan kecil, untuk tab browser.'],
 ]
 const FONT_OPTIONS = FONTS.map((f) => ({ value: f, label: f }))
 
@@ -109,11 +110,11 @@ function FileRow({ k, label, fallback, hint, value, onChange }) {
   }
   return (
     <div className="flex flex-wrap items-center gap-4">
-      <img src={url} alt="" className="size-14 shrink-0 rounded-xl bg-white object-contain p-1 ring-1 ring-border" />
+      <img src={url} alt={`Pratinjau ${label.toLowerCase()}`} className={`${k === 'logo' ? 'h-16 w-40' : 'size-16'} shrink-0 rounded-xl bg-white object-contain p-2 ring-1 ring-border`} />
       <div className="flex min-w-0 flex-1 basis-[200px] flex-col gap-1">
         <span className="text-sm font-semibold text-foreground">{label}</span>
         <span className="text-[13px] text-muted-foreground">
-          {value ? (value instanceof Blob ? `${value.name} (belum disimpan)` : 'File unggahan') : 'Bawaan file (public/brand/)'} · {hint}
+          {value ? (value instanceof Blob ? `${value.name} (belum disimpan)` : 'File unggahan') : `Bawaan ${brand.name}`} · {hint}
         </span>
         {error && <FieldError>{error}</FieldError>}
       </div>
@@ -137,13 +138,7 @@ function FileRow({ k, label, fallback, hint, value, onChange }) {
 function Preview({ vars, logo }) {
   return (
     <div data-brand-scope inert style={vars} className="flex flex-col gap-3 rounded-card bg-background p-4 font-sans text-foreground ring-1 ring-border">
-      <div className="flex items-center gap-2.5">
-        <img src={logo} alt="" className="size-9 shrink-0 object-contain" />
-        <span className="flex flex-col leading-tight">
-          <span className="font-heading text-base font-extrabold">{brand.name}</span>
-          <span className="text-[11px] font-semibold tracking-[0.4px] text-highlight">{brand.tagline}</span>
-        </span>
-      </div>
+      <BrandIdentity logo={logo} />
       <section className="flex flex-col gap-3 rounded-card p-5 text-white hero-gradient">
         <h3 className="text-lg leading-6 font-extrabold">Pilih produk KPR yang sesuai kebutuhanmu.</h3>
         <Button size="sm" variant="inverse" className="w-fit">
@@ -206,7 +201,7 @@ function BrandEditor({ data, onSaved }) {
   useEffect(() => () => loadFonts([], 'brand-fonts-editor'), [])
 
   const live = data.published && data.draft && data.published.version === data.draft.version
-  const logo = useMemo(() => (s.logo instanceof Blob ? URL.createObjectURL(s.logo) : (s.logo?.url ?? '/brand/logo.svg')), [s.logo])
+  const logo = useMemo(() => (s.logo instanceof Blob ? URL.createObjectURL(s.logo) : (s.logo?.url ?? brand.logo)), [s.logo])
   useEffect(() => () => s.logo instanceof Blob && URL.revokeObjectURL(logo), [s.logo, logo])
 
   // The engine may use a darker step so text stays readable; say which.
@@ -313,10 +308,14 @@ function BrandEditor({ data, onSaved }) {
         </Panel>
 
         <Panel>
-          <PanelTitle sub={`${uploadHint(LOGO_UPLOAD)}. Nama brand dan ilustrasi tetap dari file.`}>Logo &amp; favicon</PanelTitle>
+          <PanelTitle sub={`${uploadHint(LOGO_UPLOAD)}. Gunakan logo berwarna untuk header berlatar terang. Nama brand: ${brand.name}.`}>Logo &amp; favicon</PanelTitle>
           {FILES.map(([k, label, fallback, hint]) => (
             <FileRow key={k} k={k} label={label} fallback={fallback} hint={hint} value={s[k]} onChange={setFile} />
           ))}
+          <div className="flex flex-wrap items-center gap-4 rounded-xl bg-inverse p-4 text-inverse-foreground">
+            <img src={brand.logoWhite} alt={`${brand.name} versi putih`} width={1436} height={451} className="h-10 w-32 shrink-0 object-contain" />
+            <p className="min-w-0 flex-1 basis-[200px] text-[13px] leading-5">Logo putih bawaan Maxi untuk materi berlatar gelap. Logo ini menjadi referensi aset; header situs memakai logo utama di atas.</p>
+          </div>
         </Panel>
 
         <Panel>
@@ -339,7 +338,7 @@ function BrandEditor({ data, onSaved }) {
 
       <div className="flex flex-col gap-4 xl:sticky xl:top-6">
         <Panel>
-          <PanelTitle sub={live ? 'Draft ini yang sedang tayang.' : data.published ? `Tayang sejak ${dateLong(data.published.publishedAt)} oleh ${data.published.publishedBy}.` : 'Belum ada brand terbit: pengunjung melihat tampilan bawaan file.'}>Pratinjau</PanelTitle>
+          <PanelTitle sub={live ? 'Draft ini yang sedang tayang.' : data.published ? `Tayang sejak ${dateLong(data.published.publishedAt)} oleh ${data.published.publishedBy}.` : 'Pengunjung melihat logo dan gaya bawaan Maxi.'}>Pratinjau</PanelTitle>
           <Preview vars={vars} logo={logo} />
           <div className="flex flex-col gap-2.5">
             <Button disabled={!dirty || !valid || saving} onClick={saveDraft}>
@@ -375,7 +374,7 @@ function BrandEditor({ data, onSaved }) {
         open={confirm === 'reset'}
         onOpenChange={(v) => !v && setConfirm(null)}
         title="Kembalikan ke default?"
-        body="Draft dan brand yang tayang dihapus. Semua pengunjung kembali melihat tampilan bawaan file."
+        body="Draft dan brand yang tayang dihapus. Semua pengunjung kembali melihat logo, favicon, warna, dan tipografi bawaan Maxi."
         confirmLabel="Ya, kembalikan"
         onConfirm={reset}
       />
@@ -388,7 +387,7 @@ export function BrandPage() {
   const { data, error, reload, setData } = useResource(() => api.admin.brand.get())
   return (
     <>
-      <AdminHeader title="Brand" subtitle="Warna, font, radius kartu, logo, dan favicon. Simpan draft, pratinjau di seluruh situs, lalu publish." />
+      <AdminHeader title="Brand" subtitle="Atur gaya Maxi: warna, font, radius kartu, logo horizontal, dan favicon. Simpan draft, pratinjau di seluruh situs, lalu publish." />
       {!data && error && <ErrorPanel onRetry={reload} />}
       {!data && !error && <PageSkeleton />}
       {data && <BrandEditor data={data} onSaved={setData} />}

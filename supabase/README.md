@@ -1,4 +1,10 @@
-# Supabase RuangKPR — runbook
+# Supabase Maxi — runbook
+
+## Rebrand Maxi (2026-10-23)
+
+Migrasi `20261023040319_maxi_brand.sql` mengganti presentasi email (nama pengirim, CTA, isi reminder, warna) serta nama brand pada dua artikel bawaan. Alamat pengirim dan ID job cron tetap memakai konfigurasi lama. Terapkan migrasi ini setelah seluruh migrasi sebelumnya.
+
+Untuk SMTP Auth yang aktif di VPS, pasang ulang `templates/otp.html` dan `templates/recovery.html`, ubah subjek confirmation/recovery menjadi Maxi, serta nama tampilan pengirim SMTP menjadi Maxi. Sesuaikan nama aplikasi di layar consent Google menjadi Maxi. Email CS tetap `cs@ruangkpr.id` selama transisi.
 
 Backend: Supabase self-hosted (Docker) di VPS, API `https://ruang-kpr.firdiaudi.my.id`.
 Desain lengkap: `docs/superpowers/specs/2026-10-09-supabase-backend-design.md`.
@@ -53,7 +59,7 @@ JWT_EXPIRY=3600
 1. Google Cloud Console → APIs & Services → Credentials → **Create OAuth client ID** → *Web application*.
 2. *Authorized JavaScript origins*: domain app produksi dan `http://localhost:5173`.
 3. *Authorized redirect URIs*: `https://ruang-kpr.firdiaudi.my.id/auth/v1/callback`.
-4. Isi layar consent (nama app RuangKPR, email dukungan, domain).
+4. Isi layar consent (nama app Maxi, email dukungan, domain).
 5. Tambahkan ke `environment:` service `auth` di `docker-compose.yml`, dengan nilainya di `.env`:
 
 ```yaml
@@ -72,10 +78,10 @@ Email tidak memakai SMTP. Database mengirimnya lewat API Resend (`pg_net`), deng
 2. **Studio → SQL Editor** (key tidak pernah masuk ke kode atau repo):
 
 ```sql
-select vault.create_secret('re_…', 'resend_api_key', 'Resend sending key for RuangKPR emails');
+select vault.create_secret('re_…', 'resend_api_key', 'Resend sending key for Maxi emails');
 -- mengganti key nanti:
 -- select vault.update_secret((select id from vault.secrets where name = 'resend_api_key'), 're_…');
--- opsional, untuk tombol "Buka RuangKPR" di email reminder:
+-- opsional, untuk tombol "Buka Maxi" di email reminder:
 -- select vault.create_secret('https://<domain-app>', 'app_url');
 ```
 
@@ -116,7 +122,7 @@ ADDITIONAL_REDIRECT_URLS=http://localhost:5173/**
       GOTRUE_PASSWORD_MIN_LENGTH: 8
       GOTRUE_PASSWORD_REQUIRED_CHARACTERS: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789"
       GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_REAUTHENTICATION: "true"
-      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: "Kode verifikasi akun RuangKPR"
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: "Kode verifikasi akun Maxi"
 ```
 
    Dua baris pertama sama dengan aturan di app: minimal 8 karakter, berisi huruf dan angka. Baris ketiga membuat ganti password lewat API wajib memakai sesi yang baru dibuka. App selalu login ulang atau membuka link reset dulu, jadi alurnya tetap jalan.
@@ -125,7 +131,7 @@ ADDITIONAL_REDIRECT_URLS=http://localhost:5173/**
 
 ```yaml
       GOTRUE_MAILER_TEMPLATES_RECOVERY: "<alamat recovery.html di templates-server, sama polanya dengan baris GOTRUE_MAILER_TEMPLATES_CONFIRMATION>"
-      GOTRUE_MAILER_SUBJECTS_RECOVERY: "Reset password RuangKPR"
+      GOTRUE_MAILER_SUBJECTS_RECOVERY: "Reset password Maxi"
 ```
 
 4. Jalankan `docker compose up -d --force-recreate auth`, lalu `docker compose logs auth --tail 30` dan pastikan tidak ada error.

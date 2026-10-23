@@ -149,5 +149,5 @@ test('cancel dialog does not delete before confirm; additional document can be r
 
   await page.locator('input[type=file]').nth(2).setInputFiles(pdf('slip-gaji-terbaru.pdf'))
   await expect(page.getByText('Status: Verifikasi Dokumen')).toBeVisible()
-  await expect(page.getByText('Permintaan tim RuangKPR')).toHaveCount(0)
+  await expect(page.getByText('Permintaan tim Maxi')).toHaveCount(0)
 })

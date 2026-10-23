@@ -1,7 +1,7 @@
 /* Brand tokens: the only file with colour values. A clone edits this file, brand.js and public/brand/
    (see BRANDING.md). Components never use these names directly; they use the utilities from
    src/styles/globals.css (bg-primary, text-muted-foreground, rounded-card, …).
-   Source: Pencil "Color System · Teal / Aqua" (light theme). */
+   Source: Pencil "Color System · Teal / Aqua", with Maxi logo anchors (light theme). */
 
 :root {
   /* ── 1. Primitive palettes ── always replace. Eleven steps each:
@@ -19,7 +19,7 @@
   --palette-primary-600: #0a5b6c;
   --palette-primary-700: #074b58;
   --palette-primary-800: #053f48;
-  --palette-primary-900: #003036;
+  --palette-primary-900: #03313a;
   --palette-primary-950: #001d22;
 
   /* Secondary / Teal */
@@ -28,7 +28,7 @@
   --palette-secondary-200: #a3efdd;
   --palette-secondary-300: #6be2c7;
   --palette-secondary-400: #31d2b3;
-  --palette-secondary-500: #00c0a5;
+  --palette-secondary-500: #00c4a7;
   --palette-secondary-600: #008575;
   --palette-secondary-700: #006a60;
   --palette-secondary-800: #06544e;

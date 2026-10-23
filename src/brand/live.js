@@ -31,7 +31,7 @@ function paint() {
   loadFonts(settings ? [settings.fonts.body, settings.fonts.heading] : [], 'brand-fonts')
   const icon = document.querySelector('link[rel="icon"]')
   if (icon) {
-    icon.href = settings?.favicon?.url ?? '/brand/favicon.svg'
+    icon.href = settings?.favicon?.url ?? brand.favicon
     icon.type = settings?.favicon ? '' : 'image/svg+xml'
   }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', vars['--primary'] ?? brand.themeColor)
@@ -54,4 +54,4 @@ const subscribe = (l) => {
   return () => listeners.delete(l)
 }
 export const useLiveBrand = () => useSyncExternalStore(subscribe, () => state)
-export const logoOf = (s) => (s.preview ?? s.published)?.logo?.url ?? '/brand/logo.svg'
+export const logoOf = (s) => (s.preview ?? s.published)?.logo?.url ?? brand.logo

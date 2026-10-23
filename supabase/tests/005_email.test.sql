@@ -17,7 +17,7 @@ create temp table sent_before as select coalesce(max(id), 0) as id from net.http
 select is(public.send_email_hook('{"user":{"email":"e1@test.local"},"email_data":{"token":"654321","email_action_type":"magiclink"}}'), '{}'::jsonb, 'the hook answers success to the auth server');
 select ok(exists (select 1 from net.http_request_queue q where q.id > (select id from sent_before) and q.url = 'https://api.resend.com/emails'
                   and convert_from(q.body, 'UTF8') like '%654321%' and convert_from(q.body, 'UTF8') like '%e1@test.local%'
-                  and convert_from(q.body, 'UTF8') like '%Kode masuk RuangKPR%'), 'the code email is queued to Resend for that address');
+                  and convert_from(q.body, 'UTF8') like '%Kode masuk Maxi%'), 'the code email is queued to Resend for that address');
 select ok(exists (select 1 from net.http_request_queue q where q.id > (select id from sent_before) and q.headers ->> 'Authorization' like 'Bearer re_%'), 'Resend gets the key from Vault');
 select ok(public.send_email_hook('{"user":{},"email_data":{}}') ? 'error', 'a payload without address or code is refused');
 select ok(not has_function_privilege('anon', 'public.send_email_hook(jsonb)', 'execute'), 'visitors cannot call the hook');

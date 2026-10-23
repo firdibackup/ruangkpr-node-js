@@ -7,7 +7,7 @@ import { loadDb } from './mockDb'
 // Brand CMS (spec 2026-10-20): draft → publish → reset, through the same logic the Supabase adapter runs.
 const api = createMockApi({ latencyMs: 0 })
 const expectCode = (promise, code) => expect(promise).rejects.toMatchObject({ name: 'ApiError', code })
-const signIn = async (email, name = 'Admin RuangKPR') => {
+const signIn = async (email, name = 'Admin Maxi') => {
   await api.auth.logout()
   await api.auth.signInWithPassword({ email, password: DEMO_PASSWORD })
   if ((await api.auth.getSession()).status === 'onboarding') await api.auth.acceptConsents({ name, acceptTerms: true, acceptPrivacy: true })
@@ -29,13 +29,13 @@ describe('brand', () => {
   it('keeps a draft away from visitors until it is published, with a reason in the audit log', async () => {
     await asAdmin()
     const { draft } = await api.admin.brand.saveDraft({ settings: blue, expectedVersion: 0 })
-    expect(draft).toMatchObject({ colors: blue.colors, fonts: blue.fonts, cardRadius: 16, version: 1, updatedBy: 'Admin RuangKPR' })
+    expect(draft).toMatchObject({ colors: blue.colors, fonts: blue.fonts, cardRadius: 16, version: 1, updatedBy: 'Admin Maxi' })
     expect(await api.brand.published()).toBeNull()
 
     await expectCode(api.admin.brand.publish({ reason: '', expectedVersion: 1 }), 'VALIDATION_FAILED')
     await expectCode(api.admin.brand.publish({ reason: 'Rebrand biru', expectedVersion: 0 }), 'CONFLICT_VERSION')
     const { published } = await api.admin.brand.publish({ reason: 'Rebrand biru', expectedVersion: 1 })
-    expect(published).toMatchObject({ colors: blue.colors, version: 1, publishedBy: 'Admin RuangKPR' })
+    expect(published).toMatchObject({ colors: blue.colors, version: 1, publishedBy: 'Admin Maxi' })
     expect(loadDb().auditLog[0]).toMatchObject({ action: 'brand.publish', reason: 'Rebrand biru', before: null, after: { colors: '#0066ff · #14b8a6 · #facc15', fonts: 'Inter / Sora', cardRadius: '16px' } })
 
     // Visitors, signed in or not, read the published brand.

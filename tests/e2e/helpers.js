@@ -29,7 +29,7 @@ export async function signIn(page, name, email) {
   if (new URL(page.url()).pathname === '/welcome') {
     await page.getByLabel('Nama Lengkap').fill(name)
     await page.getByRole('checkbox', { name: /Syarat & Ketentuan dan Kebijakan Privasi/ }).check()
-    await page.getByRole('button', { name: 'Mulai pakai RuangKPR' }).click()
+    await page.getByRole('button', { name: 'Mulai pakai Maxi' }).click()
     await expect(page).not.toHaveURL(/\/welcome$/)
   }
 }

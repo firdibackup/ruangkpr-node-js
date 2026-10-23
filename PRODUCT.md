@@ -15,13 +15,13 @@ Pengguna B2C (web responsif, mobile-first), dari PRD §2:
 - **C. Pemilik KPR yang menimbang Take Over** — job: membandingkan KPR sekarang dengan bank baru memakai biaya total dan break-even, bukan bunga promo saja; boleh berhenti di simulasi.
 - **D. Pemilik properti yang butuh dana tambahan** — job: memahami apakah Refinancing + Top-up atau Multiguna cocok, berapa dana yang mungkin tersedia, dan kewajibannya.
 
-Pengguna internal: **tim operasional RuangKPR** (role `super_admin`) yang memproses pengajuan, user, katalog bank/produk, artikel edukasi, dan konfigurasi lewat dashboard `/admin`, serta **penulis konten** (role `content_writer`) yang hanya mengelola artikel edukasi. Bekerja terutama dari laptop/desktop; HP hanya untuk cek cepat. Role: `user`, `super_admin`, `content_writer`.
+Pengguna internal: **tim operasional Maxi** (role `super_admin`) yang memproses pengajuan, user, katalog bank/produk, artikel edukasi, dan konfigurasi lewat dashboard `/admin`, serta **penulis konten** (role `content_writer`) yang hanya mengelola artikel edukasi. Bekerja terutama dari laptop/desktop; HP hanya untuk cek cepat. Role: `user`, `super_admin`, `content_writer`.
 
 Di luar MVP: broker/agen KPR B2B, staf bank sebagai operator penuh, pengguna dengan banyak KPR aktif sekaligus, dan sinkronisasi rekening bank otomatis.
 
 ## Product Purpose
 
-RuangKPR adalah **Personal KPR Financial Assistant**: menemani pengguna sejak ingin mengajukan KPR, selama pengajuan diproses, sampai KPR aktif berjalan bertahun-tahun. Alurnya **Know → Warn → Act**: memahami kondisi KPR dan kemampuan bayar, diingatkan sebelum pembayaran dan sebelum fixed berubah jadi floating, lalu mensimulasikan dan mengajukan ke satu bank/program.
+Maxi adalah **Personal KPR Financial Assistant**: menemani pengguna sejak ingin mengajukan KPR, selama pengajuan diproses, sampai KPR aktif berjalan bertahun-tahun. Alurnya **Know → Warn → Act**: memahami kondisi KPR dan kemampuan bayar, diingatkan sebelum pembayaran dan sebelum fixed berubah jadi floating, lalu mensimulasikan dan mengajukan ke satu bank/program.
 
 Keberhasilan (PRD §1.6): pengajuan KPR Primary selesai secara digital; tracker pengajuan transparan; pengajuan yang sudah akad otomatis menjadi KPR aktif tanpa input ulang; monitoring KPR siap dalam 5–8 menit; reminder tepat waktu; dampak floating terlihat sebelum terjadi; simulasi tanpa memaksa pengguna mengajukan.
 
@@ -47,8 +47,8 @@ Bukan "kalkulator KPR yang lebih lengkap", tetapi **dashboard yang menjaga KPR t
 
 ## Brand Commitments
 
-- **RuangKPR adalah layanan RE/MAX.** Nama dan balon RE/MAX boleh tampil di produk; palet UI memakai sistem warna Teal / Aqua (`src/brand/tokens.css`, panduan clone di `BRANDING.md`).
-- Nama tampilan "RuangKPR"; shell B2C memakai tagline "Command Center" (PRD §4.2), dashboard admin menampilkan label role ("Super admin", "Content writer").
+- **Brand produk: Maxi.** Gunakan logo horizontal warna/putih dari `public/`, dengan warna utama deep teal dan pendamping teal dari logo (`src/brand/tokens.css`, panduan di `BRANDING.md`). Referensi RE/MAX pada identitas kantor dan formulir operasional tetap mengikuti data kantor.
+- Nama tampilan "Maxi"; shell B2C memakai tagline "Command Center" (PRD §4.2), dashboard admin menampilkan label role ("Super admin", "Content writer"). Email CS tetap `cs@ruangkpr.id` selama transisi.
 - Visual language dan shell mengikuti artifact Claude Design yang sudah disetujui; shell atau visual language baru butuh persetujuan eksplisit (PRD §4.2).
 - **Suara:** Bahasa Indonesia dengan sapaan "kamu"; istilah keuangan dijelaskan dengan bahasa sederhana; setiap angka hasil kalkulasi disertai asumsi dan disclaimer bahwa itu estimasi.
 

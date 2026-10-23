@@ -144,7 +144,7 @@ describe('accounts and admin access', () => {
   it('the admin signs in through the same OTP flow and gets super_admin; a logged-out session has no role', async () => {
     mockControls.reset('fresh')
     expect((await api.auth.getSession()).role).toBe('user')
-    await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+    await signIn('Admin Maxi', 'admin@ruangkpr.id')
     expect(await api.auth.getSession()).toMatchObject({ status: 'authenticated', role: 'super_admin' })
     await api.auth.logout()
     expect((await api.auth.getSession()).role).toBeNull()
@@ -160,10 +160,10 @@ describe('accounts and admin access', () => {
   it('the admin user list holds app registrations and sample users from localStorage, never the admin', async () => {
     mockControls.reset('fresh')
     await signIn('Nadia Putri', 'nadia@example.com')
-    await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+    await signIn('Admin Maxi', 'admin@ruangkpr.id')
     const users = await api.admin.users.list()
     expect(users.map((u) => u.name)).toEqual(expect.arrayContaining(['Firdi Audi', 'Nadia Putri', 'Budi Santoso']))
-    expect(users.map((u) => u.name)).not.toContain('Admin RuangKPR')
+    expect(users.map((u) => u.name)).not.toContain('Admin Maxi')
     expect(users.find((u) => u.name === 'Budi Santoso')).toMatchObject({ activeApplicationStatus: 'additional_docs_requested', hasActiveMortgage: false })
     expect(users.find((u) => u.name === 'Nadia Putri')).toMatchObject({ contact: 'nadia@example.com', activeApplicationStatus: null, hasActiveMortgage: false })
   })
@@ -174,7 +174,7 @@ describe('accounts and admin access', () => {
     await signIn('Firdi Audi', 'firdi.audi@email.com')
     await api.auth.deleteAccount()
     await signIn('Rudi Hartono', 'rudi@example.com')
-    await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+    await signIn('Admin Maxi', 'admin@ruangkpr.id')
     const users = await api.admin.users.list()
     expect(users.map((u) => u.name)).toEqual(expect.arrayContaining(['Nadia Putri', 'Rudi Hartono']))
     expect(users.map((u) => u.name)).not.toContain('Firdi Audi')
@@ -360,9 +360,9 @@ describe('admin applications', () => {
     const back = await api.applications.uploadDocument(app.id, { documentType: 'income_proof', file: file('slip-baru.pdf', 200_000, 'application/pdf') })
     expect(back.status).toBe('docs_verification')
     expect(back.documents.npwp).toMatchObject({ status: 'uploaded', invalidReason: null })
-    expect((await api.activities.list())[0]).toMatchObject({ type: 'document_replaced', body: 'Menunggu verifikasi dari tim RuangKPR.' })
+    expect((await api.activities.list())[0]).toMatchObject({ type: 'document_replaced', body: 'Menunggu verifikasi dari tim Maxi.' })
 
-    await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+    await signIn('Admin Maxi', 'admin@ruangkpr.id')
     d = await api.admin.applications.get('app_sample_01')
     for (const t of ['npwp', 'income_proof']) d = await review('app_sample_01', t, d.application.version)
     d = await move('app_sample_01', 'bank_processing', d.application.version)
@@ -408,7 +408,7 @@ describe('admin applications', () => {
     await move('app_sample_01', 'docs_verification', 3)
     await expectCode(move('app_sample_01', 'bank_processing', 3), 'CONFLICT_VERSION')
     const d = await api.admin.applications.addNote('app_sample_01', { text: 'Catatan rahasia tim: cek ulang slip gaji.' })
-    expect(d.notes[0]).toMatchObject({ text: 'Catatan rahasia tim: cek ulang slip gaji.', author: { name: 'Admin RuangKPR' } })
+    expect(d.notes[0]).toMatchObject({ text: 'Catatan rahasia tim: cek ulang slip gaji.', author: { name: 'Admin Maxi' } })
     expect(d.application.data.personal.nik).toBe('3276********0001')
     expect(JSON.stringify(d)).not.toContain('3276010000000001')
     await signIn('Rina Hartati', 'rina.hartati@example.com')
@@ -515,7 +515,7 @@ describe('admin cover letter', () => {
     const values = { ...d0.letter, ...office, salesOfficer: '  Hilda ', checked: [...d0.letter.checked, 'app_license', 'not_a_row', 'app_license'] }
     let d = await api.admin.applications.saveCoverLetter(FIRDI, { values })
     expect(d.saved).toBe(true)
-    expect(d.letter).toMatchObject({ salesOfficer: 'Hilda', checked: ['app_ktp_kk', 'app_npwp', 'app_income', 'app_license', 'app_property'], updatedBy: { name: 'Admin RuangKPR' } })
+    expect(d.letter).toMatchObject({ salesOfficer: 'Hilda', checked: ['app_ktp_kk', 'app_npwp', 'app_income', 'app_license', 'app_property'], updatedBy: { name: 'Admin Maxi' } })
     expect((await api.admin.audit.list()).items[0]).toMatchObject({ action: 'application.cover_letter', resource: { type: 'application', id: FIRDI, label: 'Firdi Audi' }, after: { salesOfficer: 'Hilda' } })
 
     await saveOffice({ ...office, maName: 'Budi' }, 'MA baru di kantor')
@@ -572,7 +572,7 @@ describe('admin cover letter', () => {
 })
 
 describe('admin catalog', () => {
-  const asAdmin = () => signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+  const asAdmin = () => signIn('Admin Maxi', 'admin@ruangkpr.id')
   const asFirdi = () => signIn('Firdi Audi', 'firdi.audi@email.com')
   const compareFor = async () => api.bankProducts.compare({ applicationId: (await api.dashboard.getSnapshot()).applications[0].id })
   const compareIds = async () => (await compareFor()).items.map((x) => x.productId)
@@ -714,7 +714,7 @@ describe('admin catalog', () => {
 })
 
 describe('admin articles', () => {
-  const asAdmin = () => signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+  const asAdmin = () => signIn('Admin Maxi', 'admin@ruangkpr.id')
   const asFirdi = () => signIn('Firdi Audi', 'firdi.audi@email.com')
   const exploreSlugs = async () => (await api.explore.get()).education.map((x) => x.slug)
   const DRAFT = {
@@ -934,7 +934,7 @@ describe('monitoring', () => {
     await api.applications.cancel(fromSim.id)
     const app = await api.applications.create({ productType: 'takeover', mode: 'takeover', mortgageId: id })
     expect(app.data.oldLoan).toMatchObject({ outstanding: balance, remainingMonths: tenor, source: 'estimate' })
-    await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+    await signIn('Admin Maxi', 'admin@ruangkpr.id')
     const user = (await api.admin.users.list()).find((u) => u.name === 'Firdi Audi')
     expect((await api.admin.users.get(user.id)).mortgages[0].outstandingPrincipal).toBe(balance)
   })
@@ -944,7 +944,7 @@ describe('monitoring', () => {
     const { mortgages: [{ id }] } = await api.dashboard.getSnapshot()
     expect((await api.mortgages.saveSetupStep(id, { step: 1, values: { bankName: 'Bank Sinar' } })).bankId).toBeNull()
     expect((await api.mortgages.saveSetupStep(id, { step: 1, values: { bankName: 'Bank XYZ' } })).bankId).toBe('bnk_xyz')
-    await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+    await signIn('Admin Maxi', 'admin@ruangkpr.id')
     const xyz = (await api.admin.banks.list()).find((b) => b.id === 'bnk_xyz')
     await api.admin.banks.update('bnk_xyz', { values: { name: 'Bank XYZ Syariah', mark: 'XYZS' }, reason: 'Ganti nama', expectedVersion: xyz.version })
     await signIn('Firdi Audi', 'firdi.audi@email.com')
@@ -1355,7 +1355,7 @@ describe('admin reports', () => {
 })
 
 describe('admin configuration', () => {
-  const asAdmin = () => signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+  const asAdmin = () => signIn('Admin Maxi', 'admin@ruangkpr.id')
   const asFirdi = () => signIn('Firdi Audi', 'firdi.audi@email.com')
 
   it('starts from the values the app used to hard-code; only the super admin reads or changes it', async () => {
@@ -1474,7 +1474,7 @@ describe('content writer', () => {
     const values = { tag: 'Persiapan', icon: 'receipt', summary: 'Riwayat kredit yang dicek bank.', minutes: 3, body: ['SLIK mencatat riwayat cicilan kamu.'] }
     a = await api.admin.articles.update(a.article.id, { values, expectedVersion: a.article.rev })
     await api.admin.articles.publish(a.article.id, { reason: 'Konten edukasi baru', expectedVersion: a.article.rev })
-    await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+    await signIn('Admin Maxi', 'admin@ruangkpr.id')
     expect((await api.admin.overview.get()).recentActivity[0]).toMatchObject({ action: 'article.publish', actor: { name: 'Penulis Konten' } })
   })
 
@@ -1486,7 +1486,7 @@ describe('content writer', () => {
     expect(outside.length).toBeGreaterThan(20)
     for (const [name, fn] of outside) await expect(fn('usr_sample_01', {}), name).rejects.toMatchObject({ code: 'FORBIDDEN' })
     expect(await api.admin.articles.list()).toHaveLength(5)
-    await signIn('Admin RuangKPR', 'admin@ruangkpr.id')
+    await signIn('Admin Maxi', 'admin@ruangkpr.id')
     expect((await api.admin.users.list()).map((u) => u.contact)).not.toContain('penulis@ruangkpr.id')
   })
 })
@@ -1512,12 +1512,12 @@ describe('admin audit log', () => {
     await api.admin.config.update('upload', { values: { maxFileMb: 4, formats: ['jpg', 'png', 'pdf'] }, reason: 'Batas bank mitra', expectedVersion: config.version })
     await signIn('Sinta Maharani', 'sinta@ruangkpr.id')
     expect(await api.auth.getSession()).toMatchObject({ role: 'super_admin' })
-    // Sinta still holds the version she opened before Admin RuangKPR saved: her save must not overwrite it.
+    // Sinta still holds the version she opened before Admin Maxi saved: her save must not overwrite it.
     await expectCode(api.admin.config.update('upload', { values: { maxFileMb: 3, formats: ['jpg'] }, reason: 'Hemat penyimpanan', expectedVersion: config.version }), 'CONFLICT_VERSION')
     await api.admin.config.update('upload', { values: { maxFileMb: 3, formats: ['jpg'] }, reason: 'Hemat penyimpanan', expectedVersion: config.version + 1 })
     const log = await api.admin.audit.list()
-    expect(log.items.map((e) => [e.actor.name, e.reason])).toEqual([['Sinta Maharani', 'Hemat penyimpanan'], ['Admin RuangKPR', 'Batas bank mitra']])
-    expect(log.actors).toEqual([{ id: 'usr_admin_01', name: 'Admin RuangKPR' }, { id: 'usr_admin_02', name: 'Sinta Maharani' }])
+    expect(log.items.map((e) => [e.actor.name, e.reason])).toEqual([['Sinta Maharani', 'Hemat penyimpanan'], ['Admin Maxi', 'Batas bank mitra']])
+    expect(log.actors).toEqual([{ id: 'usr_admin_01', name: 'Admin Maxi' }, { id: 'usr_admin_02', name: 'Sinta Maharani' }])
     const bySinta = await api.admin.audit.list({ actorId: 'usr_admin_02' })
     expect(bySinta.items.map((e) => e.after)).toEqual([{ maxFileMb: 3, formats: ['jpg'] }])
     expect(bySinta.actors).toHaveLength(2) // the filter list stays whole while one admin is picked

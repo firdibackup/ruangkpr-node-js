@@ -42,8 +42,8 @@ test('the CS contact is saved with a reason; the tracker opens WhatsApp and the 
   await signIn(page, 'Firdi Audi', 'firdi.audi@email.com')
   await page.goto('/my-kpr/application')
   await page.getByRole('button', { name: 'Hubungi CS' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Hubungi CS RuangKPR' })
-  await expect(dialog.getByRole('link', { name: 'Chat WhatsApp' })).toHaveAttribute('href', 'https://wa.me/6281234567890?text=Halo%20CS%20RuangKPR%2C%20saya%20Firdi%20Audi.%0AEmail%20akun%3A%20firdi.audi%40email.com%0ASaya%20ingin%20bertanya%20tentang%20pengajuan%20KPR%20Primary%20di%20Bank%20ABC.')
+  const dialog = page.getByRole('dialog', { name: 'Hubungi CS Maxi' })
+  await expect(dialog.getByRole('link', { name: 'Chat WhatsApp' })).toHaveAttribute('href', 'https://wa.me/6281234567890?text=Halo%20CS%20Maxi%2C%20saya%20Firdi%20Audi.%0AEmail%20akun%3A%20firdi.audi%40email.com%0ASaya%20ingin%20bertanya%20tentang%20pengajuan%20KPR%20Primary%20di%20Bank%20ABC.')
   await expect(dialog.getByRole('link', { name: 'Jadwalkan Konsultasi Live' })).toHaveAttribute(
     'href',
     'https://cal.com/creative-karsindo-wr7vhx/konsultasi-kpr?name=Firdi+Audi&email=firdi.audi%40email.com&notes=Konsultasi+pengajuan+KPR+Primary+di+Bank+ABC.',
@@ -55,7 +55,7 @@ test('the CS contact is saved with a reason; the tracker opens WhatsApp and the 
   await page.goto('/profile')
   await page.getByRole('button', { name: 'Keluar' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Keluar' }).click()
-  await signIn(page, 'Admin RuangKPR', 'admin@ruangkpr.id')
+  await signIn(page, 'Admin Maxi', 'admin@ruangkpr.id')
   await page.goto('/admin/applications')
   await page.getByLabel('Cari pengajuan').fill('firdi.audi@email.com')
   await expect(page.getByRole('table', { name: 'Antrean pengajuan' }).getByRole('link')).toHaveText(['Firdi Audi'])

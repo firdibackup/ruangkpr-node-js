@@ -1,12 +1,22 @@
 # Branding
 
+## Identitas aktif: Maxi
+
+- Nama produk: **Maxi**. Logo horizontal warna dan putih berasal dari `public/maxi-logo-horizontal-{color,white}.svg` (PNG tersedia untuk materi eksternal).
+- Warna utama `#03313A` dan pendamping `#00C4A7` mengikuti logo. Font, skala warna pendukung, dan tata letak mengikuti sistem UI yang sudah ada.
+- Header memakai logo lengkap secara proporsional (128×40 px; versi ringkas 102×32 px), tanpa menggandakan nama di sebelah wordmark. `BrandIdentity` juga dipakai di pratinjau admin.
+- `public/brand/logo.svg` adalah simbol rumah/check Maxi; `favicon.svg` memakai simbol tersebut pada bidang gelap.
+- Email CS tetap **cs@ruangkpr.id** selama transisi, sesuai keputusan pemilik. Domain server, akun demo, kunci storage, dan ID cron lama dipertahankan untuk kompatibilitas.
+- Terapkan migrasi `20261023040319_maxi_brand.sql` untuk nama pengirim, isi email reminder, dan artikel bawaan pada database yang sudah berjalan. Template Auth dan subjek email perlu dipasang ulang sesuai runbook Supabase.
+- Bila ada style/logo lama yang sudah dipublish, gunakan **Admin → Brand → Kembalikan ke default** untuk memakai bawaan Maxi.
+
 Repo ini bisa di-copy menjadi situs lain. Yang membedakan satu situs dengan situs lain (warna, radius card, logo, font, nama, ilustrasi) hanya ada di tiga tempat, ditambah template email. Komponen tidak perlu disentuh.
 
 | Tempat | Isi |
 |---|---|
 | `src/brand/tokens.css` | Palet warna, token semantik (peran warna di UI), font, radius card |
 | `src/brand/brand.js` | Nama, tagline, theme color, URL Google Fonts, email CS, link booking default |
-| `public/brand/` | Logo, favicon, ilustrasi, gambar layanan |
+| `public/` dan `public/brand/` | Logo horizontal Maxi, favicon, ilustrasi, gambar layanan |
 | `supabase/templates/*.html` | Nama dan warna di email OTP dan reset password (diubah manual) |
 
 `npm test` menjalankan `src/brand/brand.test.js`, yang mengecek kontras WCAG, kelengkapan palet, font, file aset, template email, dan memastikan tidak ada warna hex di luar `src/brand/`.
@@ -61,7 +71,9 @@ Ganti file dengan **nama yang sama**. Daftar file wajib ada di `BRAND_FILES` (`b
 
 | File | Ukuran sekarang | Dipakai di |
 |---|---|---|
-| `logo.svg` | persegi, viewBox 64×64 | Shell (tampil 36px), di sebelah nama |
+| `../maxi-logo-horizontal-color.svg` | horizontal, viewBox 1436×451 | Header dan pratinjau admin |
+| `../maxi-logo-horizontal-white.svg` | horizontal, viewBox 1436×451 | Referensi logo pada latar gelap di admin |
+| `logo.svg` | persegi, viewBox 451×451 | Simbol Maxi untuk kebutuhan ikon |
 | `favicon.svg` | persegi | Tab browser |
 | `cover-auth.webp` | 2752×1536 | Panel kiri halaman masuk/daftar (desktop) |
 | `card-kpr.webp` | 500×500, latar transparan, padding ±18% | Kartu "Sudah punya KPR?" di Home |
