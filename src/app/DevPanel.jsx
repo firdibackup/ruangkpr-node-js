@@ -1,10 +1,10 @@
-// Development-only demo controls (doc 04 §22.4, doc 05 §8.2). Never rendered in production builds.
+// Demo controls for mock sessions in staging/development. Excluded from production builds.
 import { useState } from 'react'
 import { FlaskConicalIcon, XIcon } from 'lucide-react'
-import { mockControls } from '@/data/mockApi'
+import { mockControls, showDemoControls } from '@/data/api'
 
 // Lets local scripts (screenshots/E2E) switch scenarios. Stripped from production builds.
-if (import.meta.env.DEV) window.__ruangkpr = mockControls
+if (import.meta.env.DEV && showDemoControls) window.__ruangkpr = mockControls
 
 const FAILABLE = [
   ['applications.saveStep', 'Simpan step'],

@@ -1,6 +1,6 @@
 import { rateMode } from '@/domains/mortgages/derive'
 
-export const IN_PROCESS = ['submitted', 'docs_verification', 'additional_docs_requested', 'bank_processing', 'appraisal', 'approved', 'old_mortgage_settlement', 'akad']
+export const IN_PROCESS = ['docs_verification', 'additional_docs_requested', 'bank_processing', 'appraisal', 'approved', 'old_mortgage_settlement', 'akad']
 
 // The one application the user is working on: not completed and not a rejected row already cloned/retried.
 export function activeApplication(applications = []) {

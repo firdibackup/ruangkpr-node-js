@@ -82,8 +82,13 @@ describe.skipIf(!LIVE)('live: real Supabase end to end', () => {
           return files
         }
         const files = await walk(id)
-        if (files.length) await service.storage.from(bucket).remove(files)
+        if (files.length) {
+          const { error } = await service.storage.from(bucket).remove(files)
+          if (error) throw error
+        }
       }
+      // Only this run's throwaway archives, after their physical files have been removed.
+      await sql(`delete from private.account_archives where original_user_id = '${id}'`)
       await service.auth.admin.deleteUser(id).catch(() => {})
     }
     for (const id of [ids.product, ids.product2].filter(Boolean)) await service.from('bank_products').delete().eq('id', id)
@@ -208,7 +213,7 @@ describe.skipIf(!LIVE)('live: real Supabase end to end', () => {
     expect(JSON.stringify(compare)).toContain(ids.product)
     await api.applications.selectProgram(ids.app, { bankProductId: ids.product, loanAmount: 480_000_000, tenorMonths: 240 })
     const submitted = await api.applications.submit(ids.app, { consents: { dataAccuracy: true, sendToBank: true } })
-    expect(submitted.status).toBe('submitted')
+    expect(submitted.status).toBe('docs_verification')
     await expect(api.applications.uploadDocument(ids.app, { documentType: 'additional', file: pdf('lain.pdf') })).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' })
   }, 60_000)
 
@@ -230,7 +235,7 @@ describe.skipIf(!LIVE)('live: real Supabase end to end', () => {
     const review = async (documentType, verdict = { result: 'ok' }) => {
       detail = await api.admin.applications.reviewDocument(ids.app, { documentType, expectedVersion: detail.application.version, ...verdict })
     }
-    await step('docs_verification')
+    // A submit is already in verification: the team reviews right away.
     for (const t of ['ktp', 'income_proof', 'property_document']) await review(t)
     await review('npwp', { result: 'rejected', reasonCode: 'blurry', note: 'angka tidak terbaca' })
     await step('additional_docs_requested')
@@ -266,8 +271,22 @@ describe.skipIf(!LIVE)('live: real Supabase end to end', () => {
     expect(await api.auth.deleteAccount()).toEqual({ deleted: true })
     const { data } = await service.auth.admin.getUserById(uid.user)
     expect(data?.user ?? null).toBeNull()
-    const { data: left } = await service.storage.from('application-documents').list(uid.user)
-    expect(left ?? []).toHaveLength(0)
+    await signInAs(people.staff)
+    const archives = await api.admin.archives.list({ query: people.user })
+    expect(archives).toHaveLength(1)
+    const archive = await api.admin.archives.get(archives[0].id)
+    expect(archive.originalUserId).toBe(uid.user)
+    expect(archive.snapshot.applications.some((a) => a.id === ids.app)).toBe(true)
+    expect(archive.snapshot.mortgages.some((item) => item.id === m.id)).toBe(true)
+    expect(archive.files).toEqual(expect.arrayContaining([expect.objectContaining({ bucket: 'payment-proofs', path: paid.proof.path })]))
+    const url = await api.admin.archives.documentUrl(archive.id, 'payment-proofs', paid.proof.path)
+    const downloaded = await fetch(url)
+    expect(downloaded.ok).toBe(true)
+    expect(await downloaded.text()).toContain('%PDF-1.4 live check')
+    await api.admin.archives.remove(archive.id, { reason: 'Bersihkan arsip akun uji integrasi' })
+    await expect(api.admin.archives.get(archive.id)).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' })
+    const { error: missingFile } = await service.storage.from('payment-proofs').download(paid.proof.path)
+    expect(missingFile).toBeTruthy()
   }, 120_000)
 
   it('the admin publishes a Take Over product', async () => {
@@ -405,10 +424,16 @@ describe.skipIf(!LIVE)('live: real Supabase end to end', () => {
     await expect(api.explore.article(slug)).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' })
   }, 120_000)
 
-  it.skipIf(KEEP)('the KPR owner deletes the account with a Take Over draft; everything of theirs goes', async () => {
+  it.skipIf(KEEP)('the KPR owner deletes the account with a Take Over draft; active data moves to an archive', async () => {
     await signInAs(people.monitor)
     expect(await api.auth.deleteAccount()).toEqual({ deleted: true })
     const [{ left }] = await sql(`select (select count(*) from public.mortgages where user_id = '${uid.monitor}') + (select count(*) from public.applications where user_id = '${uid.monitor}') + (select count(*) from public.activities where user_id = '${uid.monitor}') + (select count(*) from public.reminder_deliveries where user_id = '${uid.monitor}') as left`)
     expect(Number(left)).toBe(0)
+    await signInAs(people.staff)
+    const archives = await api.admin.archives.list({ query: people.monitor })
+    expect(archives).toHaveLength(1)
+    const archive = await api.admin.archives.get(archives[0].id)
+    expect(archive.originalUserId).toBe(uid.monitor)
+    expect(archive.snapshot.mortgages.length).toBeGreaterThan(0)
   }, 60_000)
 })

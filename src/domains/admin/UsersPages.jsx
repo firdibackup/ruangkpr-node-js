@@ -573,6 +573,7 @@ function ProfileDialog({ data, onClose, onSaved, onReload }) {
   return (
     <EditDialog
       title="Ubah profil"
+      reasonAction="user.profile"
       description="Email login tidak bisa diubah di sini karena dipakai untuk masuk (Google atau kode email)."
       form={form}
       changed={changed}
@@ -601,6 +602,7 @@ function FinanceDialog({ data, onClose, onSaved, onReload }) {
   return (
     <EditDialog
       title="Ubah keuangan"
+      reasonAction="user.finance"
       description="Dipakai untuk DTI dan, bila user punya KPR, KPR Health."
       form={form}
       changed={changed}

@@ -53,8 +53,8 @@ describe('debts on Pekerjaan (no Kemampuan bayar form)', () => {
   const employment = { occupation: 'private_employee', companyName: 'PT Nusantara', jobTitle: 'Engineer', workYears: 4, workMonths: 6, monthlyIncome: 15_000_000, jointIncome: false }
   const gaps = (finance) => takeoverGaps({ employment, finance }, { today, mode: 'takeover' })
 
-  it('asks missing debts on Pekerjaan, and never a step 3 form', () => {
-    expect(gaps({})).toContain('/optimize/1/pekerjaan')
+  it('allows missing debts on Pekerjaan, and never a step 3 form', () => {
+    expect(gaps({})).not.toContain('/optimize/1/pekerjaan')
     const debts = { vehicleDebt: 0, cardDebt: 0, otherDebt: 0 }
     expect(gaps(debts)).not.toContain('/optimize/1/pekerjaan')
     expect(gaps(debts)).not.toContain('/optimize/3')

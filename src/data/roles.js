@@ -2,6 +2,7 @@
 // (mockApi `call`); route guards and the admin navigation only follow it. `modules: null` = every module.
 export const STAFF = {
   super_admin: { label: 'Super admin', home: '/admin', modules: null },
+  admin: { label: 'Admin', home: '/admin/account-archives', modules: ['account-archives'] },
   content_writer: { label: 'Content writer', home: '/admin/articles', modules: ['articles'] },
 }
 

@@ -5,5 +5,9 @@ playwright-report/
 .env
 .env.*
 !.env.example
+!.env.staging
+!.env.production
+!.env.staging.example
+!.env.production.example
 supabase/.temp/
 supabase/.branches/

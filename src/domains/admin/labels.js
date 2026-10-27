@@ -3,6 +3,9 @@ import { CERTIFICATES, GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES, dateShort,
 import { APPLICANT_COLUMNS } from './coverLetter'
 
 export const ACTION_LABEL = {
+  'account_archive.view': 'Buka arsip akun',
+  'account_archive.delete_started': 'Mulai hapus arsip akun',
+  'account_archive.delete': 'Hapus arsip akun',
   // A user's own edits (user_changes, written by database triggers).
   profile: 'Ubah profil',
   finance: 'Ubah keuangan',

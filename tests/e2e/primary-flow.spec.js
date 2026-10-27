@@ -121,7 +121,9 @@ test('primary: register (name, password, consent) → email code → 7 steps →
   await page.getByRole('button', { name: 'Lihat Dashboard' }).click()
   await page.getByRole('link', { name: 'Lihat detail', exact: true }).click()
   await expect(page).toHaveURL(/my-kpr\/application/)
-  await expect(page.getByText('Status: Diajukan')).toBeVisible()
+  // A submit goes straight into document verification, shown as waiting in the queue until the team starts.
+  await expect(page.getByText('Status: Verifikasi Dokumen')).toBeVisible()
+  await expect(page.getByText('Pengajuan masuk antrean verifikasi dokumen')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Batalkan Pengajuan' })).toBeVisible()
   // post-submit is read-only: the form route redirects to the tracker
   await page.goto('/apply/primary/2')

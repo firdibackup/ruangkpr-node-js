@@ -6,9 +6,11 @@ import { simulateLoan } from '@/calculations/programs'
 import { BANK_PRODUCTS } from './catalog'
 import { CONSENT_TYPES, CONSENT_VERSION } from '@/domains/session/validation'
 import { requiredDocuments } from './documentRules'
+import { DEFAULT_REMINDERS } from './defaults'
+export { DEFAULT_REMINDERS } from './defaults'
 
 export const CLOCK = '2026-09-28'
-export const SCHEMA_VERSION = 6 // v6: sisa pokok carries the date it is true for (outstandingAsOf)
+export const SCHEMA_VERSION = 7 // v7: a submit goes straight to docs_verification (no separate "submitted" stage)
 
 export const SCENARIOS = [
   { id: 'guest', label: 'Belum daftar (registrasi)' },
@@ -101,7 +103,6 @@ const SAMPLE_USER_CHANGES = [
   { id: 'chg_sample_06', userId: 'usr_sample_05', action: 'profile', resource: { type: 'user', id: 'usr_sample_05', label: 'Sari Wulandari' }, before: { address: 'Jl. Melati No. 2, Kota Bekasi' }, after: { address: 'Jl. Contoh No. 5, Kota Bekasi' }, occurredAt: '2026-06-20T03:00:00.000Z' },
 ]
 
-export const DEFAULT_REMINDERS ={ payment: [7, 3, 1], fixedExpiry: [90, 60, 30, 14, 7], channels: { inApp: true, email: true, whatsapp: false } }
 
 function base(scenario, extra = {}) {
   return {
@@ -320,7 +321,7 @@ function submittedPrimary(status, extra = {}) {
   const selection = selectionFor('bpr_abc_primary_fix5_v4', 400_000_000, 240)
   const history = [
     { status: 'submitted', at: '2026-09-20T09:00:00.000Z' },
-    { status: 'docs_verification', at: '2026-09-22T03:00:00.000Z' },
+    { status: 'docs_verification', at: '2026-09-20T09:00:00.000Z' },
     ...(status === 'bank_processing' || status === 'rejected' ? [{ status: 'bank_processing', at: '2026-09-25T02:00:00.000Z' }] : []),
     ...(status === 'additional_docs_requested' ? [{ status: 'additional_docs_requested', at: '2026-09-26T02:00:00.000Z' }] : []),
     ...(status === 'rejected' ? [{ status: 'rejected', at: '2026-09-27T04:00:00.000Z' }] : []),
@@ -399,7 +400,7 @@ function takeoverInProcess(mortgage, { id = 'app_01J8Z7TK0VER4Q2AB7M5N8XKCF', pe
     snapshot: null,
     statusHistory: [
       { status: 'submitted', at: '2026-09-24T09:00:00.000Z' },
-      { status: 'docs_verification', at: '2026-09-25T03:00:00.000Z' },
+      { status: 'docs_verification', at: '2026-09-24T09:00:00.000Z' },
       { status: 'bank_processing', at: '2026-09-27T02:00:00.000Z' },
     ],
     pendingActions: [],
@@ -452,7 +453,7 @@ const SAMPLES = {
   yoga: { key: '07', name: 'Yoga Saputra', contact: 'yoga.saputra@example.com', phone: '081200000107', gender: 'male', birthDate: '1991-12-11', city: 'Kota Tangerang', income: 20_000_000, joined: 14 },
   maya: { key: '08', name: 'Maya Putri', contact: 'maya.putri@example.com', gender: 'female', birthDate: '1997-07-19', city: 'Kota Jakarta Selatan', income: 12_000_000, joined: 27 },
 }
-const PRIMARY_STEPS = ['submitted', 'docs_verification', 'bank_processing', 'appraisal', 'approved', 'akad', 'disbursed']
+const PRIMARY_STEPS = ['docs_verification', 'bank_processing', 'appraisal', 'approved', 'akad', 'disbursed']
 const sept = (day, time = '03:00:00') => `2026-09-${String(day).padStart(2, '0')}T${time}.000Z`
 
 // Profile, finance, and the same data split the way an application stores it.
@@ -480,7 +481,8 @@ function personOf(p) {
   return { profile, finance, personal, employment: { occupation, companyName, jobTitle, workYears, workMonths, ...debts } }
 }
 
-// A submitted KPR Primary application that walked `steps`, one status per day from `day`.
+// A KPR Primary application submitted on `day` that walked `steps`: verification starts at the submit, each later
+// status follows a day after the one before it (the first of them two days after the submit).
 function sampleApplication(p, { product, price, loan, tenor, day, steps }, extra = {}) {
   const { personal, employment } = personOf(p)
   const data = {
@@ -498,7 +500,7 @@ function sampleApplication(p, { product, price, loan, tenor, day, steps }, extra
     data,
     documents: PRIMARY_DOCS(steps.includes('bank_processing') ? 'verified' : 'uploaded', p.name.toLowerCase().replaceAll(' ', '-')),
     selection,
-    history: steps.map((status, i) => ({ status, at: sept(day + i) })),
+    history: [{ status: 'submitted', at: submittedAt }, ...steps.map((status, i) => ({ status, at: i ? sept(day + i + 1) : submittedAt }))],
     extra: {
       createdAt: sept(day - 1, '08:00:00'),
       submittedAt,
@@ -518,7 +520,7 @@ function sampleAccount(p, applications = [], mortgages = []) {
 function sampleAccounts() {
   const { rina, budi, dewi, agus, sari, hendra, yoga, maya } = SAMPLES
 
-  const budiApp = sampleApplication(budi, { product: 'bpr_abc_primary_fix5_v4', price: 500_000_000, loan: 400_000_000, tenor: 240, day: 21, steps: ['submitted', 'docs_verification', 'additional_docs_requested'] }, {
+  const budiApp = sampleApplication(budi, { product: 'bpr_abc_primary_fix5_v4', price: 500_000_000, loan: 400_000_000, tenor: 240, day: 21, steps: ['docs_verification', 'additional_docs_requested'] }, {
     pendingActions: [{ id: 'pa_sample_02', type: 'document_update', documentType: 'income_proof', message: 'Slip gaji 3 bulan terakhir belum lengkap.', requestedAt: sept(23) }],
   })
   budiApp.documents.income_proof = { ...budiApp.documents.income_proof, status: 'needs_update', invalidReason: 'Slip gaji Agustus belum ada.' }
@@ -542,11 +544,11 @@ function sampleAccounts() {
   return [
     sampleAccount(rina, [sampleApplication(rina, { product: 'bpr_xyz_primary_fix3_v3', price: 550_000_000, loan: 450_000_000, tenor: 240, day: 27, steps: PRIMARY_STEPS.slice(0, 1) })]),
     sampleAccount(budi, [budiApp]),
-    sampleAccount(dewi, [sampleApplication(dewi, { product: 'bpr_def_primary_fix10_v2', price: 750_000_000, loan: 600_000_000, tenor: 300, day: 15, steps: PRIMARY_STEPS.slice(0, 4) })]),
-    sampleAccount(agus, [sampleApplication(agus, { product: 'bpr_abc_primary_fix5_v4', price: 650_000_000, loan: 500_000_000, tenor: 240, day: 10, steps: PRIMARY_STEPS.slice(0, 5) })]),
+    sampleAccount(dewi, [sampleApplication(dewi, { product: 'bpr_def_primary_fix10_v2', price: 750_000_000, loan: 600_000_000, tenor: 300, day: 15, steps: PRIMARY_STEPS.slice(0, 3) })]),
+    sampleAccount(agus, [sampleApplication(agus, { product: 'bpr_abc_primary_fix5_v4', price: 650_000_000, loan: 500_000_000, tenor: 240, day: 10, steps: PRIMARY_STEPS.slice(0, 4) })]),
     sampleAccount(sari, [sariApp], [sariMortgage]),
     sampleAccount(hendra, [
-      sampleApplication(hendra, { product: 'bpr_xyz_primary_fix3_v3', price: 550_000_000, loan: 500_000_000, tenor: 240, day: 18, steps: [...PRIMARY_STEPS.slice(0, 3), 'rejected'] }, {
+      sampleApplication(hendra, { product: 'bpr_xyz_primary_fix3_v3', price: 550_000_000, loan: 500_000_000, tenor: 240, day: 18, steps: [...PRIMARY_STEPS.slice(0, 2), 'rejected'] }, {
         rejection: { code: 'DTI_ABOVE_BANK_POLICY', displayReason: 'Rasio cicilan melebihi batas bank (cicilan > 35% penghasilan).', relevantStep: 2, rejectedAt: sept(21) },
       }),
     ]),

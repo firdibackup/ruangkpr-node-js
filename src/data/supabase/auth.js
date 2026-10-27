@@ -6,7 +6,6 @@ import { maskEmail } from '@/lib/format'
 import { ApiError } from '../apiError'
 import { recovery, supabase } from './client'
 import { must, toApiError } from './errors'
-import { DOCS_BUCKET, PROOFS_BUCKET, listOwnFiles, removeFiles } from './storage'
 
 const COOLDOWN_MS = 60_000
 const GUEST = { status: 'guest', role: null, user: null, verification: null }
@@ -49,7 +48,11 @@ export const authApi = {
       must(supabase().from('user_roles').select('role').eq('user_id', id).maybeSingle()),
       must(supabase().from('consents').select('type').eq('user_id', id).eq('version', CONSENT_VERSION)),
     ])
-    const user = { id, name: profile?.full_name ?? '', contact: s.user.email, contactType: 'email', role: role?.role ?? 'user', createdAt: profile?.created_at ?? s.user.created_at }
+    if (!profile) {
+      await supabase().auth.signOut({ scope: 'local' })
+      return GUEST
+    }
+    const user = { id, name: profile.full_name ?? '', contact: s.user.email, contactType: 'email', role: role?.role ?? 'user', createdAt: profile.created_at ?? s.user.created_at }
     const consented = CONSENT_TYPES.every((t) => consents.some((c) => c.type === t))
     if (recovery.active) return { status: 'recovery', role: null, user, verification: null }
     return { status: consented ? 'authenticated' : 'onboarding', role: consented ? user.role : null, user, verification: null }
@@ -176,19 +179,16 @@ export const authApi = {
     return { loggedOut: true }
   },
 
-  // Files first (only the owner can remove them), then the account row cascade in delete_my_account. The database
-  // refuses too while an application is at the bank; checking here first keeps the files in that case.
+  // The database archives data/files and removes the login in one transaction.
   async deleteAccount() {
     const { data, error } = await supabase().auth.getSession()
     if (error) throw toApiError(error)
     if (!data.session) fail('AUTH_REQUIRED', 'Sesi berakhir. Silakan masuk lagi.', 401)
     const busy = await must(supabase().from('applications').select('id').in('status', IN_PROCESS).limit(1))
     if (busy.length) fail('INVALID_STATE_TRANSITION', 'Masih ada pengajuan yang sedang diproses bank. Batalkan atau tunggu sampai selesai sebelum menghapus akun.', 400)
-    const uid = data.session.user.id
-    await removeFiles(DOCS_BUCKET, await listOwnFiles(DOCS_BUCKET, uid))
-    await removeFiles(PROOFS_BUCKET, await listOwnFiles(PROOFS_BUCKET, uid))
     await must(supabase().rpc('delete_my_account'))
     pending = null
+    recovery.active = false
     await supabase().auth.signOut({ scope: 'local' })
     return { deleted: true }
   },

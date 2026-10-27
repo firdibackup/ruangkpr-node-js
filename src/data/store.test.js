@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { createMockApi } from './mockApi'
+import { createApplicationApi } from './applicationApi'
 import { createSeed } from './seed'
 
-// Stands in for supabaseStore: hands createMockApi a fresh copy per call and records what comes back.
+// Stands in for supabaseStore: hands the shared operations a fresh copy per call and records writes.
 function memoryStore(seed) {
   let data = structuredClone(seed)
   let n = 0
@@ -25,10 +25,10 @@ function memoryStore(seed) {
   }
 }
 
-describe('createMockApi over an injected store', () => {
+describe('createApplicationApi over an injected store', () => {
   it('loads through the store, saves what the operation changed, and takes ids and time from the store', async () => {
     const store = memoryStore(createSeed('fresh'))
-    const api = createMockApi({ latencyMs: 0, store })
+    const api = createApplicationApi({ store })
     const m = await api.mortgages.createSetup()
     expect(m).toMatchObject({ id: 'mtg_mem1', status: 'draft', createdAt: '2026-10-09T03:00:00.000Z' })
     expect(store.calls.load).toEqual([{ admin: false }])
@@ -37,7 +37,7 @@ describe('createMockApi over an injected store', () => {
 
   it('asks the store for the admin scope on admin operations', async () => {
     const store = memoryStore(createSeed('admin_ops'))
-    const api = createMockApi({ latencyMs: 0, store })
+    const api = createApplicationApi({ store })
     await api.admin.users.list()
     expect(store.calls.load).toEqual([{ admin: true }])
   })
@@ -47,7 +47,7 @@ describe('createMockApi over an injected store', () => {
     const save = store.save
     let conflicts = 1
     store.save = (db) => (conflicts-- > 0 ? Promise.reject(Object.assign(new Error('changed'), { conflict: true })) : save(db))
-    const api = createMockApi({ latencyMs: 0, store })
+    const api = createApplicationApi({ store })
     await api.dashboard.markTourSeen('my-kpr')
     expect(store.calls.load).toHaveLength(2)
     expect(store.calls.saved.at(-1).toursSeen).toContain('my-kpr')

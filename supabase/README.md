@@ -1,5 +1,15 @@
 # Supabase Maxi — runbook
 
+## Arsip akun (2026-10-27)
+
+Terapkan `migrations/20261027044226_account_archives.sql` **sebelum** merilis frontend baru. RPC `delete_my_account` sekarang menyalin data ke `private.account_archives`, melepas kepemilikan berkas privat, lalu menghapus akun Auth beserta data aktif dalam satu transaksi. Dokumen tetap pada path asli; kebijakan Storage menolak token akun yang telah dihapus. Arsip tidak memiliki masa kedaluwarsa dan tidak digunakan saat pendaftaran ulang.
+
+Menu `/admin/account-archives` tersedia untuk `super_admin` dan role baru `admin`. Role `admin` hanya mendapat modul arsip pada rilis ini; tidak otomatis mendapat izin modul lain. Penetapan role tetap melalui pengelolaan database oleh operator. Content writer dan pengguna biasa tidak mendapat akses arsip.
+
+Hapus arsip manual: RPC `begin_delete_account_archive` menandai `deleting` → frontend menghapus semua berkas lewat Storage API dalam batch → `finish_delete_account_archive` memeriksa bahwa berkas sudah tidak ada, kemudian menghapus snapshot. Jika gagal/terputus, admin membuka arsip dan mengulang penghapusan. Jangan menghapus metadata `storage.objects` secara manual: Storage API harus menghapus objek fisik. Audit pembukaan/penghapusan tetap tersimpan tanpa menyalin isi arsip.
+
+Verifikasi deployment: jalankan `tests/015_account_archives.test.sql`, kemudian uji dengan akun uji dan PDF sungguhan: hapus akun, buka arsip dan unduh dokumen sebagai admin, daftar ulang dengan email sama, pastikan profil/pengajuan kosong, hapus arsip manual dan pastikan berkas tidak tersisa. Tautan unduhan yang telah diterbitkan berlaku maksimal 5 menit. Backup infrastruktur mengikuti kebijakan backup terpisah; penghapusan arsip di aplikasi tidak menulis ulang backup lama.
+
 ## Rebrand Maxi (2026-10-23)
 
 Migrasi `20261023040319_maxi_brand.sql` mengganti presentasi email (nama pengirim, CTA, isi reminder, warna) serta nama brand pada dua artikel bawaan. Alamat pengirim dan ID job cron tetap memakai konfigurasi lama. Terapkan migrasi ini setelah seluruh migrasi sebelumnya.

@@ -34,7 +34,7 @@ export function validateEmployment(v) {
   else if (years === 0 && months === 0) e.workMonths = 'Lama bekerja harus lebih dari 0.'
   if (!(toMoney(v.monthlyIncome) > 0)) e.monthlyIncome = 'Isi penghasilan bulanan.'
   if (v.jointIncome && !(toMoney(v.partnerIncome) > 0)) e.partnerIncome = 'Isi penghasilan pasangan.'
-  for (const k of ['vehicleDebt', 'cardDebt', 'otherDebt']) if (toMoney(v[k]) === null) e[k] = 'Isi 0 kalau tidak ada.'
+  for (const k of ['vehicleDebt', 'cardDebt', 'otherDebt']) if (!blank(v[k]) && toMoney(v[k]) === null) e[k] = 'Nominal tidak valid.'
   return e
 }
 
@@ -97,8 +97,8 @@ export function toEmployment(v) {
     monthlyIncome: toMoney(v.monthlyIncome),
     jointIncome: v.jointIncome,
     partnerIncome: v.jointIncome ? toMoney(v.partnerIncome) : null,
-    vehicleDebt: toMoney(v.vehicleDebt),
-    cardDebt: toMoney(v.cardDebt),
-    otherDebt: toMoney(v.otherDebt),
+    vehicleDebt: toMoney(v.vehicleDebt) ?? 0,
+    cardDebt: toMoney(v.cardDebt) ?? 0,
+    otherDebt: toMoney(v.otherDebt) ?? 0,
   }
 }

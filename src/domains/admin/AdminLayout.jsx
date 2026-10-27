@@ -13,6 +13,7 @@ import { STAFF, canOpen } from '@/data/roles'
 const NAV = [
   { to: '/admin', module: 'overview', label: 'Overview', icon: LayoutDashboardIcon },
   { to: '/admin/users', module: 'users', label: 'Users', icon: UsersIcon },
+  { to: '/admin/account-archives', module: 'account-archives', label: 'Arsip Akun', icon: FileStackIcon },
   { to: '/admin/applications', module: 'applications', label: 'Applications', icon: FileStackIcon },
   { to: '/admin/schedule', module: 'schedule', label: 'Jadwal', icon: CalendarDaysIcon },
   { to: '/admin/products', module: 'catalog', label: 'Banks & Products', icon: LandmarkIcon, match: (p) => p.startsWith('/admin/products') || p.startsWith('/admin/banks') },

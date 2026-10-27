@@ -91,8 +91,9 @@ export function resumePath(app) {
   return `/optimize/${app.currentStep}`;
 }
 
+// A submit goes straight into document verification, so the tracker starts there. Older histories may still begin
+// with a "submitted" entry; it belongs to no stage and only shows in the admin's status history.
 const PRIMARY_STAGES = [
-  { label: "Diajukan", statuses: ["submitted"], eta: "± 1–3 hari" },
   {
     label: "Verifikasi",
     statuses: ["docs_verification", "additional_docs_requested"],
@@ -108,7 +109,6 @@ const PRIMARY_STAGES = [
   { label: "Akad", statuses: ["akad", "disbursed"], eta: "± 3–5 hari" },
 ];
 const TAKEOVER_STAGES = [
-  { label: "Diajukan", statuses: ["submitted"], eta: "± 1–3 hari" },
   {
     label: "Verifikasi Dokumen",
     statuses: ["docs_verification", "additional_docs_requested"],

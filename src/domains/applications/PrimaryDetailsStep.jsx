@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { BriefcaseIcon, GaugeIcon, HandCoinsIcon, HouseIcon, InfoIcon, LockIcon, UserIcon } from 'lucide-react'
-import { api, isDemo } from '@/data/api'
+import { api, showDemoControls } from '@/data/api'
 import { calculatePaymentCapacity } from '@/calculations/finance'
 import { useForm } from '@/lib/hooks'
 import { GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES, intInput, moneyInput, percentRatio, rupiah, toMoney } from '@/lib/format'
@@ -199,7 +199,7 @@ export function PrimaryDetailsStep({ step, app, snapshot, onCreated, onSaved, fr
           </Notice>
         )}
         <ErrorSummary show={form.showSummary} count={Object.keys(form.errors).length} />
-        {(import.meta.env.DEV || isDemo) && (
+        {showDemoControls && (
           <div className="flex justify-end">
             <button type="button" onClick={() => form.setValues({ ...v, ...SAMPLE, purchaseType: v.purchaseType || 'new_from_developer', amountEdited: false })} className="text-xs font-bold text-muted-foreground underline">
               Isi data contoh
@@ -238,9 +238,9 @@ export function PrimaryDetailsStep({ step, app, snapshot, onCreated, onSaved, fr
                 <MoneyField label="Penghasilan Bulanan (gross)" placeholder="15.000.000" span {...b('monthlyIncome')} />
                 <CheckboxField label="Gabungkan pendapatan dengan pasangan" boxed span checked={v.jointIncome} onChange={(x) => form.setValues({ ...v, jointIncome: x, partnerIncome: x ? v.partnerIncome : '' })} />
                 {v.jointIncome && <MoneyField label="Penghasilan Pasangan" placeholder="8.000.000" hint="Dijumlahkan dengan penghasilanmu." span {...b('partnerIncome')} />}
-                <MoneyField label="Cicilan Kendaraan" placeholder="0" hint="Isi 0 kalau tidak ada." {...b('vehicleDebt')} />
-                <MoneyField label="Kartu Kredit / Paylater" placeholder="0" hint="Isi 0 kalau tidak ada." {...b('cardDebt')} />
-                <MoneyField label="Pinjaman Lain" placeholder="0" hint="Isi 0 kalau tidak ada." span {...b('otherDebt')} />
+                <MoneyField label="Cicilan Kendaraan" optional placeholder="0" hint="Boleh dikosongkan jika tidak ada, dihitung Rp0." {...b('vehicleDebt')} />
+                <MoneyField label="Kartu Kredit / Paylater" optional placeholder="0" hint="Boleh dikosongkan jika tidak ada, dihitung Rp0." {...b('cardDebt')} />
+                <MoneyField label="Pinjaman Lain" optional placeholder="0" hint="Boleh dikosongkan jika tidak ada, dihitung Rp0." span {...b('otherDebt')} />
               </>
             )}
             {step === 3 && (

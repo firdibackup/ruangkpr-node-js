@@ -13,6 +13,7 @@ import { ConfirmDialog, FormDialog } from '@/components/shared/dialogs'
 import { BankMark, Chip, ErrorPanel, Notice, PageSkeleton, Panel, PanelTitle, Spinner, SummaryRows } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AdminHeader } from './shared'
+import { ReasonHint } from './ReasonHint'
 
 const head = 'text-xs font-bold text-muted-foreground'
 const TYPE_LABEL = { primary: 'KPR Primary', takeover: 'Take Over', topup: 'Take Over + Top-up' }
@@ -193,7 +194,7 @@ export function ProductListPage() {
         confirmDisabled={reason.trim().length < 5}
         onConfirm={runBulk}
       >
-        <TextAreaField label="Alasan" required rows={2} value={reason} onChange={setReason} hint="Masuk ke audit log setiap produk (minimal 5 karakter)." />
+        <TextAreaField label="Alasan" required rows={2} value={reason} onChange={setReason} hint={<ReasonHint action={bulk === 'archive' ? 'product.bulkArchive' : 'product.bulkPublish'} bulk />} />
       </ConfirmDialog>
     </>
   )
@@ -504,7 +505,7 @@ function ProductForm({ data, setData }) {
         confirmDisabled={reason.trim().length < 5}
         onConfirm={confirm === 'archive' ? archive : publish}
       >
-        <TextAreaField label="Alasan" required rows={2} value={reason} onChange={setReason} hint="Masuk ke audit log (minimal 5 karakter)." />
+        <TextAreaField label="Alasan" required rows={2} value={reason} onChange={setReason} hint={<ReasonHint action={`product.${confirm}`} />} />
       </ConfirmDialog>
     </>
   )
@@ -694,7 +695,7 @@ function BankDialog({ bank, onClose, onSaved }) {
           <input ref={input} type="file" accept={acceptOf(LOGO_UPLOAD)} className="sr-only" tabIndex={-1} onChange={pickLogo} aria-hidden />
         </div>
         {!isNew && <CheckboxField label="Bank aktif (produknya ikut pencocokan)" checked={v.active} onChange={(x) => setV({ ...v, active: x })} />}
-        <TextAreaField label="Alasan perubahan" required rows={2} value={reason} onChange={setReason} error={fieldError('reason')} />
+        <TextAreaField label="Alasan perubahan" required rows={2} value={reason} onChange={setReason} error={fieldError('reason')} hint={<ReasonHint action={isNew ? 'bank.create' : 'bank.update'} />} />
         {error && !error.fieldErrors?.length && (
           <Notice tone="bad" role="alert">
             {error.code === 'CONFLICT_VERSION' ? 'Data bank sudah berubah. Tutup, muat ulang, lalu ulangi.' : error.message}

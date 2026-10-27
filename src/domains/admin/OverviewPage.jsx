@@ -13,7 +13,7 @@ import { ActivityFeed, AdminHeader, Change, CountChart, DonutLegend, Kpi, Meter,
 
 // Stages still in process, in flow order, grouped by whose move it is; the colour marks the group in the share bar.
 const FLOW = [
-  { owner: 'Giliran tim', color: 'var(--chart-principal)', stages: ['submitted', 'docs_verification'] },
+  { owner: 'Giliran tim', color: 'var(--chart-principal)', stages: ['docs_verification'] },
   { owner: 'Giliran user', color: 'var(--chart-warn)', stages: ['additional_docs_requested'] },
   { owner: 'Di bank', color: 'var(--chart-step)', stages: ['bank_processing', 'appraisal', 'approved', 'old_mortgage_settlement', 'akad'] },
 ]
@@ -238,7 +238,7 @@ export function OverviewPage() {
       {data && (
         <>
           <dl className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-            <Kpi label="Perlu review" value={apps.needsReview} hint="Baru diajukan atau sedang diverifikasi" />
+            <Kpi label="Perlu review" value={apps.needsReview} hint="Menunggu atau sedang verifikasi dokumen" />
             <Kpi label="Menunggu dokumen user" value={apps.waitingOnUser} hint="Revisi dokumen belum diunggah" />
             <Kpi label="Di proses bank" value={apps.atBank} hint="Proses bank sampai akad" />
             <Kpi label="User terdaftar" value={data.users.total} />

@@ -2,7 +2,7 @@
 -- Users: A (consented user), B (signed in, no consent yet), S (super_admin), W (content_writer).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(31);
 
 insert into auth.users (id, email, raw_user_meta_data, aud, role) values
   ('00000000-0000-4000-8000-0000000000a1', 'a@test.local', '{"full_name":"User A"}', 'authenticated', 'authenticated'),
@@ -30,11 +30,12 @@ select throws_ok($$insert into public.applications (id, doc) values ('app_test_a
 select throws_ok($$update public.applications set doc = jsonb_set(doc, '{status}', '"approved"') where id = 'app_test_a'$$, 'P0001', 'Pengajuan pada tahap ini tidak bisa diubah.', 'the owner cannot jump to approved');
 select lives_ok($$insert into storage.objects (bucket_id, name) values ('application-documents', '00000000-0000-4000-8000-0000000000a1/app_test_a/ktp/f1.pdf')$$, 'the owner uploads into their draft folder');
 select throws_ok($$insert into storage.objects (bucket_id, name) values ('application-documents', '00000000-0000-4000-8000-0000000000b1/app_test_b/ktp/f1.pdf')$$, '42501', null, 'nobody uploads into another user folder');
-select throws_ok($$update public.applications set doc = doc || '{"status":"submitted"}' where id = 'app_test_a'$$, 'P0001', 'Centang kedua persetujuan untuk submit.', 'submit needs both consents');
-select throws_ok($$update public.applications set doc = doc || '{"status":"submitted","consents":{"dataAccuracy":true,"sendToBank":true},"selection":{"bankProductId":"bpr_test_draft","productVersion":1,"fixedRateBps":550,"floatingRateBps":1050}}' where id = 'app_test_a'$$, 'P0001', 'Program yang dipilih sudah berubah. Bandingkan ulang sebelum submit.', 'submit with an unpublished product is rejected');
-select throws_ok($$update public.applications set doc = doc || '{"status":"submitted","consents":{"dataAccuracy":true,"sendToBank":true},"selection":{"bankProductId":"bpr_test","productVersion":1,"fixedRateBps":100,"floatingRateBps":1050}}' where id = 'app_test_a'$$, 'P0001', 'Program yang dipilih sudah berubah. Bandingkan ulang sebelum submit.', 'submit with a forged rate is rejected');
-select throws_ok($$update public.applications set doc = doc || '{"status":"submitted","consents":{"dataAccuracy":true,"sendToBank":true},"selection":{"bankProductId":"bpr_test","productVersion":1,"fixedRateBps":550,"floatingRateBps":1050}}' where id = 'app_test_a'$$, 'P0001', 'Lengkapi dokumen wajib sebelum submit.', 'submit with missing documents is rejected');
-select lives_ok($$update public.applications set doc = doc || '{"status":"submitted","consents":{"dataAccuracy":true,"sendToBank":true},"selection":{"bankProductId":"bpr_test","productVersion":1,"fixedRateBps":550,"floatingRateBps":1050},"documents":{"ktp":{"status":"uploaded"},"npwp":{"status":"uploaded"},"income_proof":{"status":"uploaded"},"property_document":{"status":"uploaded"}}}' where id = 'app_test_a'$$, 'a complete submit passes');
+select throws_ok($$update public.applications set doc = doc || '{"status":"submitted","consents":{"dataAccuracy":true,"sendToBank":true},"selection":{"bankProductId":"bpr_test","productVersion":1,"fixedRateBps":550,"floatingRateBps":1050},"documents":{"ktp":{"status":"uploaded"},"npwp":{"status":"uploaded"},"income_proof":{"status":"uploaded"},"property_document":{"status":"uploaded"}}}' where id = 'app_test_a'$$, 'P0001', 'Pengajuan pada tahap ini tidak bisa diubah.', 'a submit goes straight to docs_verification; there is no submitted stage');
+select throws_ok($$update public.applications set doc = doc || '{"status":"docs_verification"}' where id = 'app_test_a'$$, 'P0001', 'Centang kedua persetujuan untuk submit.', 'submit needs both consents');
+select throws_ok($$update public.applications set doc = doc || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true},"selection":{"bankProductId":"bpr_test_draft","productVersion":1,"fixedRateBps":550,"floatingRateBps":1050}}' where id = 'app_test_a'$$, 'P0001', 'Program yang dipilih sudah berubah. Bandingkan ulang sebelum submit.', 'submit with an unpublished product is rejected');
+select throws_ok($$update public.applications set doc = doc || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true},"selection":{"bankProductId":"bpr_test","productVersion":1,"fixedRateBps":100,"floatingRateBps":1050}}' where id = 'app_test_a'$$, 'P0001', 'Program yang dipilih sudah berubah. Bandingkan ulang sebelum submit.', 'submit with a forged rate is rejected');
+select throws_ok($$update public.applications set doc = doc || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true},"selection":{"bankProductId":"bpr_test","productVersion":1,"fixedRateBps":550,"floatingRateBps":1050}}' where id = 'app_test_a'$$, 'P0001', 'Lengkapi dokumen wajib sebelum submit.', 'submit with missing documents is rejected');
+select lives_ok($$update public.applications set doc = doc || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true},"selection":{"bankProductId":"bpr_test","productVersion":1,"fixedRateBps":550,"floatingRateBps":1050},"documents":{"ktp":{"status":"uploaded"},"npwp":{"status":"uploaded"},"income_proof":{"status":"uploaded"},"property_document":{"status":"uploaded"}}}' where id = 'app_test_a'$$, 'a complete submit passes');
 select throws_ok($$update public.applications set doc = jsonb_set(doc, '{data,personal,fullName}', '"Changed"') where id = 'app_test_a'$$, 'P0001', 'Pengajuan pada tahap ini tidak bisa diubah.', 'submitted data is locked for the owner');
 delete from public.applications where id = 'app_test_b';
 select is((select count(*)::int from public.applications), 2, 'A sees only their own applications');
@@ -42,7 +43,7 @@ select is((select count(*)::int from public.bank_products where id like 'bpr_tes
 select is((select count(*)::int from public.articles where id = 'art_test_draft'), 0, 'users do not see draft articles');
 select throws_ok($$insert into public.mortgages (id, doc) values ('mtg_test_a', '{"status":"active"}')$$, 'P0001', 'KPR baru selalu dimulai dari pengaturan.', 'the owner cannot create an active KPR directly');
 select lives_ok($$insert into public.activities (id, doc) values ('act_test_a', '{"id":"act_test_a","type":"x","occurredAt":"2026-10-09T03:00:00Z","readAt":null}')$$, 'the owner logs their own activity');
-select throws_ok($$select public.apply_writes('[{"op":"update","table":"applications","id":"app_test_a","version":99,"values":{"doc":{"status":"submitted"}}}]')$$, 'P0001', 'Data ini sudah diubah sejak kamu buka. Muat ulang lalu ulangi.', 'apply_writes reports a stale version as a conflict');
+select throws_ok($$select public.apply_writes('[{"op":"update","table":"applications","id":"app_test_a","version":99,"values":{"doc":{"status":"docs_verification"}}}]')$$, 'P0001', 'Data ini sudah diubah sejak kamu buka. Muat ulang lalu ulangi.', 'apply_writes reports a stale version as a conflict');
 
 -- ---------- user B (no consent yet) ----------
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000b1","role":"authenticated"}', true);
@@ -52,7 +53,7 @@ select throws_ok($$insert into public.mortgages (id, doc) values ('mtg_test_b', 
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000c1","role":"authenticated"}', true);
 select throws_ok($$update public.applications set doc = doc || '{"note":"x"}' where id = 'app_test_b'$$, 'P0001', 'Halaman ini di luar akses akun kamu.', 'staff cannot touch drafts');
 select throws_ok($$update public.applications set doc = doc || '{"status":"approved"}' where id = 'app_test_a'$$, 'P0001', 'Pengajuan pada tahap ini tidak bisa dipindah ke status tersebut.', 'staff must follow the status matrix');
-select lives_ok($$update public.applications set doc = doc || '{"status":"docs_verification"}' where id = 'app_test_a'$$, 'staff moves submitted → docs_verification');
+select throws_ok($$update public.applications set doc = doc || '{"status":"bank_processing"}' where id = 'app_test_a'$$, 'P0001', 'Semua dokumen wajib harus Sesuai sebelum diteruskan ke bank.', 'staff forward to the bank only once every required document is verified');
 select lives_ok($$insert into public.mortgages (id, user_id, doc) values ('mtg_test_s', '00000000-0000-4000-8000-0000000000a1', '{"status":"active","applicationId":"app_test_done"}')$$, 'disbursement by staff creates the owner active KPR');
 select lives_ok($$insert into public.activities (id, user_id, doc) values ('act_test_s', '00000000-0000-4000-8000-0000000000a1', '{"id":"act_test_s","occurredAt":"2026-10-09T03:00:00Z"}')$$, 'staff can notify a user');
 select lives_ok($$insert into public.audit_log (id, doc) values ('aud_test', '{"id":"aud_test","actor":{"id":"someone-else","name":"X"},"action":"x","resource":{"type":"x"}}')$$, 'staff write audit events');

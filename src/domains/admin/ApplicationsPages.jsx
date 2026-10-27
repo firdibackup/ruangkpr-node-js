@@ -15,10 +15,11 @@ import { Chip, ErrorPanel, Notice, PageSkeleton, Panel, PanelTitle, Spinner, Sum
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { STAGE_NOTE_STATUSES, STATUS_LABEL, productName, trackerSteps } from '@/domains/applications/meta'
 import { PRINTABLE_STATUSES } from './coverLetter'
+import { ReasonHint } from './ReasonHint'
 import { PRODUCT_TYPES } from './labels'
 import { AdminHeader, DonutLegend, OutcomeDonut, StatusChip } from './shared'
 
-const STATUSES = ['submitted', 'docs_verification', 'additional_docs_requested', 'bank_processing', 'appraisal', 'approved', 'old_mortgage_settlement', 'akad', 'disbursed', 'rejected']
+const STATUSES = ['docs_verification', 'additional_docs_requested', 'bank_processing', 'appraisal', 'approved', 'old_mortgage_settlement', 'akad', 'disbursed', 'rejected']
 const head = 'text-xs font-bold text-muted-foreground'
 const days = (n) => (n === 0 ? 'Hari ini' : `${n} hari`)
 const program = (x) => [productName(x), x.bankName, x.productName].filter(Boolean).join(' · ')
@@ -91,7 +92,6 @@ export function ApplicationListPage() {
 }
 
 const ACTIONS = {
-  docs_verification: 'Mulai verifikasi dokumen',
   additional_docs_requested: 'Kirim permintaan revisi ke user',
   bank_processing: 'Teruskan ke bank',
   appraisal: 'Masuk tahap appraisal',
@@ -666,7 +666,7 @@ function TransitionDialog({ data, toStatus, onClose, onDone, onReload }) {
             <DateField label="Tanggal akad" required value={terms.akadDate} onChange={setTerm('akadDate')} error={fieldError('akadDate')} />
           </FormGrid>
         )}
-        <TextAreaField label="Catatan perubahan status" required value={reason} onChange={setReason} error={fieldError('reason')} hint="Internal, masuk ke audit log." />
+        <TextAreaField label="Catatan perubahan status" required value={reason} onChange={setReason} error={fieldError('reason')} hint={<ReasonHint action={toStatus} />} />
         <ErrorNotice error={error} onReload={onReload} />
         <Button type="submit" variant={toStatus === 'rejected' ? 'destructive' : 'default'} disabled={saving} aria-busy={saving}>
           {saving && <Spinner />}

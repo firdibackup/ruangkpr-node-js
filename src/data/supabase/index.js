@@ -1,13 +1,14 @@
-// The real backend: the same operations as the demo (mockApi.js) over supabaseStore, plus what only a server has —
+// The real backend: shared application operations over supabaseStore, plus what only a server has —
 // sign-in, files in Storage, account deletion (spec 2026-10-09, Amandemen).
 import { ApiError } from '../apiError'
 import { DEFAULT_UPLOAD, LOGO_UPLOAD, uploadProblem } from '../documentRules'
-import { createMockApi } from '../mockApi'
+import { createApplicationApi } from '../applicationApi'
 import { authApi } from './auth'
 import { supabase } from './client'
 import { must } from './errors'
 import { BRAND_BUCKET, DOCS_BUCKET, LOGOS_BUCKET, PROOFS_BUCKET, currentSession, filePath, ownsFolder, publicUrl, removeFiles, signedUrl, uploadFile } from './storage'
 import { createSupabaseStore } from './store'
+import { createArchiveApi } from './archives'
 
 const fileMeta = (file) => ({ name: file.name, size: file.size, type: file.type })
 
@@ -44,7 +45,7 @@ const brandFiles = (b) => [b.draft, b.published].flatMap((s) => [s?.logo?.path, 
 const dropUnused = (before, after) => removeFiles(BRAND_BUCKET, brandFiles(before).filter((p) => !brandFiles(after).includes(p)))
 
 export function createSupabaseApi() {
-  const base = createMockApi({ latencyMs: 0, store: createSupabaseStore() })
+  const base = createApplicationApi({ store: createSupabaseStore() })
 
   const applications = {
     ...base.applications,
@@ -109,6 +110,7 @@ export function createSupabaseApi() {
 
   const admin = {
     ...base.admin,
+    archives: createArchiveApi(),
     applications: {
       ...base.admin.applications,
       // A 5-minute signed link that downloads the stored file under its original name (admin: verify the document).

@@ -4,7 +4,7 @@ import { useScenario } from './helpers'
 
 test('reports follow the filters, and the CSV download carries no personal data', async ({ page }) => {
   await useScenario(page, 'admin_ops', '/admin/reports')
-  const submitted = page.getByRole('table', { name: 'Tahapan pengajuan' }).getByRole('row', { name: /^Diajukan/ }).getByRole('cell').nth(1)
+  const submitted = page.getByRole('table', { name: 'Tahapan pengajuan' }).getByRole('row', { name: /^Verifikasi Dokumen/ }).getByRole('cell').nth(1)
   await expect(submitted).toHaveText('8')
   await expect(page.getByRole('table', { name: 'Produk paling banyak dipilih' }).getByRole('row').nth(1).getByRole('cell').nth(2)).toHaveText('4')
 

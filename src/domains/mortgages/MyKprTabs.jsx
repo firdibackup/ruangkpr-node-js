@@ -23,11 +23,19 @@ const LocationPicker = lazy(() => import('./LocationPicker'))
 export function OverviewTab() {
   const { m, d, snap } = useOutletContext()
   const navigate = useNavigate()
+  const pendingBalanceRow = d.firstRow && m.payments?.some((p) => p.status === 'paid' && p.dueDate === d.firstRow.dueDate) ? d.firstRow : null
   return (
     <section className="grid grid-cols-1 gap-7 rounded-card bg-card p-6 shadow-card md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] sm:p-7" aria-label="Ringkasan KPR">
       <div className="flex min-w-0 flex-col gap-4">
         <span className="text-[13px] font-extrabold text-muted-foreground">Sisa Pokok {(m.outstandingEstimated || m.outstandingProjected) && <EstimateTag />}</span>
         <span className="text-[34px] font-extrabold tracking-[-1px] tabular sm:text-[40px]">{rupiah(m.outstandingPrincipal)}</span>
+        {d.schedule && (
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            {pendingBalanceRow
+              ? `Sudah ditandai dibayar. Est. saldo ${rupiah(pendingBalanceRow.closingBalance)} mulai ${dateShort(addDays(pendingBalanceRow.dueDate, 1))}.`
+              : 'Estimasi saldo diperbarui sehari setelah jatuh tempo.'}
+          </p>
+        )}
         <span className="mt-2 text-[13px] font-extrabold text-muted-foreground">Progress Pokok</span>
         {d.paidRatio == null ? (
           <span className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">

@@ -26,6 +26,7 @@ import { ProfilePage, ProfileEditPage, ReminderSettingsPage } from '@/domains/pr
 import { AdminLayout, ForbiddenPage } from '@/domains/admin/AdminLayout'
 import { OverviewPage as AdminOverviewPage } from '@/domains/admin/OverviewPage'
 import { UserDetailPage, UserHistoryPage, UserListPage, UserMortgagePage } from '@/domains/admin/UsersPages'
+import { AccountArchiveListPage, AccountArchiveDetailPage } from '@/domains/admin/AccountArchivesPages'
 import { ApplicationDetailPage, ApplicationListPage } from '@/domains/admin/ApplicationsPages'
 import { CoverLetterPage } from '@/domains/admin/CoverLetterPage'
 import { BankListPage, ProductFormPage, ProductListPage } from '@/domains/admin/CatalogPages'
@@ -37,7 +38,7 @@ import { AuditLogPage } from '@/domains/admin/AuditLogPage'
 import { BrandPage, BrandPreviewBar } from '@/domains/admin/BrandPage'
 import { useLiveBrand } from '@/brand/live'
 import { NotFoundPage } from './NotFoundPage'
-import { DevPanel } from './DevPanel'
+import { DevPanel } from '#demo-panel'
 
 // Where each session status belongs; a guard sends any session it does not serve to its home. `pending` waits for the
 // code that verifies a new account; `recovery` came in through a reset link and still has to set its new password.
@@ -88,6 +89,8 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <AdminOverviewPage /> },
           { path: 'users', element: <UserListPage /> },
+          { path: 'account-archives', element: <AccountArchiveListPage /> },
+          { path: 'account-archives/:archiveId', element: <AccountArchiveDetailPage /> },
           { path: 'users/:userId', element: <UserDetailPage /> },
           { path: 'users/:userId/kpr/:mortgageId', element: <UserMortgagePage /> },
           { path: 'users/:userId/riwayat', element: <UserHistoryPage /> },
@@ -171,7 +174,7 @@ export function App() {
         toastOptions={{ style: { background: 'var(--inverse)', color: 'var(--inverse-foreground)', border: 'none', borderRadius: 14, fontFamily: 'inherit', fontWeight: 600, fontSize: 14 } }}
       />
       <BrandPreviewBar onBack={() => router.navigate('/admin/brand')} />
-      {import.meta.env.DEV && isMock && <DevPanel />}
+      {isMock && <DevPanel />}
     </SessionProvider>
   )
 }

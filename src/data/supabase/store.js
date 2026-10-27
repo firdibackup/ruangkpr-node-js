@@ -1,4 +1,4 @@
-// supabaseStore: the account the app logic (mockApi.js) works on, loaded from Supabase and written back row by row
+// supabaseStore: the account the shared app logic works on, loaded from Supabase and written back row by row
 // (spec 2026-10-09, Amandemen). Loads build the same `db` shape the localStorage demo uses; saves send only what
 // changed, in one transaction (public.apply_writes) with RLS and the status triggers in force.
 import { CONSENT_TYPES, CONSENT_VERSION } from '@/domains/session/validation'

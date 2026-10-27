@@ -142,11 +142,5 @@ export const BANK_PRODUCTS = [
   },
 ]
 
-// Old-bank exit cost policy used when the user does not know the official figures (labelled "estimasi").
-export const OLD_BANK_POLICY = { penaltyBps: 200, admin: 1_000_000 }
-
-// Product data older than this is flagged stale and loses the recommendation label (PRD §21).
-export const STALE_AFTER_DAYS = 30
-
-// Payment-capacity guidance ratio (PRD §9.7: configurable, not a universal truth).
-export const CAPACITY_RATIO_BPS = 3500
+// Compatibility for existing consumers; production imports lendingPolicy directly.
+export { OLD_BANK_POLICY, STALE_AFTER_DAYS, CAPACITY_RATIO_BPS } from './lendingPolicy'

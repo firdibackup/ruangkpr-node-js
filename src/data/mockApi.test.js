@@ -111,9 +111,14 @@ describe('auth', () => {
     expect(await api.auth.getSession()).toMatchObject({ status: 'authenticated', role: 'user' })
   })
 
-  it('deleteAccount wipes the signed-in account; registering again starts empty', async () => {
+  it('deleteAccount archives the signed-in account; registering again starts empty', async () => {
     mockControls.reset('mortgage_active_normal')
+    const old = await api.dashboard.getSnapshot()
     await api.auth.deleteAccount()
+    const archive = loadDb().accountArchives[0]
+    expect(archive.originalUserId).toBe(old.user.id)
+    expect(archive.snapshot.mortgages).toHaveLength(1)
+    expect(archive.snapshot.profile.nik).toBe(old.profile.nik)
     expect((await api.auth.getSession()).status).toBe('guest')
     await expectCode(api.dashboard.getSnapshot(), 'AUTH_REQUIRED')
     await signIn('Firdi Audi', 'firdi.audi@email.com')
@@ -121,6 +126,17 @@ describe('auth', () => {
     expect(snap.profile.nik).toBeUndefined()
     expect(snap.mortgages).toHaveLength(0)
     expect(snap.applications).toHaveLength(0)
+    expect(snap.user.id).not.toBe(old.user.id)
+    await expectCode(api.admin.archives.list(), 'FORBIDDEN')
+    await signIn('Admin Maxi', 'admin@ruangkpr.id')
+    expect(await api.admin.archives.list()).toEqual([expect.objectContaining({ id: archive.id, mortgageCount: 1 })])
+    expect((await api.admin.archives.get(archive.id)).snapshot.mortgages).toHaveLength(1)
+    await expectCode(api.admin.archives.remove(archive.id, { reason: '' }), 'VALIDATION_FAILED')
+    await api.admin.archives.remove(archive.id, { reason: 'Permintaan penghapusan arsip' })
+    expect(await api.admin.archives.list()).toEqual([])
+    expect(loadDb().auditLog.some((e) => e.action === 'account_archive.delete')).toBe(true)
+    await signIn('Firdi Audi', 'firdi.audi@email.com')
+    expect((await api.dashboard.getSnapshot()).user.id).toBe(snap.user.id)
   })
 
   it('deleteAccount is blocked while an application is at the bank', async () => {
@@ -189,7 +205,7 @@ describe('accounts and admin access', () => {
       needsReview: 1,
       waitingOnUser: 1,
       atBank: 4,
-      byStatus: { submitted: 1, additional_docs_requested: 1, bank_processing: 2, appraisal: 1, approved: 1, rejected: 1, disbursed: 1 },
+      byStatus: { docs_verification: 1, additional_docs_requested: 1, bank_processing: 2, appraisal: 1, approved: 1, rejected: 1, disbursed: 1 },
       funnel: { submitted: 8, approved: 2, disbursed: 1 },
     })
     // Budi waits on the user (additional docs), so he is not in the admin's queue.
@@ -198,7 +214,7 @@ describe('accounts and admin access', () => {
       ['Dewi Lestari', 'appraisal', 10],
       ['Firdi Audi', 'bank_processing', 3],
       ['Sari Wulandari', 'bank_processing', 1],
-      ['Rina Hartati', 'submitted', 1],
+      ['Rina Hartati', 'docs_verification', 1],
     ])
     // Two weeks day by day up to the clock (28 Sep): seven submitted in them, one (Agus, 10 Sep) the two weeks before.
     const { trend } = o.applications
@@ -284,7 +300,7 @@ describe('accounts and admin access', () => {
     mockControls.reset('admin_ops')
     expect((await api.auth.getSession()).role).toBe('super_admin')
     const statuses = (await api.admin.users.list()).map((u) => u.activeApplicationStatus)
-    expect(statuses).toEqual(expect.arrayContaining(['submitted', 'additional_docs_requested', 'bank_processing', 'appraisal', 'approved', 'rejected']))
+    expect(statuses).toEqual(expect.arrayContaining(['docs_verification', 'additional_docs_requested', 'bank_processing', 'appraisal', 'approved', 'rejected']))
   })
 })
 
@@ -295,9 +311,11 @@ describe('admin applications', () => {
 
   it('follows the status matrix: legal moves only, for primary and take over', async () => {
     mockControls.reset('admin_ops')
-    await expectCode(move('app_sample_01', 'bank_processing', 3), 'INVALID_STATE_TRANSITION')
-    let d = await move('app_sample_01', 'docs_verification', 3)
+    // A submit lands in docs_verification: there is no separate "start verifying" move any more.
+    let d = await api.admin.applications.get('app_sample_01')
     expect(d.allowedTransitions).toEqual(['additional_docs_requested', 'bank_processing'])
+    await expectCode(move('app_sample_01', 'docs_verification', 3), 'INVALID_STATE_TRANSITION')
+    await expectCode(move('app_sample_01', 'bank_processing', 3), 'INVALID_STATE_TRANSITION') // documents not checked yet
     await expectCode(move('app_sample_01', 'rejected', d.application.version, { code: 'DTI_ABOVE_BANK_POLICY', displayReason: 'Rasio cicilan terlalu tinggi.' }), 'INVALID_STATE_TRANSITION')
     expect((await api.admin.applications.get('app_sample_04')).allowedTransitions).toEqual(['akad'])
     d = await move('app_sample_05', 'appraisal', 6)
@@ -308,9 +326,8 @@ describe('admin applications', () => {
 
   it('documents are reviewed one by one while verifying; a rejection stays a draft the user cannot see', async () => {
     mockControls.reset('admin_ops')
-    await expectCode(review('app_sample_01', 'ktp', 3), 'INVALID_STATE_TRANSITION') // still submitted
-    let d = await move('app_sample_01', 'docs_verification', 3)
-    d = await review('app_sample_01', 'ktp', d.application.version)
+    await expectCode(review('app_sample_06', 'ktp', 3), 'INVALID_STATE_TRANSITION') // rejected: past verification
+    let d = await review('app_sample_01', 'ktp', 3) // straight from the submit, no move first
     expect(fileOf(d, 'ktp').status).toBe('verified')
     await expectCode(review('app_sample_01', 'npwp', d.application.version, { result: 'rejected', reasonCode: 'other', note: ' ' }), 'VALIDATION_FAILED')
     await expectCode(review('app_sample_01', 'npwp', d.application.version, { result: 'rejected', reasonCode: 'tidak_ada' }), 'VALIDATION_FAILED')
@@ -330,14 +347,13 @@ describe('admin applications', () => {
 
   it('stale review conflicts', async () => {
     mockControls.reset('admin_ops')
-    const d = await move('app_sample_01', 'docs_verification', 3)
-    await review('app_sample_01', 'ktp', d.application.version)
-    await expectCode(review('app_sample_01', 'npwp', d.application.version), 'CONFLICT_VERSION')
+    await review('app_sample_01', 'ktp', 3)
+    await expectCode(review('app_sample_01', 'npwp', 3), 'CONFLICT_VERSION')
   })
 
   it('sending turns every drafted rejection into one request the user sees per document; the bank waits for all verified', async () => {
     mockControls.reset('admin_ops')
-    let d = await move('app_sample_01', 'docs_verification', 3)
+    let d = await api.admin.applications.get('app_sample_01')
     await expectCode(move('app_sample_01', 'additional_docs_requested', d.application.version), 'VALIDATION_FAILED') // nothing rejected yet
     for (const t of ['ktp', 'property_document']) d = await review('app_sample_01', t, d.application.version)
     await expectCode(move('app_sample_01', 'bank_processing', d.application.version), 'INVALID_STATE_TRANSITION')
@@ -374,7 +390,7 @@ describe('admin applications', () => {
     const db = loadDb()
     db.accounts.flatMap((a) => a.applications).find((x) => x.id === 'app_sample_01').documents.additional = { status: 'uploaded', fileName: 'kk.pdf', sizeBytes: 1000, contentType: 'application/pdf', uploadedAt: '2026-09-18', invalidReason: null }
     saveDb(db)
-    let d = await move('app_sample_01', 'docs_verification', 3)
+    let d = await api.admin.applications.get('app_sample_01')
     for (const t of ['ktp', 'npwp', 'income_proof', 'property_document']) d = await review('app_sample_01', t, d.application.version)
     d = await review('app_sample_01', 'additional', d.application.version, { result: 'rejected', reasonCode: 'cropped' })
     await expectCode(move('app_sample_01', 'bank_processing', d.application.version), 'INVALID_STATE_TRANSITION')
@@ -405,7 +421,7 @@ describe('admin applications', () => {
 
   it('stale versions conflict, notes stay internal, and the detail masks the NIK', async () => {
     mockControls.reset('admin_ops')
-    await move('app_sample_01', 'docs_verification', 3)
+    await review('app_sample_01', 'ktp', 3)
     await expectCode(move('app_sample_01', 'bank_processing', 3), 'CONFLICT_VERSION')
     const d = await api.admin.applications.addNote('app_sample_01', { text: 'Catatan rahasia tim: cek ulang slip gaji.' })
     expect(d.notes[0]).toMatchObject({ text: 'Catatan rahasia tim: cek ulang slip gaji.', author: { name: 'Admin Maxi' } })
@@ -430,7 +446,7 @@ describe('admin applications', () => {
     mockControls.reset('admin_ops')
     const id = 'app_01J8Z19RZ4VE4Q2AB7M5N8XKCF' // Firdi Audi, bank_processing
     const save = (expectedVersion, note) => api.admin.applications.saveStageNote(id, { expectedVersion, ...note })
-    await expectCode(api.admin.applications.saveStageNote('app_sample_01', { message: 'Pesan untuk tahap diajukan.', expectedVersion: 3 }), 'INVALID_STATE_TRANSITION')
+    await expectCode(api.admin.applications.saveStageNote('app_sample_06', { message: 'Pesan untuk pengajuan ditolak.', expectedVersion: 3 }), 'INVALID_STATE_TRANSITION')
     let d = await api.admin.applications.get(id)
     await expectCode(save(d.application.version, { message: 'ok' }), 'VALIDATION_FAILED')
     d = await save(d.application.version, { message: 'Bank minta 5 hari kerja untuk analisis.' })
@@ -459,7 +475,7 @@ describe('admin cover letter', () => {
 
   it('prefills from the application and the office defaults, only once the application is at the bank', async () => {
     mockControls.reset('admin_ops')
-    await expectCode(api.admin.applications.coverLetter('app_sample_01'), 'INVALID_STATE_TRANSITION') // submitted
+    await expectCode(api.admin.applications.coverLetter('app_sample_01'), 'INVALID_STATE_TRANSITION') // docs_verification
     await expectCode(api.admin.applications.coverLetter('app_sample_06'), 'INVALID_STATE_TRANSITION') // rejected
     await expectCode(api.admin.applications.coverLetter('app_nope'), 'RESOURCE_NOT_FOUND')
     await saveOffice()
@@ -536,7 +552,7 @@ describe('admin cover letter', () => {
     const db = loadDb()
     const app = db.accounts.flatMap((a) => a.applications).find((a) => a.id === FIRDI)
     app.submittedAt = '2026-10-08T02:00:00.000Z'
-    app.statusHistory.push({ status: 'rejected', at: '2026-10-01T02:00:00.000Z' }, { status: 'draft', at: '2026-10-07T02:00:00.000Z' }, { status: 'submitted', at: '2026-10-08T02:00:00.000Z' }, { status: 'bank_processing', at: '2026-10-10T02:00:00.000Z' })
+    app.statusHistory.push({ status: 'rejected', at: '2026-10-01T02:00:00.000Z' }, { status: 'draft', at: '2026-10-07T02:00:00.000Z' }, { status: 'submitted', at: '2026-10-08T02:00:00.000Z' }, { status: 'docs_verification', at: '2026-10-08T02:00:00.000Z' }, { status: 'bank_processing', at: '2026-10-10T02:00:00.000Z' })
     saveDb(db)
     let d = await api.admin.applications.coverLetter(FIRDI)
     expect(d.saved).toBe(false)
@@ -797,7 +813,10 @@ describe('primary application', () => {
     await api.applications.selectProgram(app.id, { bankProductId: chosen.productId, loanAmount: 400_000_000, tenorMonths: 240 })
     await expectCode(api.applications.submit(app.id, { consents: { dataAccuracy: true, sendToBank: false } }), 'CONSENT_REQUIRED')
     const submitted = await api.applications.submit(app.id, { consents: { dataAccuracy: true, sendToBank: true } })
-    expect(submitted.status).toBe('submitted')
+    // Straight into the team's document check; the history still records the submit itself.
+    expect(submitted.status).toBe('docs_verification')
+    expect(submitted.statusHistory.map((h) => h.status)).toEqual(['submitted', 'docs_verification'])
+    expect(submitted.statusHistory[1].at).toBe(submitted.submittedAt)
     expect(submitted.snapshot.selection.bankProductId).toBe(chosen.productId)
     await expectCode(api.applications.submit(app.id, { consents: { dataAccuracy: true, sendToBank: true } }), 'APPLICATION_ALREADY_SUBMITTED')
     await expectCode(api.applications.saveStep(app.id, { step: 2, values: { loan: { amount: 1 } } }), 'INVALID_STATE_TRANSITION')
@@ -856,7 +875,7 @@ describe('primary application', () => {
     expect(fresh(retried)).toBe(true)
     await api.applications.submit(old.id, { consents: { dataAccuracy: true, sendToBank: true } })
     const [app] = (await api.dashboard.getSnapshot()).applications
-    expect(app).toMatchObject({ status: 'submitted', stageNotes: {} })
+    expect(app).toMatchObject({ status: 'docs_verification', stageNotes: {} })
     expect(fresh(app)).toBe(true)
   })
 
@@ -1174,7 +1193,7 @@ describe('take over simulation', () => {
     await expectCode(api.applications.submit(app.id, { consents }), 'VALIDATION_FAILED') // Pekerjaan no longer passes its form
     app = await api.applications.saveStep(app.id, { step: 1, values: { employment: { companyName: 'PT Lain', jobTitle: 'Manager' } } })
     expect(app.selection).not.toBeNull()
-    expect((await api.applications.submit(app.id, { consents })).status).toBe('submitted')
+    expect((await api.applications.submit(app.id, { consents })).status).toBe('docs_verification')
 
     app = await applyFirst()
     app = await api.applications.saveStep(app.id, { step: 1, values: { employment: { monthlyIncome: app.data.employment.monthlyIncome + 1_000_000 } } })
@@ -1292,11 +1311,11 @@ describe('admin reports', () => {
     expect(r.filters).toMatchObject({ from: '2026-08-30', to: '2026-09-28' })
     expect(r.users).toEqual({ registered: 9, withApplication: 8 })
     expect(r.applications).toEqual({ created: 8, submitted: 8, approved: 2, rejected: 1, disbursed: 1 })
-    // e.g. submitted → verification: Firdi 1.75 days, Sari 0.75, five others 1 → 7.5 / 7 ≈ 1.1
+    // A submit enters verification at once, so it holds all 8. Verification → bank: Firdi ≈4.7 days, Sari ≈2.7,
+    // four others 2 (Rina and Budi have not reached the bank) → 15.4 / 6 ≈ 2.6
     expect(r.stages.map((s) => [s.status, s.count, s.conversionBps, s.avgDays])).toEqual([
-      ['submitted', 8, null, 1.1],
-      ['docs_verification', 7, 8750, 1.5],
-      ['bank_processing', 6, 8571, 1],
+      ['docs_verification', 8, null, 2.6],
+      ['bank_processing', 6, 7500, 1],
       ['appraisal', 3, 5000, 1],
       ['approved', 2, 6667, 1],
       ['akad', 1, 5000, 1],

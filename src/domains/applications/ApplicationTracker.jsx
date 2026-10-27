@@ -16,8 +16,7 @@ import {
   RulerIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { api, isDemo, isMock } from "@/data/api";
-import { mockControls } from "@/data/mockApi";
+import { api, showDemoControls, mockControls } from "@/data/api";
 import { DOC_LABELS } from "@/data/documentRules";
 import { useResource } from "@/lib/hooks";
 import { dateLong, dateShort, percentBps, rupiah, tenorLabel } from "@/lib/format";
@@ -51,7 +50,6 @@ import { KprSwitch } from "./KprSwitch";
 import { brand } from "@/brand/brand";
 
 const CANCELLABLE = [
-  "submitted",
   "docs_verification",
   "additional_docs_requested",
   "bank_processing",
@@ -262,6 +260,15 @@ function DraftChecklist({ app, onDeleted }) {
   );
 }
 
+// The team has started on the documents: one is already checked, or a re-upload they asked for came back.
+const reviewStarted = (app) =>
+  Object.values(app.documents ?? {}).some(
+    (d) => d.status === "verified" || d.review,
+  ) ||
+  (app.statusHistory ?? []).some(
+    (h) => h.status === "additional_docs_requested",
+  );
+
 function heroFor(app, snap) {
   const bn = app.selection?.bankName ?? "Bank";
   const ob = app.data.oldLoan?.bankName ?? "bank lama";
@@ -282,15 +289,17 @@ function heroFor(app, snap) {
       : []),
   ];
   switch (app.status) {
-    case "submitted":
-      return {
-        tone: "info",
-        icon: ClockIcon,
-        tag: "Diajukan",
-        title: `Pengajuan terkirim ke ${bn}`,
-        body: "Tim kami memeriksa kelengkapan dokumen sebelum diteruskan ke analisis bank.",
-      };
     case "docs_verification":
+      // Fresh from submit, nobody has looked at it yet: say it is queued, not that it is being checked.
+      if (!reviewStarted(app))
+        return {
+          tone: "info",
+          icon: ClockIcon,
+          tag: "Verifikasi Dokumen",
+          title: "Pengajuan masuk antrean verifikasi dokumen",
+          body: `Tim ${brand.name} akan memeriksa kelengkapan dokumen sebelum diteruskan ke ${bn}. Jika ada yang perlu diperbarui, permintaannya muncul di halaman ini dan di Activity.`,
+        };
+    // falls through
     case "additional_docs_requested":
       return {
         tone: "info",
@@ -616,8 +625,7 @@ function Tracker({ app, snap, onChange, reload }) {
             </Button>
           )}
         </div>
-        {isMock &&
-          (import.meta.env.DEV || isDemo) &&
+        {showDemoControls &&
           !["rejected", "disbursed"].includes(app.status) && (
             <DemoControls app={app} reload={reload} />
           )}
@@ -651,7 +659,6 @@ function DemoControls({ app, reload }) {
   const flow =
     app.productType === "takeover"
       ? [
-          "submitted",
           "docs_verification",
           "bank_processing",
           "appraisal",
@@ -661,7 +668,6 @@ function DemoControls({ app, reload }) {
           "disbursed",
         ]
       : [
-          "submitted",
           "docs_verification",
           "bank_processing",
           "appraisal",

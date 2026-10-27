@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockControls } from '../mockApi'
 
 vi.mock('./client', () => ({ supabase: () => ({ storage: { from: (bucket) => ({ getPublicUrl: (path) => ({ data: { publicUrl: `https://sb.test/${bucket}/${path}` } }) }) } }) }))
-vi.mock('./store', () => ({ createSupabaseStore: () => undefined })) // the demo's localStorage store stands in for the database
+vi.mock('./store', async () => {
+  const { localStore } = await import('../mockApi')
+  return { createSupabaseStore: () => localStore }
+}) // An explicit test store stands in for the database.
 vi.mock('./storage', async (original) => ({ ...(await original()), uploadFile: vi.fn(async () => {}), removeFiles: vi.fn(async () => {}) }))
 
 const { createSupabaseApi } = await import('./index')

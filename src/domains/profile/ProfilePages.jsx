@@ -18,6 +18,7 @@ import { filledOnly, validateReminders } from '@/domains/mortgages/validation'
 import { validateEmploymentBasic } from '@/domains/optimize/validation'
 import { profileFormValues, validatePersonal } from '@/domains/applications/validation'
 import { productName } from '@/domains/applications/meta'
+import { HANDOFF_KEY } from '@/domains/applications/calculatorHandoff'
 import { brand } from '@/brand/brand'
 
 export function ProfilePage() {
@@ -179,11 +180,12 @@ export function ProfilePage() {
           open={del}
           onOpenChange={setDel}
           title={`Hapus akun ${brand.name}?`}
-          body={`Semua data kamu di ${brand.name} akan dihapus permanen dan tidak bisa dikembalikan:`}
+          body={`Akun dan aksesmu di ${brand.name} akan dihapus. Jika mendaftar kembali, kamu perlu mengisi data dan mengunggah dokumen dari awal:`}
           confirmLabel="Hapus Akun"
           confirmDisabled={!agreed}
           onConfirm={async () => {
             await api.auth.deleteAccount()
+            try { sessionStorage.removeItem(HANDOFF_KEY) } catch { /* Storage may be unavailable. */ }
             await refresh()
             toast('Akun kamu sudah dihapus.')
             navigate('/login', { replace: true })
@@ -195,8 +197,8 @@ export function ProfilePage() {
             <li>Draft pengajuan & hasil simulasi</li>
             <li>Riwayat di Activity</li>
           </ul>
-          <Disclaimer>Pengajuan yang sudah dikirim ke bank tetap tersimpan di bank sesuai ketentuan bank.</Disclaimer>
-          <CheckboxField label="Saya mengerti data ini tidak bisa dikembalikan." name="deleteConsent" checked={agreed} onChange={setAgreed} />
+          <Disclaimer>Riwayat data dan dokumen tetap disimpan sebagai arsip internal tanpa batas waktu sampai dihapus oleh admin. Arsip tidak dikembalikan ke akun baru. Pengajuan yang sudah dikirim ke bank tetap mengikuti ketentuan bank.</Disclaimer>
+          <CheckboxField label="Saya mengerti akun dihapus dan riwayat tetap diarsipkan." name="deleteConsent" checked={agreed} onChange={setAgreed} />
         </ConfirmDialog>
       )}
     </>

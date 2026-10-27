@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/shared/dialogs'
 import { Chip, Disclaimer, ErrorPanel, Notice, PageSkeleton, Panel, PanelTitle, Spinner } from '@/components/shared/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AdminHeader } from './shared'
+import { ReasonHint } from './ReasonHint'
 
 const head = 'text-xs font-bold text-muted-foreground'
 // Keys of ARTICLE_ICONS on Home; a new icon starts there.
@@ -294,7 +295,7 @@ function ArticleForm({ data, setData }) {
         confirmDisabled={reason.trim().length < 5}
         onConfirm={() => DIALOG.run()}
       >
-        <TextAreaField label="Alasan" required rows={2} value={reason} onChange={setReason} hint="Masuk ke audit log (minimal 5 karakter)." />
+        <TextAreaField label="Alasan" required rows={2} value={reason} onChange={setReason} hint={<ReasonHint action={`article.${confirm}`} />} />
       </ConfirmDialog>
     </>
   )

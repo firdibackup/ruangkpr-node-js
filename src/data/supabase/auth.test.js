@@ -56,7 +56,7 @@ const { recovery } = await import('./client')
 const registration = { name: ' Nadia Putri ', email: ' Nadia@Example.com ', password: 'rumah2026', confirm: 'rumah2026', acceptTerms: true, acceptPrivacy: true }
 
 beforeEach(async () => {
-  Object.assign(state, { session: null, tables: {}, calls: [], files: {}, updateError: null })
+  Object.assign(state, { session: null, tables: { profiles: [{ full_name: 'Nadia Putri', email: 'nadia@example.com' }] }, calls: [], files: {}, updateError: null })
   await authApi.logout()
 })
 
@@ -189,10 +189,16 @@ describe('supabase authApi', () => {
     expect(state.calls).toEqual([])
   })
 
-  it('deleteAccount removes the user files, then the account', async () => {
+  it('deleteAccount delegates atomic archiving and deletion without removing files', async () => {
     state.session = signedIn
     state.files['application-documents'] = [{ prefix: 'u1', name: 'app_1' }, { prefix: 'u1/app_1', name: 'ktp' }, { prefix: 'u1/app_1/ktp', name: 'a.pdf', id: 'f1' }]
     expect(await authApi.deleteAccount()).toEqual({ deleted: true })
-    expect(state.calls).toEqual([['remove', 'application-documents', ['u1/app_1/ktp/a.pdf']], ['rpc', 'delete_my_account', undefined]])
+    expect(state.calls).toEqual([['rpc', 'delete_my_account', undefined]])
+  })
+
+  it('an old session without a profile is treated as signed out', async () => {
+    state.session = signedIn
+    state.tables.profiles = []
+    expect(await authApi.getSession()).toMatchObject({ status: 'guest', user: null })
   })
 })

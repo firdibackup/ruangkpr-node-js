@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowRightIcon, TriangleAlertIcon } from 'lucide-react'
+import { ArrowRightIcon, ChevronDownIcon, TriangleAlertIcon } from 'lucide-react'
 import { api } from '@/data/api'
 import { useResource } from '@/lib/hooks'
 import { dateShort, monthYear, percentBps, rupiah, rupiahShort, tenorLabel } from '@/lib/format'
@@ -158,7 +158,7 @@ const HEAD = ['Saldo Awal', 'Cicilan', 'Pokok', 'Bunga', 'Sisa Pokok']
 export function AmortizationSchedulePage() {
   const { data, error, reload, m, d } = useMortgageSchedule()
   const [params, setParams] = useSearchParams()
-  const [defaultView] = useState(() => (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches ? 'tahunan' : 'bulanan'))
+  const [openYears, setOpenYears] = useState(null)
   if (!data) return error ? <ErrorPanel onRetry={reload} /> : <PageSkeleton />
   if (!m) return <Navigate to="/my-kpr" replace />
   const s = d.schedule
@@ -171,15 +171,20 @@ export function AmortizationSchedulePage() {
       </>
     )
   }
-  const view = params.get('view') ?? defaultView
+  const view = params.get('view') === 'tahunan' ? 'tahunan' : 'bulanan'
   const years = s.yearly.map((y) => y.year)
   const year = years.includes(params.get('year')) ? params.get('year') : years[0]
-  const set = (patch) => setParams({ view, year, ...patch }, { replace: true })
+  const expandedYears = openYears ?? [year]
+  const allExpanded = years.every((y) => expandedYears.includes(y))
+  const set = (patch) => setParams({ view, ...patch }, { replace: true })
   const floatingLabel = (bps) => `Mulai periode floating — estimasi ${percentBps(bps)}`
   const rows =
     view === 'bulanan'
-      ? s.rows.filter((r) => r.dueDate.startsWith(year)).map((r) => ({ key: r.month, label: dateShort(r.dueDate), rate: `${percentBps(r.annualRateBps)}${r.estimatedRate ? '*' : ''}`, estimate: r.estimatedRate, cells: [r.openingBalance, r.payment, r.principal, r.interest, r.closingBalance], banner: r.periodChanged && r.rateType === 'floating' ? floatingLabel(r.annualRateBps) : r.periodChanged ? `Mulai periode bunga ${percentBps(r.annualRateBps)}` : '' }))
+      ? s.rows.map((r) => ({ key: r.month, year: r.dueDate.slice(0, 4), label: dateShort(r.dueDate), rate: `${percentBps(r.annualRateBps)}${r.estimatedRate ? '*' : ''}`, estimate: r.estimatedRate, cells: [r.openingBalance, r.payment, r.principal, r.interest, r.closingBalance], banner: r.periodChanged && r.rateType === 'floating' ? floatingLabel(r.annualRateBps) : r.periodChanged ? `Mulai periode bunga ${percentBps(r.annualRateBps)}` : '' }))
       : s.yearly.map((y) => ({ key: y.year, label: y.year, rate: `${y.minRateBps === y.maxRateBps ? percentBps(y.minRateBps) : `${percentBps(y.minRateBps)}–${percentBps(y.maxRateBps)}`}${y.containsEstimate ? '*' : ''}`, estimate: y.containsEstimate, cells: [y.openingBalance, y.payment, y.principal, y.interest, y.closingBalance], banner: y.containsTransition ? floatingLabel(y.transitionRateBps) : '' }))
+  const groups = view === 'bulanan'
+    ? s.yearly.map((y) => ({ ...y, rows: rows.filter((r) => r.year === y.year), open: expandedYears.includes(y.year) }))
+    : [{ year: 'all', rows, open: true }]
 
   return (
     <>
@@ -195,29 +200,35 @@ export function AmortizationSchedulePage() {
                 ['bulanan', 'Bulanan'],
                 ['tahunan', 'Tahunan'],
               ].map(([k, l]) => (
-                <button key={k} type="button" aria-pressed={view === k} onClick={() => set({ view: k })} className={cn('h-10 rounded-full px-[18px] text-[13px] font-bold', view === k ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground')}>
+                <button key={k} type="button" aria-pressed={view === k} onClick={() => set({ view: k })} className={cn('h-11 rounded-full px-[18px] text-[13px] font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring', view === k ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
                   {l}
                 </button>
               ))}
             </div>
             {view === 'bulanan' && (
-              <label className="flex items-center gap-2.5 text-sm font-semibold text-muted-foreground">
-                Tahun
-                <select value={year} onChange={(e) => set({ year: e.target.value })} className="h-11 rounded-lg border border-input bg-field px-3.5 text-sm font-bold text-foreground">
-                  {years.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Button variant="neutral" size="sm" onClick={() => setOpenYears(allExpanded ? [] : years)}>
+                {allExpanded ? 'Tutup Semua Tahun' : 'Buka Semua Tahun'}
+              </Button>
             )}
           </div>
           <span className="text-[13px] text-muted-foreground">Sumber: KPR aktif · sisa pokok</span>
         </div>
-        <div className="relative overflow-x-auto rounded-2xl border border-border" tabIndex={0} role="region" aria-label="Tabel jadwal amortisasi (dapat digeser)">
+        <p className="text-sm text-muted-foreground">
+          {view === 'bulanan' ? `${s.rows.length} angsuran · ${monthYear(s.rows[0].dueDate)} – ${monthYear(s.rows.at(-1).dueDate)}. Buka tahun untuk melihat rincian bulanan.` : 'Ringkasan seluruh tahun sampai akhir jadwal.'}
+        </p>
+        {groups.map((group) => <section key={group.year} className="min-w-0 overflow-hidden rounded-2xl border border-border">
+          {view === 'bulanan' && <h2>
+            <button type="button" aria-expanded={group.open} aria-controls={`amort-year-${group.year}`} onClick={() => setOpenYears(group.open ? expandedYears.filter((y) => y !== group.year) : [...expandedYears, group.year])} className="flex min-h-16 w-full items-center gap-3 bg-muted px-4 py-3 text-left hover:bg-secondary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:px-5">
+              <ChevronDownIcon aria-hidden className={cn('size-5 shrink-0 text-primary', !group.open && '-rotate-90')} />
+              <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
+                <span className="font-bold">Tahun {group.year}<span className="ml-3 text-sm font-normal text-muted-foreground">{group.rows.length} angsuran</span></span>
+                <span className="text-sm text-muted-foreground">Total cicilan <span className="font-bold text-foreground tabular">{rupiah(group.payment)}</span></span>
+              </span>
+            </button>
+          </h2>}
+        <div id={`amort-year-${group.year}`} hidden={!group.open} className="relative overflow-x-auto" tabIndex={0} role="region" aria-label={`Tabel jadwal amortisasi ${group.year === 'all' ? 'tahunan' : group.year} (dapat digeser)`}>
           <table className="w-full min-w-[860px] border-collapse text-[13px] tabular">
-            <caption className="sr-only">Jadwal amortisasi {view === 'bulanan' ? `bulanan tahun ${year}` : 'tahunan'}. Tanda * = bunga estimasi.</caption>
+            <caption className="sr-only">Jadwal amortisasi {view === 'bulanan' ? `bulanan tahun ${group.year}` : 'tahunan'}. Tanda * = bunga estimasi.</caption>
             <thead className="bg-muted text-xs font-extrabold text-muted-foreground">
               <tr>
                 <th scope="col" className="sticky left-0 bg-muted px-[18px] py-3.5 text-left">
@@ -234,7 +245,7 @@ export function AmortizationSchedulePage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {group.rows.map((r) => (
                 <Fragment key={r.key}>
                   {r.banner && (
                     <tr>
@@ -262,6 +273,8 @@ export function AmortizationSchedulePage() {
             </tbody>
           </table>
         </div>
+        </section>)}
+        <h2 className="text-[17px] font-extrabold">Total seluruh jadwal</h2>
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
           <StatTile label="Total Cicilan" value={rupiah(s.totals.payment)} />
           <StatTile label="Total Pokok" value={rupiah(s.totals.principal)} />

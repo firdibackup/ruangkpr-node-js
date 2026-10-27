@@ -15,12 +15,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ReminderSettingsForm } from '@/domains/mortgages/ReminderSettingsForm'
 import { validateReminders } from '@/domains/mortgages/validation'
 import { AdminHeader } from './shared'
+import { ReasonHint } from './ReasonHint'
 
 const head = 'text-xs font-bold text-muted-foreground'
 const asErrors = (e) => Object.fromEntries((e.fieldErrors ?? []).map((x) => [x.field, x.message]))
 
 // Configuration goes live for every user at once, so each change is confirmed with a reason for the audit log.
-export function ReasonDialog({ open, onOpenChange, title, body, confirmLabel, onConfirm }) {
+export function ReasonDialog({ open, onOpenChange, title, body, reasonAction, confirmLabel, onConfirm }) {
   const [reason, setReason] = useState('')
   return (
     <ConfirmDialog
@@ -36,7 +37,7 @@ export function ReasonDialog({ open, onOpenChange, title, body, confirmLabel, on
       confirmDisabled={reason.trim().length < 5}
       onConfirm={() => onConfirm(reason)}
     >
-      <TextAreaField label="Alasan" required rows={2} value={reason} onChange={setReason} hint="Masuk ke audit log (minimal 5 karakter)." />
+      <TextAreaField label="Alasan" required rows={2} value={reason} onChange={setReason} hint={<ReasonHint action={reasonAction} />} />
     </ConfirmDialog>
   )
 }
@@ -71,7 +72,7 @@ function RemindersPanel({ data, onSaved }) {
       <Button className="w-fit" disabled={!dirty} onClick={review}>
         Simpan pengingat default
       </Button>
-      <ReasonDialog open={confirming} onOpenChange={setConfirming} title="Simpan pengingat default?" body="Berlaku untuk KPR yang diatur setelah ini." confirmLabel="Ya, simpan" onConfirm={save} />
+      <ReasonDialog open={confirming} onOpenChange={setConfirming} title="Simpan pengingat default?" body="Berlaku untuk KPR yang diatur setelah ini." reasonAction="config.reminders" confirmLabel="Ya, simpan" onConfirm={save} />
     </Panel>
   )
 }
@@ -122,7 +123,7 @@ function UploadPanel({ data, onSaved }) {
       <Button className="w-fit" disabled={!dirty} onClick={review}>
         Simpan batas unggah
       </Button>
-      <ReasonDialog open={confirming} onOpenChange={setConfirming} title="Simpan batas unggah?" body="Langsung berlaku untuk semua unggahan berikutnya." confirmLabel="Ya, simpan" onConfirm={save} />
+      <ReasonDialog open={confirming} onOpenChange={setConfirming} title="Simpan batas unggah?" body="Langsung berlaku untuk semua unggahan berikutnya." reasonAction="config.upload" confirmLabel="Ya, simpan" onConfirm={save} />
     </Panel>
   )
 }
@@ -164,7 +165,7 @@ function CoverLetterPanel({ data, onSaved }) {
       <Button className="w-fit" disabled={!dirty} onClick={() => setConfirming(true)}>
         Simpan default surat
       </Button>
-      <ReasonDialog open={confirming} onOpenChange={setConfirming} title="Simpan default surat pengantar?" body="Dipakai untuk surat yang dibuat setelah ini." confirmLabel="Ya, simpan" onConfirm={save} />
+      <ReasonDialog open={confirming} onOpenChange={setConfirming} title="Simpan default surat pengantar?" body="Dipakai untuk surat yang dibuat setelah ini." reasonAction="config.coverLetter" confirmLabel="Ya, simpan" onConfirm={save} />
     </Panel>
   )
 }
@@ -198,7 +199,7 @@ function SupportPanel({ data, onSaved }) {
       <Button className="w-fit" disabled={!dirty} onClick={() => setConfirming(true)}>
         Simpan kontak CS
       </Button>
-      <ReasonDialog open={confirming} onOpenChange={setConfirming} title="Simpan kontak CS?" body="Langsung dipakai di tombol Hubungi CS semua user." confirmLabel="Ya, simpan" onConfirm={save} />
+      <ReasonDialog open={confirming} onOpenChange={setConfirming} title="Simpan kontak CS?" body="Langsung dipakai di tombol Hubungi CS semua user." reasonAction="config.support" confirmLabel="Ya, simpan" onConfirm={save} />
     </Panel>
   )
 }
@@ -509,6 +510,7 @@ function HealthEditor({ data, setData }) {
         onOpenChange={(open) => !open && setConfirm(null)}
         title={confirm === 'publish' ? `Terbitkan versi ${next}?` : `Pulihkan v${confirm} sebagai versi ${next}?`}
         body="Skor KPR Health semua user langsung dihitung dengan formula ini."
+        reasonAction={confirm === 'publish' ? 'health.publish' : 'health.rollback'}
         confirmLabel={confirm === 'publish' ? 'Ya, terbitkan' : 'Ya, pulihkan'}
         onConfirm={confirm === 'publish' ? publish : rollback}
       />

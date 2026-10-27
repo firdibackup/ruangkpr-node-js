@@ -3,8 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeftIcon, CircleAlertIcon } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
-import { api, exitDemo, isDemo, isMock, startDemo } from "@/data/api";
-import { DEMO_PASSWORD } from "@/data/seed";
+import { api, demoEnabled, exitDemo, isDemo, isMock, startDemo, DEMO_PASSWORD } from "@/data/api";
 import { useCountdown, useForm } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Brand, PageHeader } from "@/components/layout/AppShell";
@@ -422,7 +421,7 @@ export function LoginPage() {
         </SubmitButton>
       </form>
       <SwitchLine question="Belum punya akun?" to="/register" label="Daftar" />
-      <DemoEntry />
+      {demoEnabled && <DemoEntry />}
     </AuthLayout>
   );
 }

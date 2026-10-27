@@ -18,7 +18,8 @@ const move = async (page, action, note, fill = async () => {}) => {
 test('admin reviews each document, sends the rejected one with its reason, and forwards to the bank once all are Sesuai', async ({ page }) => {
   await useScenario(page, 'admin_ops', '/admin')
   await openApplication(page, 'Rina Hartati')
-  await move(page, 'Mulai verifikasi dokumen', 'Dokumen awal lengkap')
+  // A submit is already in verification: no "start verifying" step, the documents can be reviewed at once.
+  await expect(page.getByRole('button', { name: 'Mulai verifikasi dokumen' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Teruskan ke bank' })).toBeDisabled()
   for (const doc of ['KTP', 'Slip Gaji / Bukti Penghasilan', 'Dokumen Properti']) {
     await page.getByRole('button', { name: `Sesuai ${doc}` }).click()
@@ -35,7 +36,7 @@ test('admin reviews each document, sends the rejected one with its reason, and f
   const docs = page.getByRole('list', { name: 'Status dokumen wajib' })
   await expect(docs.getByRole('listitem').filter({ hasText: 'Terverifikasi' })).toContainText('3')
   await expect(docs.getByRole('listitem').filter({ hasText: 'Perlu diperbarui' })).toContainText('1')
-  await expect(page.getByRole('list', { name: 'Tahapan pengajuan' }).getByRole('listitem').nth(1)).toHaveAttribute('aria-current', 'step')
+  await expect(page.getByRole('list', { name: 'Tahapan pengajuan' }).getByRole('listitem').nth(0)).toHaveAttribute('aria-current', 'step')
   await expect(page.getByRole('button', { name: 'Teruskan ke bank' })).toBeDisabled()
   await move(page, 'Kirim permintaan revisi ke user', 'NPWP buram', async (d) => {
     await expect(d.getByRole('list', { name: 'Dokumen yang ditolak' })).toContainText('NPWP — Buram / tidak terbaca: angka NPWP tidak terbaca')

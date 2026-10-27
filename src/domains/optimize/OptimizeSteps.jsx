@@ -23,7 +23,7 @@ import {
   UserRoundIcon,
   WalletIcon,
 } from "lucide-react";
-import { api, isDemo, isMock } from "@/data/api";
+import { api, showDemoControls } from "@/data/api";
 import { uploadHint } from "@/data/documentRules";
 import { calculateTopupScenario } from "@/calculations/finance";
 import { useForm } from "@/lib/hooks";
@@ -279,7 +279,7 @@ function FormLayout({ children, aside, onSubmit, cta, saving, onDemo }) {
       <div className="flex min-w-0 flex-col gap-5">
         {children}
         <div className="flex flex-wrap items-center justify-between gap-4">
-          {(import.meta.env.DEV || isDemo) && onDemo ? (
+          {showDemoControls && onDemo ? (
             <button
               type="button"
               onClick={onDemo}
@@ -401,7 +401,7 @@ function PersonalStep({ app, clock, setApp, next, fromReview }) {
       onSubmit={onSubmit}
       saving={saving}
       cta={fromReview ? "Simpan & kembali ke Review" : "Simpan & Lanjutkan"}
-      onDemo={demo}
+      onDemo={showDemoControls ? demo : undefined}
       aside={SAFE_ASIDE}
     >
       <UnsavedChangesGuard when={form.dirty && !saving} />
@@ -518,7 +518,7 @@ function EmploymentStep({ app, setApp, next, fromReview }) {
       onSubmit={onSubmit}
       saving={saving}
       cta={fromReview ? "Simpan & kembali ke Review" : "Simpan & Lanjutkan"}
-      onDemo={demo}
+      onDemo={showDemoControls ? demo : undefined}
       aside={SAFE_ASIDE}
     >
       <UnsavedChangesGuard when={form.dirty && !saving} />
@@ -583,21 +583,24 @@ function EmploymentStep({ app, setApp, next, fromReview }) {
       <Group
         icon={CreditCardIcon}
         title="Kewajiban lain per bulan"
-        desc="Isi 0 jika tidak ada."
+        desc="Boleh dikosongkan jika tidak ada, dihitung Rp0."
       >
         <FormGrid>
           <MoneyField
             label="Cicilan kendaraan"
+            optional
             placeholder="0"
             {...form.bind("vehicleDebt")}
           />
           <MoneyField
             label="Kartu kredit / paylater"
+            optional
             placeholder="0"
             {...form.bind("cardDebt")}
           />
           <MoneyField
             label="Pinjaman lain"
+            optional
             placeholder="0"
             {...form.bind("otherDebt")}
           />
@@ -691,7 +694,7 @@ function OldLoanStep({ app, banks, clock, setApp, next }) {
       onSubmit={onSubmit}
       saving={saving}
       cta="Simpan & Lanjutkan"
-      onDemo={demo}
+      onDemo={showDemoControls ? demo : undefined}
       aside={
         <Aside
           icon={InfoIcon}
@@ -911,7 +914,7 @@ function GoalStep({ app, setApp, navigate, fromReview }) {
       onSubmit={onSubmit}
       saving={saving}
       cta={fromReview ? "Simpan & kembali ke Review" : "Lihat Kondisi KPR"}
-      onDemo={demo}
+      onDemo={showDemoControls ? demo : undefined}
       aside={
         <Aside
           icon={ListOrderedIcon}
@@ -1199,7 +1202,7 @@ function PropertyStep({ app, clock, config, setApp, next }) {
       onSubmit={onSubmit}
       saving={saving}
       cta="Simpan & Lanjutkan"
-      onDemo={demo}
+      onDemo={showDemoControls ? demo : undefined}
       aside={aside}
     >
       <UnsavedChangesGuard when={form.dirty && !saving} />
@@ -1381,7 +1384,7 @@ function TakeoverDocsStep({ app, config, setApp, next, fromReview }) {
           Dokumen KPR lama dan properti diperlukan untuk Take Over, berbeda dari
           KPR baru. {uploadHint(config.upload)}. Setiap file tersimpan otomatis.
         </p>
-        {isMock && (import.meta.env.DEV || isDemo) && !complete && (
+        {showDemoControls && !complete && (
           <button
             type="button"
             onClick={uploadAll}

@@ -366,6 +366,7 @@ function BrandEditor({ data, onSaved }) {
         open={confirm === 'publish'}
         onOpenChange={(v) => !v && setConfirm(null)}
         title="Publish brand?"
+        reasonAction="brand.publish"
         body="Warna, font, radius, logo, dan favicon ini langsung dipakai semua pengunjung."
         confirmLabel="Ya, publish"
         onConfirm={publish}
@@ -374,6 +375,7 @@ function BrandEditor({ data, onSaved }) {
         open={confirm === 'reset'}
         onOpenChange={(v) => !v && setConfirm(null)}
         title="Kembalikan ke default?"
+        reasonAction="brand.reset"
         body="Draft dan brand yang tayang dihapus. Semua pengunjung kembali melihat logo, favicon, warna, dan tipografi bawaan Maxi."
         confirmLabel="Ya, kembalikan"
         onConfirm={reset}

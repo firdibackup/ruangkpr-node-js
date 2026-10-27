@@ -10,6 +10,7 @@ import { FormDialog } from '@/components/shared/dialogs'
 import { Chip, IconBox, Notice, Skeleton, Spinner } from '@/components/shared/ui'
 import { STATUS_LABEL } from '@/domains/applications/meta'
 import { ACTION_LABEL, FIELD_LABEL, at, fieldList, formatValue } from './labels'
+import { ReasonHint } from './ReasonHint'
 
 // Status words carry tone only where it means an outcome: rejected and disbursed; drafts stay quiet.
 const STATUS_TONE = { draft: 'mute', rejected: 'bad', disbursed: 'ok' }
@@ -299,7 +300,7 @@ export function ActivityFeed({ events, label, empty }) {
 
 // Edit, then confirm with a reason, inside one dialog (admin plan §4.2). `changed` lists the edited field keys;
 // `onSave(reason)` rejects with ApiError, which stays inline (a version conflict asks for a reload).
-export function EditDialog({ title, description, form, changed, onSave, onClose, onReload, children }) {
+export function EditDialog({ title, description, reasonAction, form, changed, onSave, onClose, onReload, children }) {
   const [step, setStep] = useState('edit')
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
@@ -341,7 +342,7 @@ export function EditDialog({ title, description, form, changed, onSave, onClose,
             <span className="text-xs font-bold text-muted-foreground">Yang berubah</span>
             <span className="text-sm font-semibold">{fieldList(changed)}</span>
           </div>
-          <TextAreaField label="Alasan perubahan" required rows={3} value={reason} onChange={setReason} error={error?.field === 'reason' ? error.message : undefined} hint="Contoh: koreksi sesuai KTP terbaru." />
+          <TextAreaField label="Alasan perubahan" required rows={3} value={reason} onChange={setReason} error={error?.field === 'reason' ? error.message : undefined} hint={<ReasonHint action={reasonAction} />} />
           {error && error.field !== 'reason' && (
             <Notice tone="bad" role="alert" action={conflict && onReload && <Button size="xs" onClick={onReload}>Muat ulang data</Button>}>
               {conflict ? 'Data ini sudah diubah sejak halaman dibuka. Muat ulang, lalu ulangi perubahan.' : error.message}

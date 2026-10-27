@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { BriefcaseIcon, FileTextIcon, HandCoinsIcon, HouseIcon, LandmarkIcon, PencilIcon, UserIcon } from 'lucide-react'
-import { api, isDemo, isMock } from '@/data/api'
+import { api, showDemoControls } from '@/data/api'
 import { uploadHint } from '@/data/documentRules'
 import { useResource } from '@/lib/hooks'
 import { dateLong, labelOf, percentBps, percentRatio, rupiah, tenorLabel, GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES } from '@/lib/format'
@@ -211,7 +211,7 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules }) {
         </span>
         <ProgressBar value={(done / Math.max(1, required.length)) * 100} label="Dokumen wajib terunggah" barClassName="bg-success-solid" />
         <p className="text-[13px] leading-5 text-muted-foreground">{uploadHint(uploadRules)} per file. File tersimpan otomatis begitu dipilih.</p>
-        {isMock && (import.meta.env.DEV || isDemo) && !complete && (
+        {showDemoControls && !complete && (
           <button type="button" onClick={fillDemo} disabled={demoPending} className="w-fit text-[13px] font-bold text-primary underline">
             {demoPending ? 'Mengisi…' : 'Isi contoh'}
           </button>

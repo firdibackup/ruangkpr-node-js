@@ -1,6 +1,6 @@
 // Rule-based bank-product matching and simulation (PRD §9.8, §15; doc 03 §13–14).
 // Pure: callers pass `asOf`. Used by the mock adapter (compare/simulation) and by sliders (realtime detail).
-import { CAPACITY_RATIO_BPS, OLD_BANK_POLICY, STALE_AFTER_DAYS } from '@/data/catalog'
+import { CAPACITY_RATIO_BPS, OLD_BANK_POLICY, STALE_AFTER_DAYS } from '@/data/lendingPolicy'
 import { addMonths, daysUntil, nextDueDate, parseIsoDate } from './dates'
 import {
   calculateAnnuityPayment,
