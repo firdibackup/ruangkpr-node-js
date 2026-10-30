@@ -7,7 +7,7 @@ import { LOGO_UPLOAD, acceptOf, uploadHint, uploadProblem } from '@/data/documen
 import { brand } from '@/brand/brand'
 import { BrandIdentity } from '@/brand/BrandIdentity'
 import { loadFonts, previewBrand, setPublishedBrand, useLiveBrand } from '@/brand/live'
-import { DEFAULT_SETTINGS, FONTS, HEX_HINT, STEPS, brandIssues, brandVars, isHex } from '@/brand/theme'
+import { DEFAULT_SETTINGS, FONTS, HEX_HINT, STEPS, brandIssues, brandVars, isHex, withDefaults } from '@/brand/theme'
 import { useResource } from '@/lib/hooks'
 import { dateLong, intInput, toInt } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -201,7 +201,7 @@ function Preview({ vars, logo }) {
 
 function BrandEditor({ data, onSaved }) {
   const navigate = useNavigate()
-  const base = data.draft ?? data.published ?? DEFAULT_SETTINGS
+  const base = useMemo(() => withDefaults(data.draft ?? data.published ?? DEFAULT_SETTINGS), [data])
   const [s, setS] = useState(() => pick(base))
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)

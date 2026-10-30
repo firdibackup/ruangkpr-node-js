@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, FILE_VARS, STEPS, brandIssues, brandVars, contrast, resolveVar, toHex, toOklch } from './theme'
+import { DEFAULT_SETTINGS, FILE_VARS, STEPS, brandIssues, brandVars, contrast, resolveVar, toHex, toOklch, withDefaults } from './theme'
 
 const settings = (colors, extra = {}) => ({ ...DEFAULT_SETTINGS, overrides: {}, colors, ...extra })
 
@@ -60,6 +60,14 @@ describe('theme engine', () => {
   it('reports the pairs an override breaks', () => {
     const issues = brandIssues(brandVars(settings(DEFAULT_SETTINGS.colors, { overrides: { 'secondary-700': '#7fe0d0' } })))
     expect(issues.map((i) => i.fg)).toContain('--link')
+  })
+
+  it('keeps the file scales for palettes a brand saved before they were editable', () => {
+    const { primary, secondary, accent } = DEFAULT_SETTINGS.colors
+    const old = settings({ primary, secondary, accent })
+    const vars = brandVars(old)
+    for (const p of ['neutral', 'success', 'warning', 'danger', 'info']) for (const s of STEPS) expect(vars[`--palette-${p}-${s}`]).toBe(resolveVar(`--palette-${p}-${s}`))
+    expect(withDefaults(old).colors).toEqual(DEFAULT_SETTINGS.colors)
   })
 
   it('reads every role from the file when no brand is published', () => {

@@ -117,6 +117,16 @@ export const DEFAULT_SETTINGS = {
   favicon: null,
 }
 
+// A brand saved before a palette became editable has no colour for it: that palette keeps the file's scale.
+export function withDefaults(settings) {
+  const missing = EDITABLE.filter((p) => !isHex(settings.colors?.[p]))
+  return {
+    ...settings,
+    colors: Object.fromEntries(EDITABLE.map((p) => [p, missing.includes(p) ? DEFAULT_SETTINGS.colors[p] : settings.colors[p]])),
+    overrides: { ...Object.fromEntries(missing.flatMap((p) => STEPS.map((s) => [`${p}-${s}`, DEFAULT_SETTINGS.overrides[`${p}-${s}`]]))), ...settings.overrides },
+  }
+}
+
 // ---------- fonts ----------
 
 // Google fonts with weights 400–800 (the UI uses 500–800) that read well in Indonesian and with rupiah figures.
@@ -131,7 +141,8 @@ const WHITE = '#ffffff'
 const overridesOf = (settings, palette) =>
   Object.fromEntries(STEPS.map((s) => [s, settings.overrides?.[`${palette}-${s}`]]).filter(([, v]) => isHex(v)))
 
-export function brandVars(settings) {
+export function brandVars(saved) {
+  const settings = withDefaults(saved)
   const palettes = {
     primary: scaleOf(settings.colors.primary, overridesOf(settings, 'primary')),
     secondary: scaleOf(settings.colors.secondary, overridesOf(settings, 'secondary')),
