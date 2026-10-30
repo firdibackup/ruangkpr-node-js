@@ -381,7 +381,7 @@ function MonitoringEntry() {
         asChild
         variant="inverse"
         size="md"
-        className="w-full focus-visible:ring-white/70 sm:w-auto"
+        className="w-full bg-card text-opp hover:bg-opp-mute focus-visible:ring-white/70 active:bg-opp-mute sm:w-auto"
       >
         <Link to="/monitoring/intro">
           Pantau KPR Saya

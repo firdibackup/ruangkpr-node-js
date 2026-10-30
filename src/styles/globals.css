@@ -63,6 +63,7 @@
   --color-info-border: var(--info-border);
   --color-info-solid: var(--info-solid);
   --color-opp: var(--opp);
+  --color-opp-dark: var(--opp-dark);
   --color-opp-mute: var(--opp-mute);
   --color-opp-mute-border: var(--opp-mute-border);
   /* Chart series and status indicator fills (bars, gauges, timeline marks); text uses the status tokens. */

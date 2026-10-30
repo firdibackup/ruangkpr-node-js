@@ -151,7 +151,7 @@ function OpportunityWidget({
   const has = opportunityPotential(opp);
   const card = (
     <section
-      className="grid h-full grid-cols-1 content-start gap-4 rounded-card border border-secondary-hover bg-secondary p-6 shadow-card @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] @2xl:gap-x-7"
+      className="grid h-full grid-cols-1 content-start gap-4 rounded-card border border-opp-mute-border bg-opp-mute p-6 shadow-card @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] @2xl:gap-x-7"
       aria-labelledby="opp-title"
     >
       <div className="flex flex-col gap-4">
@@ -159,7 +159,7 @@ function OpportunityWidget({
           icon={PiSparkleFill}
           size="lg"
           tone="solid"
-          className={STACKED_SHORT_HIDDEN}
+          className={cn("bg-opp", STACKED_SHORT_HIDDEN)}
         />
         <div className="flex flex-col gap-1.5">
           <h2
@@ -231,14 +231,14 @@ function OpportunityWidget({
         </div>
       ) : (
         // Seen only while arranging or in the gallery: Home drops the card while there is no potential.
-        <p className="rounded-xl border border-opp-mute-border bg-opp-mute px-4 py-3.5 text-sm leading-[21px] text-muted-foreground @2xl:row-span-2">
+        <p className="rounded-xl border border-opp-mute-border bg-card px-4 py-3.5 text-sm leading-[21px] text-muted-foreground @2xl:row-span-2">
           Belum ada potensi Take Over atau Refinancing saat ini. Kartu ini
           tampil di Home saat ada potensi.
         </p>
       )}
       <div className="flex flex-col gap-3 @2xl:self-end">
         <Button
-          className="w-full @md:w-fit"
+          className="w-full bg-opp hover:bg-opp-dark active:bg-opp-dark @md:w-fit"
           onClick={() => navigate("/explore")}
         >
           Eksplorasi Pilihan

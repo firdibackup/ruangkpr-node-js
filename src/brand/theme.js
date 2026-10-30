@@ -215,6 +215,9 @@ export const PAIRS = [
   ['--palette-white', '--hero-to', TEXT, 'Teks di hero'],
   ['--palette-white', '--hero-from', TEXT, 'Teks di hero'],
   ['--palette-white', '--opp-dark', TEXT, 'Teks di tile potensi'],
+  ['--muted-foreground', '--opp-mute', TEXT, 'Teks di kartu peluang'],
+  ['--opp', '--card', TEXT, 'Tombol di banner KPR'],
+  ['--opp', '--opp-mute', TEXT, 'Tombol di banner KPR (hover)'],
   ...STATUSES.flatMap((s) => [
     [`--${s}`, `--${s}-bg`, TEXT, 'Teks status'],
     [`--${s}`, '--card', TEXT, 'Teks status'],

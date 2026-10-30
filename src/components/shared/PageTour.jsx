@@ -19,7 +19,7 @@ const OPTIONS = {
   skipBeacon: true,
   dismissKeyAction: false, // Esc ends the whole tour (handled below), not just the step
   overlayClickAction: false,
-  overlayColor: 'color-mix(in srgb, var(--inverse) 60%, transparent)',
+  overlayColor: 'color-mix(in srgb, black 60%, transparent)', // neutral dim, not the brand tint
   spotlightPadding: 8,
   spotlightRadius: 20,
   scrollOffset: 120, // clears the sticky mobile header and the sticky "Atur Dashboard" toolbar
