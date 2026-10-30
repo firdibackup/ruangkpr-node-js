@@ -4,7 +4,7 @@
 import tokensCss from './tokens.css?raw'
 
 export const STEPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
-export const EDITABLE = ['primary', 'secondary', 'accent', 'neutral']
+export const EDITABLE = ['primary', 'secondary', 'accent', 'neutral', 'success', 'warning', 'danger', 'info']
 
 // ---------- colour math (sRGB hex ↔ OKLCH) ----------
 
@@ -70,18 +70,18 @@ const CHROMA = [0.09, 0.2, 0.36, 0.6, 0.86, 1, 0.97, 0.83, 0.68, 0.56, 0.39]
 const nearestStep = (L) => TARGET_L.reduce((best, t, i) => (Math.abs(t - L) < Math.abs(TARGET_L[best] - L) ? i : best), 0)
 
 // The chosen colour sits exactly on the step nearest its lightness (or on the step an override already gives it);
-// the other steps follow the target curve at its hue.
-function scaleOf(anchor, overrides) {
+// the other steps follow the target curve at its hue. `chromaAt` lets a palette desaturate that curve (text/grey).
+function scaleOf(anchor, overrides, chromaAt = (a, i, k) => (a.C * CHROMA[i]) / CHROMA[k]) {
   const a = toOklch(anchor)
   const given = STEPS.findIndex((s) => overrides[s]?.toLowerCase() === anchor.toLowerCase())
   const k = given >= 0 ? given : nearestStep(a.L)
-  const steps = STEPS.map((s, i) => overrides[s] ?? (i === k ? anchor.toLowerCase() : toHex({ L: TARGET_L[i], C: (a.C * CHROMA[i]) / CHROMA[k], H: a.H })))
+  const steps = STEPS.map((s, i) => overrides[s] ?? (i === k ? anchor.toLowerCase() : toHex({ L: TARGET_L[i], C: chromaAt(a, i, k), H: a.H })))
   steps[k] = anchor.toLowerCase()
   return { steps, anchor: k }
 }
 
-// Neutral greys carry a trace of the primary hue, as the guideline's soft sage does.
-const neutralOf = (primary, overrides) => STEPS.map((s, i) => overrides[s] ?? toHex({ L: TARGET_L[i], C: 0.022 * Math.min(1, CHROMA[i] * 2), H: toOklch(primary).H }))
+// The text/grey swatch: same curve as the others, desaturated so an odd pick still reads as grey off its own step.
+const neutralChroma = (a, i) => 0.022 * Math.min(1, CHROMA[i] * 2)
 
 // ---------- tokens.css ----------
 
@@ -100,7 +100,16 @@ const familyOf = (stack) => stack.match(/^"([^"]+)"/)?.[1]
 
 // The look the files ship with, as settings: what the admin page starts from and what "default" restores.
 export const DEFAULT_SETTINGS = {
-  colors: { primary: resolveVar('--primary'), secondary: resolveVar('--palette-secondary-500'), accent: resolveVar('--cta') },
+  colors: {
+    primary: resolveVar('--primary'),
+    secondary: resolveVar('--palette-secondary-500'),
+    accent: resolveVar('--cta'),
+    neutral: resolveVar('--palette-neutral-900'),
+    success: resolveVar('--palette-success-500'),
+    warning: resolveVar('--palette-warning-500'),
+    danger: resolveVar('--palette-danger-500'),
+    info: resolveVar('--palette-info-500'),
+  },
   overrides: Object.fromEntries(EDITABLE.flatMap((p) => STEPS.map((s) => [`${p}-${s}`, resolveVar(`--palette-${p}-${s}`)]))),
   fonts: { body: familyOf(resolveVar('--body-font')), heading: familyOf(resolveVar('--heading-font')) },
   cardRadius: parseInt(resolveVar('--card-radius'), 10),
@@ -127,8 +136,12 @@ export function brandVars(settings) {
     primary: scaleOf(settings.colors.primary, overridesOf(settings, 'primary')),
     secondary: scaleOf(settings.colors.secondary, overridesOf(settings, 'secondary')),
     accent: scaleOf(settings.colors.accent, overridesOf(settings, 'accent')),
+    neutral: scaleOf(settings.colors.neutral, overridesOf(settings, 'neutral'), neutralChroma),
+    success: scaleOf(settings.colors.success, overridesOf(settings, 'success')),
+    warning: scaleOf(settings.colors.warning, overridesOf(settings, 'warning')),
+    danger: scaleOf(settings.colors.danger, overridesOf(settings, 'danger')),
+    info: scaleOf(settings.colors.info, overridesOf(settings, 'info')),
   }
-  const neutral = neutralOf(settings.colors.primary, overridesOf(settings, 'neutral'))
   const P = palettes.primary.steps
   const A = palettes.accent.steps
   const at = (steps, i) => steps[Math.min(STEPS.length - 1, Math.max(0, i))]
@@ -151,7 +164,7 @@ export function brandVars(settings) {
   const ctaShade = (n) => (contrast(fg, at(A, c + n)) >= 4.5 ? at(A, c + n) : at(A, c - n))
 
   return {
-    ...Object.fromEntries(Object.entries({ ...Object.fromEntries(Object.entries(palettes).map(([k, v]) => [k, v.steps])), neutral }).flatMap(([name, steps]) => steps.map((hex, i) => [`--palette-${name}-${STEPS[i]}`, hex]))),
+    ...Object.fromEntries(Object.entries(palettes).flatMap(([name, { steps }]) => steps.map((hex, i) => [`--palette-${name}-${STEPS[i]}`, hex]))),
     '--primary': P[p],
     '--primary-hover': dark ? at(P, STEPS.indexOf(600)) : at(P, p + 1),
     '--primary-pressed': dark ? at(P, STEPS.length - 1) : at(P, p + 2),

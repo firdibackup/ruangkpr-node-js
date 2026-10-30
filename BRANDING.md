@@ -32,7 +32,7 @@ Ganti 88 hex di bagian **Primitive palettes** dengan palet dari desainer (Pencil
 | `primary` | Warna utama gelap: tombol utama, teks, hero |
 | `secondary` | Warna pendamping: link, tagline, tile "potensi hemat" |
 | `accent` | Warna terang untuk CTA di permukaan gelap, focus ring, chart |
-| `neutral` | Latar, border, teks sekunder |
+| `neutral` | Latar, border, teks (utama & sekunder) |
 | `success` / `danger` / `warning` / `info` | Status (selalu dengan ikon + teks) |
 
 Panduan step: 50–100 surface · 200–300 border halus · 400–500 aksen · 600–700 interaksi · 800–950 teks/permukaan gelap.
@@ -72,7 +72,7 @@ Ganti file dengan **nama yang sama**. Daftar file wajib ada di `BRAND_FILES` (`b
 | File | Ukuran sekarang | Dipakai di |
 |---|---|---|
 | `../maxi-logo-horizontal-color.svg` | horizontal, viewBox 1436×451 | Header dan pratinjau admin |
-| `../maxi-logo-horizontal-white.svg` | horizontal, viewBox 1436×451 | Referensi logo pada latar gelap di admin |
+| `../maxi-logo-horizontal-white.svg` | horizontal, viewBox 1436×451 | Bawaan logo putih (field "Logo putih" di admin), untuk materi berlatar gelap |
 | `logo.svg` | persegi, viewBox 451×451 | Simbol Maxi untuk kebutuhan ikon |
 | `favicon.svg` | persegi | Tab browser |
 | `cover-auth.webp` | 2752×1536 | Panel kiri halaman masuk/daftar (desktop) |
@@ -103,10 +103,11 @@ Lalu buka dan cek visual: `/login`, `/`, `/my-kpr`, `/my-kpr/application`, `/exp
 
 Super admin bisa mengubah warna, font, radius card, logo, dan favicon di **Admin → Brand** (`/admin/brand`). File di `src/brand/` dan `public/brand/` tetap menjadi **default**: dipakai selama belum ada brand yang dipublish, dan dipakai lagi setelah **Kembalikan ke default**.
 
-- **Warna:** pilih 3 warna dasar (utama, pendamping, aksen CTA). Skala 50–950 dibuat otomatis (OKLCH). Panel **Lanjutan** menerima 11 hex per palet dari desainer, persis seperti bagian 1 `tokens.css`. Kalau warna utama atau aksen terlalu terang untuk teks, editor memakai shade yang lebih gelap dan menyebutkannya di bawah field.
+- **Warna:** pilih 8 warna dasar — utama, pendamping, aksen CTA, teks (abu-abu di atas latar putih/terang), dan 4 warna status (sukses/peringatan/bahaya/info). Skala 50–950 dibuat otomatis (OKLCH); warna teks memakai kurva yang sama tapi didesaturasi, jadi tetap terlihat abu-abu walau swatch-nya dipilih terang/jenuh. Panel **Lanjutan** menerima 11 hex per palet dari desainer, persis seperti bagian 1 `tokens.css`. Kalau warna utama atau aksen terlalu terang untuk teks, editor memakai shade yang lebih gelap dan menyebutkannya di bawah field.
+- **Logo & favicon:** logo utama dan favicon seperti biasa, ditambah **Logo putih** (upload terpisah untuk materi berlatar gelap; belum dipasang ke komponen manapun di produk).
 - **Font:** daftar kurasi di `FONTS` (`src/brand/theme.js`). Menambah font cukup satu baris, asal font Google itu punya bobot 400–800.
 - **Alur:** Simpan draft → **Pratinjau di seluruh situs** (hanya admin itu, sampai halaman dimuat ulang) → **Publish** dengan alasan (tercatat di Audit Log). Publish ditolak selama ada pasangan warna di bawah WCAG AA.
-- **Yang tidak ikut:** nama brand, tagline, ilustrasi, warna status, dan template email Supabase (tetap dari file).
+- **Yang tidak ikut:** nama brand, tagline, ilustrasi, dan template email Supabase (tetap dari file).
 
 Cara kerjanya:
 - `main.jsx` membaca brand yang dipublish sebelum render pertama (timeout 1,5 detik), lalu `src/brand/live.js` memasang variabel CSS-nya inline di `<html>`.

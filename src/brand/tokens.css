@@ -124,7 +124,7 @@
 
   /* Surface & content */
   --background: var(--palette-neutral-50); /* bg/canvas */
-  --foreground: var(--palette-primary-900); /* text/primary */
+  --foreground: var(--palette-neutral-900); /* text/primary */
   --card: var(--palette-white); /* bg/surface */
   --card-foreground: var(--foreground);
   --popover: var(--palette-white);

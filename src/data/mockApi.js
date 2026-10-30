@@ -96,7 +96,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
         ...base.admin.brand,
         async saveDraft(input = {}) {
           const settings = { ...input.settings }
-          for (const key of ['logo', 'favicon']) if (settings[key] instanceof Blob) settings[key] = await demoFile(settings[key])
+          for (const key of ['logo', 'favicon', 'logoWhite']) if (settings[key] instanceof Blob) settings[key] = await demoFile(settings[key])
           return base.admin.brand.saveDraft({ ...input, settings })
         },
       },

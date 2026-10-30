@@ -41,7 +41,7 @@ async function saveBankLogo(values, previous, write) {
 }
 
 // Every file the draft and the published brand point at; the ones neither keeps after a write leave Storage.
-const brandFiles = (b) => [b.draft, b.published].flatMap((s) => [s?.logo?.path, s?.favicon?.path]).filter(Boolean)
+const brandFiles = (b) => [b.draft, b.published].flatMap((s) => [s?.logo?.path, s?.favicon?.path, s?.logoWhite?.path]).filter(Boolean)
 const dropUnused = (before, after) => removeFiles(BRAND_BUCKET, brandFiles(before).filter((p) => !brandFiles(after).includes(p)))
 
 export function createSupabaseApi() {
@@ -129,7 +129,7 @@ export function createSupabaseApi() {
         const files = { ...settings }
         const uploaded = []
         try {
-          for (const k of ['logo', 'favicon']) {
+          for (const k of ['logo', 'favicon', 'logoWhite']) {
             if (!(files[k] instanceof Blob)) continue
             const problem = uploadProblem(files[k], LOGO_UPLOAD)
             if (problem) throw new ApiError({ code: problem.code, message: problem.message }, { status: problem.status })

@@ -1058,7 +1058,7 @@ function configIssues(section, v) {
 // the files ship (src/brand/).
 const brandOf = (db) => ({ draft: db.brand?.draft ?? null, published: db.brand?.published ?? null })
 const OVERRIDE_KEYS = new Set(EDITABLE.flatMap((p) => STEPS.map((s) => `${p}-${s}`)))
-const BRAND_COLORS = ['primary', 'secondary', 'accent']
+const BRAND_COLORS = ['primary', 'secondary', 'accent', 'neutral', 'success', 'warning', 'danger', 'info']
 const brandFile = (f) => (f && typeof f.path === 'string' && typeof f.url === 'string' ? { path: f.path, url: f.url } : null)
 
 function brandInput(v = {}) {
@@ -1070,6 +1070,7 @@ function brandInput(v = {}) {
     cardRadius: v.cardRadius,
     logo: brandFile(v.logo),
     favicon: brandFile(v.favicon),
+    logoWhite: brandFile(v.logoWhite),
   }
 }
 function brandFieldIssues(v) {
@@ -1089,6 +1090,7 @@ const brandSummary = (s) =>
     cardRadius: `${s.cardRadius}px`,
     logo: s.logo?.path ?? null,
     favicon: s.favicon?.path ?? null,
+    logoWhite: s.logoWhite?.path ?? null,
   }
 
 // KPR Health versions are append-only: publishing adds a version, a rollback republishes an old one as a new

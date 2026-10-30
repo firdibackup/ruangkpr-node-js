@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DEFAULT_SETTINGS } from '@/brand/theme'
 import { mockControls } from '../mockApi'
 
 vi.mock('./client', () => ({ supabase: () => ({ storage: { from: (bucket) => ({ getPublicUrl: (path) => ({ data: { publicUrl: `https://sb.test/${bucket}/${path}` } }) }) } }) }))
@@ -45,5 +46,22 @@ describe('bank logos in Storage', () => {
     const pdf = new File(['%PDF'], 'logo.pdf', { type: 'application/pdf' })
     await expect(api.admin.banks.update(bank.id, { values: { logo: pdf }, reason: 'Logo baru', expectedVersion: bank.version })).rejects.toMatchObject({ code: 'FILE_TYPE_UNSUPPORTED' })
     expect(uploadFile).not.toHaveBeenCalled()
+  })
+})
+
+describe('brand assets in Storage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('uploads the logo, favicon, and white logo before the draft', async () => {
+    mockControls.reset('admin_ops')
+    const api = createSupabaseApi()
+    const settings = { ...DEFAULT_SETTINGS, overrides: {}, logo: png(), favicon: png(), logoWhite: png() }
+    const { draft } = await api.admin.brand.saveDraft({ settings, expectedVersion: 0 })
+    expect(uploadFile).toHaveBeenCalledTimes(3)
+    expect(uploadFile.mock.calls.every(([bucket]) => bucket === 'brand-assets')).toBe(true)
+    const [, logoPath] = uploadFile.mock.calls[0]
+    const [, logoWhitePath] = uploadFile.mock.calls[2]
+    expect(draft.logo).toEqual({ path: logoPath, url: `https://sb.test/brand-assets/${logoPath}` })
+    expect(draft.logoWhite).toEqual({ path: logoWhitePath, url: `https://sb.test/brand-assets/${logoWhitePath}` })
   })
 })

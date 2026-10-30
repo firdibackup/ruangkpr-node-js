@@ -7,7 +7,7 @@ import { LOGO_UPLOAD, acceptOf, uploadHint, uploadProblem } from '@/data/documen
 import { brand } from '@/brand/brand'
 import { BrandIdentity } from '@/brand/BrandIdentity'
 import { loadFonts, previewBrand, setPublishedBrand, useLiveBrand } from '@/brand/live'
-import { DEFAULT_SETTINGS, EDITABLE, FONTS, HEX_HINT, STEPS, brandIssues, brandVars, isHex } from '@/brand/theme'
+import { DEFAULT_SETTINGS, FONTS, HEX_HINT, STEPS, brandIssues, brandVars, isHex } from '@/brand/theme'
 import { useResource } from '@/lib/hooks'
 import { dateLong, intInput, toInt } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -20,11 +20,22 @@ const COLORS = [
   ['primary', 'Warna utama', 'Tombol utama, teks penting, hero. Dibuat cukup gelap agar teks putih terbaca.'],
   ['secondary', 'Warna pendamping', 'Link, tagline, tile potensi hemat.'],
   ['accent', 'Aksen CTA', 'Tombol CTA di permukaan gelap, fokus keyboard, chart.'],
+  ['neutral', 'Warna teks', 'Teks dan kontrol di atas latar putih/terang: judul, paragraf, border, placeholder.'],
 ]
-const PALETTE_LABEL = { primary: 'Utama', secondary: 'Pendamping', accent: 'Aksen', neutral: 'Netral' }
+const STATUS_COLORS = [
+  ['success', 'Sukses', 'Badge dan pesan berhasil.'],
+  ['warning', 'Peringatan', 'Badge dan pesan perlu perhatian.'],
+  ['danger', 'Bahaya', 'Badge, pesan gagal, dan validasi error.'],
+  ['info', 'Info', 'Badge dan pesan informasi.'],
+]
+const ALL_COLORS = [...COLORS, ...STATUS_COLORS]
+const BRAND_PALETTES = ['primary', 'secondary', 'accent', 'neutral']
+const STATUS_PALETTES = ['success', 'warning', 'danger', 'info']
+const PALETTE_LABEL = { primary: 'Utama', secondary: 'Pendamping', accent: 'Aksen', neutral: 'Netral', success: 'Sukses', warning: 'Peringatan', danger: 'Bahaya', info: 'Info' }
 const FILES = [
   ['logo', 'Logo utama', brand.logo, 'Logo lengkap dengan nama, horizontal ±3:1, latar transparan. Ditampilkan proporsional di header.'],
   ['favicon', 'Favicon', brand.favicon, 'Ikon persegi tanpa tulisan kecil, untuk tab browser.'],
+  ['logoWhite', 'Logo putih', brand.logoWhite, 'Logo versi putih, horizontal ±3:1, untuk materi berlatar gelap.'],
 ]
 const FONT_OPTIONS = FONTS.map((f) => ({ value: f, label: f }))
 
@@ -110,7 +121,11 @@ function FileRow({ k, label, fallback, hint, value, onChange }) {
   }
   return (
     <div className="flex flex-wrap items-center gap-4">
-      <img src={url} alt={`Pratinjau ${label.toLowerCase()}`} className={`${k === 'logo' ? 'h-16 w-40' : 'size-16'} shrink-0 rounded-xl bg-white object-contain p-2 ring-1 ring-border`} />
+      <img
+        src={url}
+        alt={`Pratinjau ${label.toLowerCase()}`}
+        className={`${k === 'favicon' ? 'size-16' : 'h-16 w-40'} ${k === 'logoWhite' ? 'bg-inverse' : 'bg-white'} shrink-0 rounded-xl object-contain p-2 ring-1 ring-border`}
+      />
       <div className="flex min-w-0 flex-1 basis-[200px] flex-col gap-1">
         <span className="text-sm font-semibold text-foreground">{label}</span>
         <span className="text-[13px] text-muted-foreground">
@@ -194,8 +209,8 @@ function BrandEditor({ data, onSaved }) {
   const dirty = comparable(pick(s)) !== comparable(pick(base))
 
   // Typing a colour passes through invalid hex; meanwhile the preview shows the saved colour in its place.
-  const valid = COLORS.every(([k]) => isHex(s.colors[k]))
-  const vars = useMemo(() => brandVars({ ...s, colors: Object.fromEntries(COLORS.map(([k]) => [k, isHex(s.colors[k]) ? s.colors[k] : base.colors[k]])) }), [s, base])
+  const valid = ALL_COLORS.every(([k]) => isHex(s.colors[k]))
+  const vars = useMemo(() => brandVars({ ...s, colors: Object.fromEntries(ALL_COLORS.map(([k]) => [k, isHex(s.colors[k]) ? s.colors[k] : base.colors[k]])) }), [s, base])
   const issues = useMemo(() => brandIssues(vars), [vars])
   useEffect(() => loadFonts([s.fonts.body, s.fonts.heading], 'brand-fonts-editor'), [s.fonts.body, s.fonts.heading])
   useEffect(() => () => loadFonts([], 'brand-fonts-editor'), [])
@@ -208,12 +223,12 @@ function BrandEditor({ data, onSaved }) {
   const used = { primary: vars['--primary'], accent: vars['--cta'] }
   const hintOf = (k, hint) => (valid && used[k] && used[k] !== s.colors[k] ? `${hint} Dipakai ${used[k]} agar teks tetap terbaca.` : hint)
 
-  // A new base colour drops the pasted shades of its palette (and of the greys, which follow the primary hue).
+  // A new base colour drops the pasted shades of its own palette.
   const setColor = (k, v) =>
     setS((x) => ({
       ...x,
       colors: { ...x.colors, [k]: v.toLowerCase() },
-      overrides: Object.fromEntries(Object.entries(x.overrides).filter(([key]) => !key.startsWith(`${k}-`) && !(k === 'primary' && key.startsWith('neutral-')))),
+      overrides: Object.fromEntries(Object.entries(x.overrides).filter(([key]) => !key.startsWith(`${k}-`))),
     }))
   const setShades = (p, list) =>
     setS((x) => ({
@@ -273,23 +288,44 @@ function BrandEditor({ data, onSaved }) {
     <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
       <div className="flex min-w-0 flex-col gap-6">
         <Panel>
-          <PanelTitle sub="Pilih tiga warna dasar; skala 50–950 dibuat otomatis dan peran UI dipetakan agar teks tetap terbaca.">Warna</PanelTitle>
+          <PanelTitle sub="Pilih warna utama, pendamping, aksen, dan teks; skala 50–950 dibuat otomatis dan peran UI dipetakan agar teks tetap terbaca.">Warna</PanelTitle>
           {COLORS.map(([k, label, hint]) => (
             <ColorField key={k} name={`colors.${k}`} label={label} hint={hintOf(k, hint)} value={s.colors[k]} fallback={base.colors[k]} onChange={(v) => setColor(k, v)} error={errors[`colors.${k}`] ?? (!isHex(s.colors[k]) ? HEX_HINT : null)} />
           ))}
           <div className="flex flex-col gap-3">
-            {EDITABLE.map((p) => (
+            {BRAND_PALETTES.map((p) => (
               <Scale key={p} label={PALETTE_LABEL[p]} colors={STEPS.map((step) => vars[`--palette-${p}-${step}`])} />
             ))}
           </div>
           <details className="group rounded-xl bg-muted px-4 py-3">
             <summary className="flex min-h-11 cursor-pointer items-center text-sm font-bold text-primary">Lanjutan: shade presisi dari desainer</summary>
             <div className="flex flex-col gap-4 pt-2">
-              <p className="text-[13px] text-muted-foreground">Shade yang ditempel menggantikan hasil otomatis. Mengubah warna dasar menghapus shade palet itu (warna utama juga menghapus shade Netral).</p>
-              {EDITABLE.map((p) => (
+              <p className="text-[13px] text-muted-foreground">Shade yang ditempel menggantikan hasil otomatis. Mengubah warna dasar menghapus shade palet itu.</p>
+              {BRAND_PALETTES.map((p) => (
                 <ShadesField key={`${p}-${paletteOf(s.overrides, p).join()}`} palette={p} overrides={s.overrides} onChange={setShades} />
               ))}
               {errors.overrides && <FieldError>{errors.overrides}</FieldError>}
+            </div>
+          </details>
+        </Panel>
+
+        <Panel>
+          <PanelTitle sub="Badge, pesan, dan border status. Dicek kontras sama seperti warna lain.">Warna status</PanelTitle>
+          {STATUS_COLORS.map(([k, label, hint]) => (
+            <ColorField key={k} name={`colors.${k}`} label={label} hint={hintOf(k, hint)} value={s.colors[k]} fallback={base.colors[k]} onChange={(v) => setColor(k, v)} error={errors[`colors.${k}`] ?? (!isHex(s.colors[k]) ? HEX_HINT : null)} />
+          ))}
+          <div className="flex flex-col gap-3">
+            {STATUS_PALETTES.map((p) => (
+              <Scale key={p} label={PALETTE_LABEL[p]} colors={STEPS.map((step) => vars[`--palette-${p}-${step}`])} />
+            ))}
+          </div>
+          <details className="group rounded-xl bg-muted px-4 py-3">
+            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-bold text-primary">Lanjutan: shade presisi dari desainer</summary>
+            <div className="flex flex-col gap-4 pt-2">
+              <p className="text-[13px] text-muted-foreground">Shade yang ditempel menggantikan hasil otomatis. Mengubah warna dasar menghapus shade palet itu.</p>
+              {STATUS_PALETTES.map((p) => (
+                <ShadesField key={`${p}-${paletteOf(s.overrides, p).join()}`} palette={p} overrides={s.overrides} onChange={setShades} />
+              ))}
             </div>
           </details>
         </Panel>
@@ -312,10 +348,6 @@ function BrandEditor({ data, onSaved }) {
           {FILES.map(([k, label, fallback, hint]) => (
             <FileRow key={k} k={k} label={label} fallback={fallback} hint={hint} value={s[k]} onChange={setFile} />
           ))}
-          <div className="flex flex-wrap items-center gap-4 rounded-xl bg-inverse p-4 text-inverse-foreground">
-            <img src={brand.logoWhite} alt={`${brand.name} versi putih`} width={1436} height={451} className="h-10 w-32 shrink-0 object-contain" />
-            <p className="min-w-0 flex-1 basis-[200px] text-[13px] leading-5">Logo putih bawaan Maxi untuk materi berlatar gelap. Logo ini menjadi referensi aset; header situs memakai logo utama di atas.</p>
-          </div>
         </Panel>
 
         <Panel>
