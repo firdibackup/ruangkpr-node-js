@@ -13,6 +13,7 @@ import { useRouteFocus } from '@/lib/hooks'
 import { brand } from '@/brand/brand'
 import { BrandIdentity } from '@/brand/BrandIdentity'
 import { logoOf, useLiveBrand } from '@/brand/live'
+import { LegalLinks } from '@/domains/legal/LegalPages'
 
 const NAV = [
   { to: '/', label: 'Home', icon: HouseIcon, match: (p) => p === '/' || p.startsWith('/monitoring') },
@@ -101,6 +102,7 @@ export function AppShell() {
               </Notice>
             )}
             <Outlet context={{ unread }} />
+            <LegalLinks />
           </div>
         </main>
       </div>

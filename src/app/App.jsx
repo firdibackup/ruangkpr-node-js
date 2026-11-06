@@ -39,6 +39,7 @@ import { BrandPage, BrandPreviewBar } from '@/domains/admin/BrandPage'
 import { useLiveBrand } from '@/brand/live'
 import { NotFoundPage } from './NotFoundPage'
 import { DevPanel } from '#demo-panel'
+import { LegalPage } from '@/domains/legal/LegalPages'
 
 // Where each session status belongs; a guard sends any session it does not serve to its home. `pending` waits for the
 // code that verifies a new account; `recovery` came in through a reset link and still has to set its new password.
@@ -67,6 +68,7 @@ function SessionGate({ allow }) {
 }
 
 const router = createBrowserRouter([
+  { path: '/legal/:doc', element: <LegalPage /> },
   { path: '/from-calculator', element: <CalculatorHandoffPage /> },
   {
     element: <SessionGate allow={SIGNED_OUT} />,

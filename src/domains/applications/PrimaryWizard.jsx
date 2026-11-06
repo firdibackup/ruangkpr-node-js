@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { BriefcaseIcon, FileTextIcon, HandCoinsIcon, HouseIcon, LandmarkIcon, PencilIcon, UserIcon } from 'lucide-react'
 import { api, showDemoControls } from '@/data/api'
 import { uploadHint } from '@/data/documentRules'
+import { PrivacyNotice } from '@/domains/legal/LegalPages'
 import { useResource } from '@/lib/hooks'
 import { dateLong, labelOf, percentBps, percentRatio, rupiah, tenorLabel, GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -179,6 +180,7 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules }) {
     <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex min-w-0 flex-col gap-6">
         <UnsavedChangesGuard when={uploading > 0} />
+        <PrivacyNotice documents />
         <Panel>
           <div className="flex flex-col gap-1">
             <h2 className="text-lg font-extrabold">Dokumen pengajuan</h2>

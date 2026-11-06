@@ -36,10 +36,8 @@ export function validateNewPassword(v) {
 export function validateWelcome(v) {
   const e = {}
   if (String(v.name ?? '').trim().length < 3) e.name = 'Nama minimal 3 huruf.'
-  // One checkbox covers both agreements, so both share its message.
-  const consent = 'Centang persetujuan Syarat & Ketentuan dan Kebijakan Privasi untuk lanjut.'
-  if (!v.acceptTerms) e.acceptTerms = consent
-  if (!v.acceptPrivacy) e.acceptPrivacy = consent
+  if (!v.acceptTerms) e.acceptTerms = 'Setujui Syarat & Ketentuan untuk lanjut.'
+  if (!v.acceptPrivacy) e.acceptPrivacy = 'Konfirmasi bahwa kamu telah membaca Kebijakan Privasi.'
   return e
 }
 

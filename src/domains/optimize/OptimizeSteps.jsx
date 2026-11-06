@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { api, showDemoControls } from "@/data/api";
 import { uploadHint } from "@/data/documentRules";
+import { PrivacyNotice } from "@/domains/legal/LegalPages";
 import { calculateTopupScenario } from "@/calculations/finance";
 import { useForm } from "@/lib/hooks";
 import {
@@ -1342,6 +1343,7 @@ function TakeoverDocsStep({ app, config, setApp, next, fromReview }) {
   return (
     <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
       <div className="flex min-w-0 flex-col gap-5">
+        <PrivacyNotice documents />
         {GROUPS.map(([key, title, Icon]) => {
           const docs = app.requiredDocuments.filter((d) => d.group === key);
           if (!docs.length) return null;
