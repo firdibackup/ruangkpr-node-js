@@ -9,8 +9,6 @@ import { must } from './errors'
 import { BRAND_BUCKET, DOCS_BUCKET, LOGOS_BUCKET, PROOFS_BUCKET, currentSession, filePath, ownsFolder, publicUrl, removeFiles, signedUrl, uploadFile } from './storage'
 import { createSupabaseStore } from './store'
 import { createArchiveApi } from './archives'
-import { requireDocumentConsent } from '../documentConsent'
-import { DOCUMENT_CONSENT, LEGAL_VERSION } from '@/domains/legal/content'
 
 const fileMeta = (file) => ({ name: file.name, size: file.size, type: file.type })
 
@@ -53,19 +51,12 @@ export function createSupabaseApi() {
     ...base.applications,
     // File to Storage first (the policy only lets it into a draft, or a document the bank asked again), then record it.
     // The file it replaces leaves Storage, unless it belongs to the application this one was copied from.
-    async uploadDocument(id, { documentType, file, documentConsent }, { onProgress } = {}) {
-      requireDocumentConsent(documentConsent)
+    async uploadDocument(id, { documentType, file }, { onProgress } = {}) {
       const problem = uploadProblem(file, await uploadRules())
       if (problem) throw new ApiError({ code: problem.code, message: problem.message }, { status: problem.status })
-      const current = await base.applications.get(id)
-      if (current.status !== 'draft' && current.documents[documentType]?.status !== 'needs_update') {
-        throw new ApiError({ code: 'INVALID_STATE_TRANSITION', message: 'Dokumen pada tahap ini tidak bisa diunggah.' }, { status: 400 })
-      }
-      const previous = current.documents[documentType]?.path
+      const previous = (await base.applications.get(id)).documents[documentType]?.path
       const session = await currentSession()
       const path = filePath([session.user.id, id, documentType], file)
-      // Record the exact notice before sending bytes; Storage checks this same path and owner.
-      await must(supabase().from('document_consents').insert({ user_id: session.user.id, application_id: id, file_path: path, version: LEGAL_VERSION, notice: DOCUMENT_CONSENT }))
       await uploadFile(DOCS_BUCKET, path, file, onProgress)
       let app
       try {

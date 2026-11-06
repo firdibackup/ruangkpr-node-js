@@ -53,7 +53,7 @@ describe('auth', () => {
     expect(await api.auth.getSession()).toMatchObject({ status: 'authenticated', role: 'user' })
     const snap = await api.dashboard.getSnapshot()
     expect(snap.user).toMatchObject({ name: 'Nadia Putri', contact: 'nadia@example.com', contactType: 'email' })
-    expect(snap.profile.consents.map((c) => [c.type, c.version])).toEqual([['terms', '2026-11-06'], ['privacy', '2026-11-06']])
+    expect(snap.profile.consents.map((c) => [c.type, c.version])).toEqual([['terms', '2026-09-01'], ['privacy', '2026-09-01']])
     expect(snap.applications).toHaveLength(0) // signing in never creates an application
     await api.auth.logout()
     await expectCode(api.auth.signInWithPassword({ email: 'nadia@example.com', password: DEMO_PASSWORD }), 'INVALID_CREDENTIALS')
@@ -372,8 +372,8 @@ describe('admin applications', () => {
       expect.objectContaining({ title: 'Dokumen perlu diunggah ulang', body: 'NPWP, Slip Gaji / Bukti Penghasilan perlu diperbarui.' }),
     ])
     const [app] = (await api.dashboard.getSnapshot()).applications
-    expect((await api.applications.uploadDocument(app.id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: 'npwp', file: file('npwp-baru.pdf', 200_000, 'application/pdf') })).status).toBe('additional_docs_requested')
-    const back = await api.applications.uploadDocument(app.id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: 'income_proof', file: file('slip-baru.pdf', 200_000, 'application/pdf') })
+    expect((await api.applications.uploadDocument(app.id, { documentType: 'npwp', file: file('npwp-baru.pdf', 200_000, 'application/pdf') })).status).toBe('additional_docs_requested')
+    const back = await api.applications.uploadDocument(app.id, { documentType: 'income_proof', file: file('slip-baru.pdf', 200_000, 'application/pdf') })
     expect(back.status).toBe('docs_verification')
     expect(back.documents.npwp).toMatchObject({ status: 'uploaded', invalidReason: null })
     expect((await api.activities.list())[0]).toMatchObject({ type: 'document_replaced', body: 'Menunggu verifikasi dari tim Maxi.' })
@@ -803,13 +803,10 @@ describe('primary application', () => {
     })
     expect(await api.bankProducts.affordability({ applicationId: app.id })).toMatchObject({ openCount: 3, capacity: { remainingCapacity: 3_750_000 } })
     await expectCode(api.applications.submit(app.id, { consents: { dataAccuracy: true, sendToBank: true } }), 'DOCUMENTS_INCOMPLETE')
-    await expectCode(api.applications.uploadDocument(app.id, { documentType: 'ktp', file: file('ktp.jpg') }), 'CONSENT_REQUIRED')
-    expect((await api.applications.get(app.id)).documents.ktp?.status).not.toBe('uploaded')
-    for (const t of ['ktp', 'npwp', 'income_proof', 'property_document']) await api.applications.uploadDocument(app.id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: t, file: file(`${t}.jpg`) })
-    expect((await api.applications.get(app.id)).documents.ktp.consent).toMatchObject({ accepted: true, version: '2026-11-06', acceptedAt: expect.any(String) })
+    for (const t of ['ktp', 'npwp', 'income_proof', 'property_document']) await api.applications.uploadDocument(app.id, { documentType: t, file: file(`${t}.jpg`) })
     // Upload rules are on, with the limits from admin configuration (default: JPG/PNG/PDF, 5MB).
-    await expectCode(api.applications.uploadDocument(app.id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: 'additional', file: file('a.heic') }), 'FILE_TYPE_UNSUPPORTED')
-    await expectCode(api.applications.uploadDocument(app.id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: 'additional', file: file('a.pdf', 6 * 1024 * 1024) }), 'FILE_TOO_LARGE')
+    await expectCode(api.applications.uploadDocument(app.id, { documentType: 'additional', file: file('a.heic') }), 'FILE_TYPE_UNSUPPORTED')
+    await expectCode(api.applications.uploadDocument(app.id, { documentType: 'additional', file: file('a.pdf', 6 * 1024 * 1024) }), 'FILE_TOO_LARGE')
     const compare = await api.bankProducts.compare({ applicationId: app.id })
     expect(JSON.stringify(compare)).not.toMatch(/secondary/i)
     const chosen = compare.items[0]
@@ -844,8 +841,8 @@ describe('primary application', () => {
     mockControls.reset('upload_failure')
     const { applications } = await api.dashboard.getSnapshot()
     const id = applications[0].id
-    await expectCode(api.applications.uploadDocument(id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: 'ktp', file: file('ktp.jpg') }), 'SERVICE_UNAVAILABLE')
-    const ok = await api.applications.uploadDocument(id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: 'ktp', file: file('ktp.jpg') })
+    await expectCode(api.applications.uploadDocument(id, { documentType: 'ktp', file: file('ktp.jpg') }), 'SERVICE_UNAVAILABLE')
+    const ok = await api.applications.uploadDocument(id, { documentType: 'ktp', file: file('ktp.jpg') })
     expect(ok.documents.ktp.status).toBe('uploaded')
     expect(ok.data.loan.amount).toBe(400_000_000)
   })
@@ -1190,7 +1187,7 @@ describe('take over simulation', () => {
       return api.simulations.apply({ bankProductId: sim.items[0].productId, tenorMonths: 180 })
     }
     let app = await applyFirst()
-    for (const d of app.requiredDocuments.filter((x) => x.required)) await api.applications.uploadDocument(app.id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: d.type, file: file(`${d.type}.jpg`) })
+    for (const d of app.requiredDocuments.filter((x) => x.required)) await api.applications.uploadDocument(app.id, { documentType: d.type, file: file(`${d.type}.jpg`) })
     const consents = { dataAccuracy: true, sendToBank: true }
     app = await api.applications.saveStep(app.id, { step: 1, values: { employment: { companyName: '' } } })
     await expectCode(api.applications.submit(app.id, { consents }), 'VALIDATION_FAILED') // Pekerjaan no longer passes its form
@@ -1211,7 +1208,7 @@ describe('take over simulation', () => {
     const finance = { vehicleDebt: 1_000_000, cardDebt: 0, otherDebt: 0 }
     app = await api.applications.saveStep(app.id, { step: 1, values: { employment: { monthlyIncome: 15_000_000 } } })
     app = await api.applications.saveStep(app.id, { step: 2, values: { oldLoan, property, finance } })
-    await api.applications.uploadDocument(app.id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: 'certificate', file: file('shm.pdf', 200_000, 'application/pdf') })
+    await api.applications.uploadDocument(app.id, { documentType: 'certificate', file: file('shm.pdf', 200_000, 'application/pdf') })
     await api.applications.cancel(app.id)
 
     const next = await api.applications.create({ productType: 'takeover', mode: 'takeover' })
@@ -1225,7 +1222,7 @@ describe('take over simulation', () => {
     let app = await api.applications.create({ productType: 'primary' })
     const property = { purchaseType: 'new_from_developer', developerName: 'PT Griya', price: 900_000_000 }
     app = await api.applications.saveStep(app.id, { step: 3, values: { property, loan: { downPayment: 180_000_000 } } })
-    for (const t of ['ktp', 'property_document']) await api.applications.uploadDocument(app.id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: t, file: file(`${t}.pdf`, 200_000, 'application/pdf') })
+    for (const t of ['ktp', 'property_document']) await api.applications.uploadDocument(app.id, { documentType: t, file: file(`${t}.pdf`, 200_000, 'application/pdf') })
     await api.applications.cancel(app.id)
 
     const takeover = await api.applications.create({ productType: 'takeover', mode: 'takeover' })
@@ -1419,7 +1416,7 @@ describe('admin configuration', () => {
     await asFirdi()
     const { applications, config: live } = await api.dashboard.getSnapshot()
     expect(live.upload).toEqual({ maxFileMb: 2, formats: ['jpg', 'png'] })
-    const upload = (f) => api.applications.uploadDocument(applications[0].id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: 'income_proof', file: f })
+    const upload = (f) => api.applications.uploadDocument(applications[0].id, { documentType: 'income_proof', file: f })
     await expect(upload(file('slip.jpg', 3 * 1024 * 1024))).rejects.toMatchObject({ code: 'FILE_TOO_LARGE', message: 'Ukuran file lebih dari 2MB. Kompres dulu, lalu coba lagi.' })
     await expect(upload(file('slip.pdf', 100_000, 'application/pdf'))).rejects.toMatchObject({ code: 'FILE_TYPE_UNSUPPORTED', message: 'Format tidak didukung. Gunakan JPG atau PNG.' })
     expect((await upload(file('slip.png', 1024 * 1024, 'image/png'))).status).toBe('docs_verification')
@@ -1588,7 +1585,7 @@ describe('admin hardening', () => {
     }
     mockControls.reset('application_additional_docs')
     const id = (await api.dashboard.getSnapshot()).applications[0].id
-    const upload = (name) => api.applications.uploadDocument(id, { documentConsent: { accepted: true, version: '2026-11-06' }, documentType: 'income_proof', file: file(name) })
+    const upload = (name) => api.applications.uploadDocument(id, { documentType: 'income_proof', file: file(name) })
     await expectCode(upload('slip.jpg.exe'), 'FILE_TYPE_UNSUPPORTED')
     await expectCode(upload('slip'), 'FILE_TYPE_UNSUPPORTED')
     expect((await upload('SLIP.JPG')).status).toBe('docs_verification')

@@ -9,8 +9,6 @@ import { ARTICLES } from './articles'
 import { BANK_PRODUCTS } from './catalog'
 import { DEFAULT_UPLOAD, LOGO_UPLOAD, uploadProblem } from './documentRules'
 import { TOURS } from './tours'
-import { requireDocumentConsent } from './documentConsent'
-import { DOCUMENT_CONSENT } from '@/domains/legal/content'
 
 export { recordDocument } from './applicationApi'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -67,8 +65,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
     auth: createMockAuth(call, store),
     applications: {
       ...base.applications,
-      async uploadDocument(id, { documentType, file, documentConsent }, { onProgress } = {}) {
-        requireDocumentConsent(documentConsent)
+      async uploadDocument(id, { documentType, file }, { onProgress } = {}) {
         const seq = ++callSeq
         if (latencyMs) await sleep(latencyMs / 2)
         const problem = uploadProblem(file, (await store.load({ admin: false })).config?.upload ?? DEFAULT_UPLOAD)
@@ -86,7 +83,7 @@ export function createMockApi({ latencyMs = 300, store = localStore } = {}) {
           await store.save(db)
           fail('SERVICE_UNAVAILABLE', 'Upload gagal. Periksa koneksi lalu coba lagi.', 503, { retryable: true })
         }
-        recordDocument(db, app, documentType, file, { consent: { ...documentConsent, notice: DOCUMENT_CONSENT, acceptedAt: new Date().toISOString() } })
+        recordDocument(db, app, documentType, file)
         await store.save(db)
         onProgress?.(100)
         return structuredClone(decorate(app))

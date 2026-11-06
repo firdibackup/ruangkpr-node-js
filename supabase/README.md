@@ -186,10 +186,3 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_…
 ```
 
 Secret key (`sb_secret_…`) **tidak pernah** diberi prefix `VITE_` dan tidak pernah dipakai kode `src/`.
-# Legal consent release (2026-11-06)
-
-Deploy migration `20261106080358_legal_document_consent.sql` and the matching frontend as one maintenance release. Pause document uploads/submissions, apply and verify the migration, publish the frontend, then require clients to reload before reopening uploads. An old frontend cannot satisfy the new Storage policy; the new frontend requires the new table. Roll back both together if the release fails.
-
-Existing and carried-over documents are not backfilled with invented upload consent. The explicit submission consent covers all data/documents in the reviewed application and chosen bank/program. Upload evidence survives draft cancellation; account closure copies it into the same restricted archive as the retained files. Failed uploads may leave consent evidence without an object; this records permission, not proof of successful upload.
-
-Run the pgTAP suite against a local/staging Supabase stack before release. A standalone PostgreSQL shim checks SQL logic but does not validate the actual Storage, PostgREST, or Auth services.

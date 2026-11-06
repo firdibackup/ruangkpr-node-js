@@ -1,7 +1,6 @@
 import { brand } from '@/brand/brand'
 
 export const LEGAL_VERSION = '2026-11-06'
-export const DOCUMENT_CONSENT = 'Saya menyetujui pemrosesan dokumen untuk verifikasi identitas dan pengajuan yang saya pilih, termasuk penyimpanan arsip setelah proses selesai sebagaimana dijelaskan dalam Kebijakan Privasi. Saya berwenang menyerahkan dokumen ini.'
 export const RETENTION_NOTICE = 'Dokumen digunakan hingga akad atau pengajuan selesai, lalu tetap tersimpan sebagai arsip. Selesainya pengajuan tidak berarti dokumen otomatis dihapus.'
 
 export const legalDocuments = {

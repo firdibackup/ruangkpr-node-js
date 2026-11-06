@@ -16,7 +16,6 @@ import { filledOnly, validateReminders } from '@/domains/mortgages/validation'
 import { dateLong, markOf, maskNik } from '@/lib/format'
 import { ApiError } from './apiError'
 import { DEFAULT_UPLOAD, DOC_LABELS, DOC_REJECT_REASONS, UPLOAD_FORMATS, rejectMessage, requiredDocuments, uploadProblem } from './documentRules'
-import { LEGAL_VERSION } from '@/domains/legal/content'
 import { DEFAULT_SUPPORT, supportInput, supportIssues } from './support'
 import { DEFAULT_REMINDERS } from './defaults'
 import { healthPreviewCases } from './healthPreviewCases'
@@ -1334,7 +1333,7 @@ export function createApplicationApi({ store, call = createOperation(store) }) {
         // Straight into the team's document check; the history still records the submit itself.
         app.status = 'docs_verification'
         app.submittedAt = nowIso(db)
-        app.consents = { dataAccuracy: true, sendToBank: true, acceptedAt: app.submittedAt, version: LEGAL_VERSION, bankProductId: app.selection.bankProductId, bankName: app.selection.bankName, productName: app.selection.productName }
+        app.consents = { ...consents, acceptedAt: app.submittedAt, version: '2026-09-01' }
         app.statusHistory = [{ status: 'submitted', at: app.submittedAt }, { status: 'docs_verification', at: app.submittedAt }]
         app.snapshot = { data: structuredClone(app.data), selection: structuredClone(app.selection), productVersion: product.version, calculationVersion: 'calc-1.0.0', capturedAt: app.submittedAt }
         app.lastRejection = null
@@ -1450,7 +1449,6 @@ export function createApplicationApi({ store, call = createOperation(store) }) {
         m.status = 'active'
         m.setupStep = 2
         m.activatedAt = nowIso(db)
-        m.dataConfirmation = { accepted: true, acceptedAt: m.activatedAt, version: LEGAL_VERSION, purpose: 'mortgage_monitoring' }
         touch(db, m)
         const due = nextUnpaidDue(m, db.clock) // the first installment, never the akad day
         const channels = ['inApp', 'email'].filter((c) => m.reminders.channels[c]).length

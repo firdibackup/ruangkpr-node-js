@@ -2,7 +2,7 @@ export const isPhone = (v) => /^(\+62|62|0)8\d{7,12}$/.test(String(v ?? '').repl
 export const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v ?? '').trim())
 
 // Version of the S&K + Kebijakan Privasi text the user agrees to; raising it asks everyone again (spec §3.1).
-export { LEGAL_VERSION as CONSENT_VERSION } from '@/domains/legal/content'
+export const CONSENT_VERSION = '2026-09-01'
 export const CONSENT_TYPES = ['terms', 'privacy']
 
 // Same rule as the auth server (GOTRUE_PASSWORD_MIN_LENGTH, GOTRUE_PASSWORD_REQUIRED_CHARACTERS); 72 is bcrypt's limit.

@@ -13,7 +13,7 @@ test('register → email code → Home with the consent on record; the new passw
   await expect(page).toHaveURL(HOME)
 
   await page.goto('/profile')
-  await expect(page.getByText(/Syarat & Ketentuan v2026-11-06/)).toBeVisible()
+  await expect(page.getByText(/Syarat & Ketentuan v2026-09-01/)).toBeVisible()
   await page.getByRole('button', { name: 'Keluar' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Keluar' }).click()
   await expect(page).toHaveURL(/\/login$/)

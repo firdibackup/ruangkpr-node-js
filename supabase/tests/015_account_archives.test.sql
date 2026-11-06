@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(16);
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-4000-8000-000000000e01', 'archive-user@test.local', '{"full_name":"Arsip User"}'),
   ('00000000-0000-4000-8000-000000000e02', 'archive-admin@test.local', '{}'),
@@ -12,8 +12,6 @@ insert into public.user_roles (user_id, role) values
   ('00000000-0000-4000-8000-000000000e04', 'super_admin');
 insert into public.applications (id, user_id, doc) values ('archive_app', '00000000-0000-4000-8000-000000000e01', '{"id":"archive_app","status":"docs_verification","productType":"primary"}');
 insert into storage.objects (bucket_id, name, owner, owner_id) values ('application-documents', '00000000-0000-4000-8000-000000000e01/archive_app/ktp/archive.pdf', '00000000-0000-4000-8000-000000000e01', '00000000-0000-4000-8000-000000000e01');
-insert into public.document_consents (file_path, application_id, user_id, version, notice) values
- ('00000000-0000-4000-8000-000000000e01/archive_app/ktp/archive.pdf', 'archive_app', '00000000-0000-4000-8000-000000000e01', '2026-11-06', 'Saya menyetujui pemrosesan dokumen untuk verifikasi identitas dan pengajuan yang saya pilih, termasuk penyimpanan arsip setelah proses selesai sebagaimana dijelaskan dalam Kebijakan Privasi. Saya berwenang menyerahkan dokumen ini.');
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-000000000e01","role":"authenticated"}', true);
 select throws_ok($$select public.delete_my_account()$$, 'P0001', 'Masih ada pengajuan yang sedang diproses bank. Batalkan atau tunggu sampai selesai sebelum menghapus akun.', 'in-process application blocks closure');
@@ -29,7 +27,6 @@ reset role;
 select is((select count(*)::int from auth.users where id = '00000000-0000-4000-8000-000000000e01'), 0, 'login is removed');
 select is((select count(*)::int from public.applications where id = 'archive_app'), 0, 'active application is removed');
 select is((select snapshot #>> '{applications,0,id}' from private.account_archives where original_user_id = '00000000-0000-4000-8000-000000000e01'), 'archive_app', 'application snapshot survives');
-select is((select snapshot #>> '{documentConsents,0,file_path}' from private.account_archives where original_user_id = '00000000-0000-4000-8000-000000000e01'), '00000000-0000-4000-8000-000000000e01/archive_app/ktp/archive.pdf', 'document consent survives account closure alongside the retained file');
 select is((select count(*)::int from storage.objects where name like '00000000-0000-4000-8000-000000000e01/%' and owner_id is null and owner is null), 1, 'file survives without old auth ownership');
 select set_config('test.archive_id', (select id::text from private.account_archives where original_user_id = '00000000-0000-4000-8000-000000000e01'), true);
 insert into auth.users (id, email, raw_user_meta_data) values ('00000000-0000-4000-8000-000000000e05', 'archive-user@test.local', '{}');

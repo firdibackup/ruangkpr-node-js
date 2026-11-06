@@ -86,7 +86,7 @@ describe('supabase authApi', () => {
     await authApi.verifySignup({ token: '148260' })
     expect(called('verify')[1][1]).toEqual({ email: 'nadia@example.com', token: '148260', type: 'email' })
     expect(called('updateUser')).toEqual([['updateUser', { password: 'rumah2026' }]])
-    expect(called('rpc')[0]).toEqual(['rpc', 'accept_consents', { p_name: 'Nadia Putri', p_terms: true, p_privacy: true, p_version: '2026-11-06' }])
+    expect(called('rpc')[0]).toEqual(['rpc', 'accept_consents', { p_name: 'Nadia Putri', p_terms: true, p_privacy: true, p_version: '2026-09-01' }])
     expect((await authApi.getSession()).status).toBe('onboarding') // the fake keeps no consent rows
   })
 
@@ -179,7 +179,7 @@ describe('supabase authApi', () => {
     await expect(authApi.acceptConsents({ name: 'Na', acceptTerms: true, acceptPrivacy: true })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' })
     expect(state.calls).toHaveLength(0)
     await authApi.acceptConsents({ name: ' Nadia Putri ', acceptTerms: true, acceptPrivacy: true })
-    expect(state.calls[0]).toEqual(['rpc', 'accept_consents', { p_name: 'Nadia Putri', p_terms: true, p_privacy: true, p_version: '2026-11-06' }])
+    expect(state.calls[0]).toEqual(['rpc', 'accept_consents', { p_name: 'Nadia Putri', p_terms: true, p_privacy: true, p_version: '2026-09-01' }])
   })
 
   it('deleteAccount refuses while an application is at the bank, before touching any file', async () => {
