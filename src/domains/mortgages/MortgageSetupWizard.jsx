@@ -414,7 +414,7 @@ function ReminderStep({ m, clock, reminderDefaults, navigate }) {
           ))}
         </div>
       </Section>
-      <CheckboxField label="Data yang saya masukkan benar" checked={agree} onChange={setAgree} error={tried && !agree ? 'Centang konfirmasi data dulu.' : undefined} />
+      <CheckboxField label="Data yang saya masukkan benar sesuai pengetahuan saya dan digunakan untuk analisis serta pemantauan KPR." checked={agree} onChange={setAgree} error={tried && !agree ? 'Centang konfirmasi data dulu.' : undefined} />
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <CheckIcon className="size-3.5 text-success" aria-hidden />
         Aktivasi tidak membuat pengajuan ke bank.

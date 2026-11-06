@@ -102,6 +102,9 @@ test('primary: register (name, password, consent) → email code → 7 steps →
   const inputs = page.locator('input[type=file]')
   for (let i = 0; i < 4; i++) {
     await inputs.nth(i).setInputFiles(pdf(`doc-${i}.pdf`))
+    await page.getByRole('alertdialog').getByRole('checkbox').check()
+    await page.getByRole('button', { name: 'Setuju & unggah' }).click()
+    await expect(page.getByRole('alertdialog')).toHaveCount(0)
     await expect(page.getByText('✓ Terunggah')).toHaveCount(i + 1)
   }
   await page.reload() // resume: files and step persist
@@ -113,8 +116,8 @@ test('primary: register (name, password, consent) → email code → 7 steps →
   const submit = page.getByRole('button', { name: 'Submit Pengajuan' })
   await submit.click({ force: true }) // consents missing → stays
   await expect(page).toHaveURL(/apply\/primary\/7/)
-  await page.getByRole('checkbox', { name: /Data yang saya berikan benar/ }).check()
-  await page.getByRole('checkbox', { name: /Saya setuju data saya dikirim/ }).check()
+  await page.getByRole('checkbox', { name: /Data dan dokumen yang saya berikan benar/ }).check()
+  await page.getByRole('checkbox', { name: /Saya setuju data dan dokumen dikirim/ }).check()
   await submit.click()
 
   await expect(page.getByRole('heading', { name: 'Pengajuan berhasil dikirim' })).toBeVisible()
@@ -150,6 +153,8 @@ test('cancel dialog does not delete before confirm; additional document can be r
   await expect(page.getByRole('heading', { name: /Pengajuan KPR Primary/ })).toBeVisible()
 
   await page.locator('input[type=file]').nth(2).setInputFiles(pdf('slip-gaji-terbaru.pdf'))
+  await page.getByRole('alertdialog').getByRole('checkbox').check()
+  await page.getByRole('button', { name: 'Setuju & unggah' }).click()
   await expect(page.getByText('Status: Verifikasi Dokumen')).toBeVisible()
   await expect(page.getByText('Permintaan tim Maxi')).toHaveCount(0)
 })

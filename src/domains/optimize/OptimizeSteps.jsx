@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { api, showDemoControls } from "@/data/api";
 import { uploadHint } from "@/data/documentRules";
+import { LEGAL_VERSION } from "@/domains/legal/content";
 import { calculateTopupScenario } from "@/calculations/finance";
 import { useForm } from "@/lib/hooks";
 import {
@@ -1308,11 +1309,11 @@ function TakeoverDocsStep({ app, config, setApp, next, fromReview }) {
     ["uploaded", "verified"].includes(app.documents[d.type]?.status),
   ).length;
   const complete = done === required.length;
-  const upload = (type) => async (file, onProgress) =>
+  const upload = (type) => async (file, onProgress, documentConsent) =>
     setApp(
       await api.applications.uploadDocument(
         app.id,
-        { documentType: type, file },
+        { documentType: type, file, documentConsent },
         { onProgress },
       ),
     );
@@ -1325,6 +1326,7 @@ function TakeoverDocsStep({ app, config, setApp, next, fromReview }) {
           continue;
         latest = await api.applications.uploadDocument(app.id, {
           documentType: d.type,
+          documentConsent: { accepted: true, version: LEGAL_VERSION },
           file: {
             name: `${d.type.replaceAll("_", "-")}.pdf`,
             size: 380_000,
@@ -1353,6 +1355,7 @@ function TakeoverDocsStep({ app, config, setApp, next, fromReview }) {
               </span>
               {docs.map((d) => (
                 <UploadRow
+                  requireConsent
                   key={d.type}
                   doc={d}
                   state={app.documents[d.type]}
@@ -1564,12 +1567,12 @@ function TakeoverReview({ app, navigate }) {
       <aside className="flex flex-col gap-4 rounded-card bg-card p-6 shadow-card lg:sticky lg:top-6">
         <h2 className="text-base font-extrabold">Persetujuan</h2>
         <CheckboxField
-          label="Data yang saya berikan benar dan dapat dipertanggungjawabkan."
+          label="Data dan dokumen yang saya berikan benar, terkini, dan saya berwenang menyerahkannya."
           checked={cons.dataAccuracy}
           onChange={(x) => setCons((c) => ({ ...c, dataAccuracy: x }))}
         />
         <CheckboxField
-          label={`Saya setuju data dikirim ke ${s?.bankName ?? "bank terpilih"} untuk pengajuan ini.`}
+          label={`Saya setuju data dan dokumen dikirim ke ${s?.bankName ?? "bank terpilih"} untuk program ${s?.productName ?? "yang dipilih"} pada pengajuan ini.`}
           checked={cons.sendToBank}
           onChange={(x) => setCons((c) => ({ ...c, sendToBank: x }))}
         />

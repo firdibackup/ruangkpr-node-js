@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { BriefcaseIcon, FileTextIcon, HandCoinsIcon, HouseIcon, LandmarkIcon, PencilIcon, UserIcon } from 'lucide-react'
 import { api, showDemoControls } from '@/data/api'
 import { uploadHint } from '@/data/documentRules'
+import { LEGAL_VERSION } from '@/domains/legal/content'
 import { useResource } from '@/lib/hooks'
 import { dateLong, labelOf, percentBps, percentRatio, rupiah, tenorLabel, GENDERS, MARITAL, OCCUPATIONS, PROPERTY_TYPES } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -137,10 +138,10 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules }) {
   const done = required.filter((d) => ['uploaded', 'verified'].includes(app.documents[d.type]?.status)).length
   const complete = done === required.length
 
-  const upload = (type) => async (file, onProgress) => {
+  const upload = (type) => async (file, onProgress, documentConsent) => {
     setUploading((n) => n + 1)
     try {
-      const next = await api.applications.uploadDocument(app.id, { documentType: type, file }, { onProgress })
+      const next = await api.applications.uploadDocument(app.id, { documentType: type, file, documentConsent }, { onProgress })
       onChange(next)
     } finally {
       setUploading((n) => n - 1)
@@ -152,7 +153,7 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules }) {
       let latest = app
       for (const d of required) {
         if (['uploaded', 'verified'].includes(latest.documents[d.type]?.status)) continue
-        latest = await api.applications.uploadDocument(app.id, { documentType: d.type, file: { name: `${d.type.replaceAll('_', '-')}-contoh.pdf`, size: 420_000, type: 'application/pdf' } })
+        latest = await api.applications.uploadDocument(app.id, { documentType: d.type, documentConsent: { accepted: true, version: LEGAL_VERSION }, file: { name: `${d.type.replaceAll('_', '-')}-contoh.pdf`, size: 420_000, type: 'application/pdf' } })
       }
       onChange(latest)
     } catch (e) {
@@ -186,7 +187,7 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules }) {
           </div>
           <div className="flex flex-col gap-3">
             {docs.map((d) => (
-              <UploadRow key={d.type} doc={d} state={app.documents[d.type]} onUpload={upload(d.type)} rules={uploadRules} />
+              <UploadRow requireConsent key={d.type} doc={d} state={app.documents[d.type]} onUpload={upload(d.type)} rules={uploadRules} />
             ))}
           </div>
         </Panel>
@@ -210,7 +211,7 @@ export function DocumentsStep({ app, onChange, fromReview, go, uploadRules }) {
           {done} <span className="text-base text-muted-foreground">dari {required.length} terunggah</span>
         </span>
         <ProgressBar value={(done / Math.max(1, required.length)) * 100} label="Dokumen wajib terunggah" barClassName="bg-success-solid" />
-        <p className="text-[13px] leading-5 text-muted-foreground">{uploadHint(uploadRules)} per file. File tersimpan otomatis begitu dipilih.</p>
+        <p className="text-[13px] leading-5 text-muted-foreground">{uploadHint(uploadRules)} per file. File dikirim setelah kamu menyetujui penggunaan dokumen.</p>
         {showDemoControls && !complete && (
           <button type="button" onClick={fillDemo} disabled={demoPending} className="w-fit text-[13px] font-bold text-primary underline">
             {demoPending ? 'Mengisi…' : 'Isi contoh'}
@@ -347,8 +348,8 @@ function ReviewStep({ app, go }) {
 
       <Panel>
         <h2 className="text-[17px] font-extrabold">Persetujuan</h2>
-        <CheckboxField label="Data yang saya berikan benar dan dapat dipertanggungjawabkan." checked={consents.dataAccuracy} onChange={(v) => setConsents((c) => ({ ...c, dataAccuracy: v }))} />
-        <CheckboxField label={`Saya setuju data saya dikirim ke ${s?.bankName ?? 'bank yang dipilih'} untuk pengajuan ini.`} checked={consents.sendToBank} onChange={(v) => setConsents((c) => ({ ...c, sendToBank: v }))} />
+        <CheckboxField label="Data dan dokumen yang saya berikan benar, terkini, dan saya berwenang menyerahkannya." checked={consents.dataAccuracy} onChange={(v) => setConsents((c) => ({ ...c, dataAccuracy: v }))} />
+        <CheckboxField label={`Saya setuju data dan dokumen dikirim ke ${s?.bankName ?? 'bank yang dipilih'} untuk program ${s?.productName ?? 'yang dipilih'} pada pengajuan ini.`} checked={consents.sendToBank} onChange={(v) => setConsents((c) => ({ ...c, sendToBank: v }))} />
         {error && (
           <Notice tone="bad" role="alert" title="Pengajuan belum terkirim" action={error.code === 'BANK_PRODUCT_EXPIRED' ? <Link to="/apply/primary/5" className="text-[13px] font-bold text-primary underline">Bandingkan ulang program</Link> : null}>
             {error.message}

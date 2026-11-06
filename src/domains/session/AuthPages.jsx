@@ -8,7 +8,7 @@ import { useCountdown, useForm } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Brand, PageHeader } from "@/components/layout/AppShell";
 import { CheckboxField, PasswordField, TextField } from "@/components/shared/fields";
-import { FormDialog } from "@/components/shared/dialogs";
+import { LegalLinks, PrivacyNotice } from "@/domains/legal/LegalPages";
 import { Panel, Spinner } from "@/components/shared/ui";
 import { AdminHeader } from "@/domains/admin/shared";
 import { useSession } from "./SessionProvider";
@@ -59,6 +59,7 @@ function AuthLayout({ children }) {
           <div className="flex min-w-0 flex-col items-center justify-center py-6">
             <main className="flex w-full max-w-[440px] flex-col gap-6">
               {children}
+              <LegalLinks />
             </main>
           </div>
         </div>
@@ -66,20 +67,6 @@ function AuthLayout({ children }) {
     </div>
   );
 }
-
-const LEGAL = {
-  terms: {
-    title: "Syarat & Ketentuan",
-    body: `${brand.name} membantu kamu memahami, mengajukan, dan memantau KPR. Semua hasil simulasi adalah estimasi dan bukan persetujuan kredit. Data hanya dikirim ke bank setelah kamu memilih satu program dan menekan Submit. Dokumen legal final masih menunggu review sebelum produksi.`,
-  },
-  privacy: {
-    title: "Kebijakan Privasi",
-    body: "Data pribadi, penghasilan, dan dokumen hanya dipakai untuk analisis dan pengajuan yang kamu setujui. Kami tidak pernah meminta password, PIN, atau OTP perbankan kamu. " +
-      (isMock
-        ? "Pada mode demo ini data disimpan di browser kamu saja."
-        : `Data disimpan di server ${brand.name} dan hanya bisa dibuka olehmu serta tim yang memproses pengajuanmu.`),
-  },
-};
 
 function FormAlert({ children }) {
   return (
@@ -203,48 +190,22 @@ function GoogleSignIn({ onError }) {
   );
 }
 
-// One checkbox for both agreements (registration and /welcome); each text opens from its link. Both consents are
-// still recorded separately.
 function ConsentFields({ form }) {
-  const [legal, setLegal] = useState(null);
-  // preventDefault: opening a text must not tick the checkbox the link sits in.
-  const legalLink = (doc) => (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.preventDefault();
-        setLegal(doc);
-      }}
-      className="font-bold text-primary underline underline-offset-2"
-    >
-      {LEGAL[doc].title}
-    </button>
-  );
   return (
     <>
+      <PrivacyNotice />
       <CheckboxField
-        label={
-          <span>
-            Saya setuju dengan {legalLink("terms")} dan {legalLink("privacy")}{" "}
-            {brand.name}.
-          </span>
-        }
-        checked={form.values.acceptTerms && form.values.acceptPrivacy}
-        onChange={(v) =>
-          form.setValues((s) => ({ ...s, acceptTerms: v, acceptPrivacy: v }))
-        }
-        error={form.error("acceptTerms") || form.error("acceptPrivacy")}
+        label="Saya menyetujui Syarat & Ketentuan."
+        checked={form.values.acceptTerms}
+        onChange={(v) => form.setValues((s) => ({ ...s, acceptTerms: v }))}
+        error={form.error("acceptTerms")}
         name="acceptTerms"
       />
-      <FormDialog
-        open={!!legal}
-        onOpenChange={(o) => !o && setLegal(null)}
-        title={legal ? LEGAL[legal].title : ""}
-      >
-        <p className="text-sm leading-[22px] text-muted-foreground">
-          {legal && LEGAL[legal].body}
-        </p>
-      </FormDialog>
+      <Link to="/legal/syarat-dan-ketentuan" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-sm font-bold text-primary underline">Baca Syarat & Ketentuan (tab baru)</Link>
+      <CheckboxField label="Saya telah membaca Kebijakan Privasi dan memahami penggunaan data akun saya."
+        checked={form.values.acceptPrivacy}
+        onChange={(v) => form.setValues((s) => ({ ...s, acceptPrivacy: v }))}
+        error={form.error("acceptPrivacy")} name="acceptPrivacy" />
     </>
   );
 }

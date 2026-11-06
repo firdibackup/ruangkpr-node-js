@@ -390,10 +390,10 @@ function Tracker({ app, snap, onChange, reload }) {
   const rejected = app.status === "rejected";
   const hero = heroFor(app, snap);
   const pending = app.pendingActions ?? [];
-  const upload = (type) => async (file, onProgress) => {
+  const upload = (type) => async (file, onProgress, documentConsent) => {
     const next = await api.applications.uploadDocument(
       app.id,
-      { documentType: type, file },
+      { documentType: type, file, documentConsent },
       { onProgress },
     );
     onChange(next);
@@ -546,6 +546,7 @@ function Tracker({ app, snap, onChange, reload }) {
                 .filter((d) => d.required || app.documents[d.type])
                 .map((d) => (
                   <UploadRow
+                    requireConsent
                     key={d.type}
                     doc={d}
                     state={app.documents[d.type]}

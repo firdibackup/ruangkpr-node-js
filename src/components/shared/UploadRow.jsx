@@ -3,6 +3,10 @@ import { CircleAlertIcon, FileCheckIcon, FileXIcon, LoaderCircleIcon, TriangleAl
 import { cn } from '@/lib/utils'
 import { DEFAULT_UPLOAD, acceptOf, uploadProblem } from '@/data/documentRules'
 import { ProgressBar } from './ui'
+import { ConfirmDialog } from './dialogs'
+import { CheckboxField } from './fields'
+import { PrivacyNotice } from '@/domains/legal/LegalPages'
+import { DOCUMENT_CONSENT, LEGAL_VERSION } from '@/domains/legal/content'
 
 const VIEW = {
   pending: { icon: UploadIcon, box: 'bg-muted text-muted-foreground', chip: 'bg-muted text-muted-foreground', text: 'Belum diunggah', border: 'border-border' },
@@ -16,8 +20,10 @@ const VIEW = {
 // Document checklist row (artifact C23): pending → uploading → uploaded / error, retry per item.
 // The picked File goes to `onUpload` whole: the real backend uploads its bytes, the demo keeps only name/size/type.
 // `rules`: the snapshot's `config.upload`.
-export function UploadRow({ doc, state, onUpload, readOnly = false, compact = false, rules = DEFAULT_UPLOAD }) {
+export function UploadRow({ doc, state, onUpload, readOnly = false, compact = false, rules = DEFAULT_UPLOAD, requireConsent = false }) {
   const input = useRef(null)
+  const [picked, setPicked] = useState(null)
+  const [accepted, setAccepted] = useState(false)
   const [local, setLocal] = useState(null) // { status: 'uploading'|'error', pct, message }
   const status = local?.status ?? state?.status ?? 'pending'
   const v = VIEW[status] ?? VIEW.pending
@@ -31,12 +37,22 @@ export function UploadRow({ doc, state, onUpload, readOnly = false, compact = fa
     if (!file) return
     const problem = uploadProblem(file, rules)
     if (problem) return setLocal({ status: 'error', message: problem.message })
+    if (!requireConsent) {
+      try { await upload(file) } catch { /* The row displays the upload error. */ }
+      return
+    }
+    setAccepted(false)
+    setPicked(file)
+  }
+  const upload = async (file = picked) => {
+    if (!file || (requireConsent && !accepted)) return
     setLocal({ status: 'uploading', pct: 5 })
     try {
-      await onUpload(file, (pct) => setLocal((l) => (l?.status === 'uploading' ? { ...l, pct } : l)))
+      await onUpload(file, (pct) => setLocal((l) => (l?.status === 'uploading' ? { ...l, pct } : l)), requireConsent ? { version: LEGAL_VERSION, accepted: true } : undefined)
       setLocal(null)
     } catch (err) {
       setLocal({ status: 'error', message: err?.message ?? 'Upload gagal. Periksa koneksi lalu coba lagi.' })
+      throw err
     }
   }
 
@@ -45,6 +61,10 @@ export function UploadRow({ doc, state, onUpload, readOnly = false, compact = fa
 
   return (
     <div className={cn('flex flex-col gap-2.5 rounded-2xl border bg-card', compact ? 'p-3.5' : 'p-4', v.border)}>
+      <ConfirmDialog open={!!picked} onOpenChange={(open) => !open && setPicked(null)} title={`Unggah ${doc.label}`} body="Berkas belum dikirim. Tinjau penggunaan dokumen sebelum melanjutkan." destructive={false} confirmLabel="Setuju & unggah" confirmDisabled={!accepted} onConfirm={upload}>
+        <PrivacyNotice documents />
+        <CheckboxField label={DOCUMENT_CONSENT} checked={accepted} onChange={setAccepted} />
+      </ConfirmDialog>
       <div className="flex flex-wrap items-center gap-3.5">
         <span className={cn('flex size-11 shrink-0 items-center justify-center rounded-lg', v.box)} aria-hidden>
           <Icon className={cn('size-5', status === 'uploading' && 'animate-spin')} />

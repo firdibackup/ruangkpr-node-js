@@ -169,11 +169,11 @@ describe.skipIf(!LIVE)('live: real Supabase end to end', () => {
     await api.applications.saveStep(app.id, { step: 4, values: { loan: { downPayment: 120_000_000, amount: 480_000_000, tenorMonths: 240 } } })
     let progress = 0
     for (const type of ['ktp', 'npwp', 'income_proof', 'property_document']) {
-      await api.applications.uploadDocument(app.id, { documentType: type, file: pdf(`${type}.pdf`) }, { onProgress: (p) => (progress = p) })
+      await api.applications.uploadDocument(app.id, { documentType: type, documentConsent: { accepted: true, version: '2026-11-06' }, file: pdf(`${type}.pdf`) }, { onProgress: (p) => (progress = p) })
     }
     expect(progress).toBe(100)
     // Uploading again replaces the file: the earlier one leaves Storage (no stale KTP copies).
-    await api.applications.uploadDocument(app.id, { documentType: 'ktp', file: pdf('ktp-baru.pdf') })
+    await api.applications.uploadDocument(app.id, { documentType: 'ktp', documentConsent: { accepted: true, version: '2026-11-06' }, file: pdf('ktp-baru.pdf') })
     const { data: ktpFiles } = await service.storage.from('application-documents').list(`${uid.user}/${app.id}/ktp`)
     expect(ktpFiles).toHaveLength(1)
     const saved = await api.applications.get(app.id)
@@ -214,7 +214,7 @@ describe.skipIf(!LIVE)('live: real Supabase end to end', () => {
     await api.applications.selectProgram(ids.app, { bankProductId: ids.product, loanAmount: 480_000_000, tenorMonths: 240 })
     const submitted = await api.applications.submit(ids.app, { consents: { dataAccuracy: true, sendToBank: true } })
     expect(submitted.status).toBe('docs_verification')
-    await expect(api.applications.uploadDocument(ids.app, { documentType: 'additional', file: pdf('lain.pdf') })).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' })
+    await expect(api.applications.uploadDocument(ids.app, { documentType: 'additional', documentConsent: { accepted: true, version: '2026-11-06' }, file: pdf('lain.pdf') })).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' })
   }, 60_000)
 
   it('the admin opens a document and walks the application to disbursement', async () => {
@@ -242,7 +242,7 @@ describe.skipIf(!LIVE)('live: real Supabase end to end', () => {
 
     // The user's re-upload passes the database's re-upload rule.
     await signInAs(people.user)
-    expect((await api.applications.uploadDocument(ids.app, { documentType: 'npwp', file: pdf('npwp-baru.pdf') })).status).toBe('docs_verification')
+    expect((await api.applications.uploadDocument(ids.app, { documentType: 'npwp', documentConsent: { accepted: true, version: '2026-11-06' }, file: pdf('npwp-baru.pdf') })).status).toBe('docs_verification')
 
     await signInAs(people.staff)
     detail = await api.admin.applications.get(ids.app)

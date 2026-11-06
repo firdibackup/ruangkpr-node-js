@@ -22,7 +22,7 @@ async function fillKprStep(page) {
 }
 
 async function activate(page) {
-  await page.getByRole('checkbox', { name: 'Data yang saya masukkan benar' }).check()
+  await page.getByRole('checkbox', { name: /Data yang saya masukkan benar/ }).check()
   await page.getByRole('button', { name: 'Aktifkan Pemantauan KPR' }).click()
   await expect(page.getByRole('heading', { name: 'Pemantauan KPR aktif' })).toBeVisible()
 }

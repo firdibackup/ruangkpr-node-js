@@ -49,6 +49,8 @@ test('admin reviews each document, sends the rejected one with its reason, and f
   await expect(page.getByText('Buram / tidak terbaca: angka NPWP tidak terbaca')).toBeVisible()
   await page.getByRole('link', { name: 'Upload ulang' }).click()
   await page.locator('input[type=file]').nth(1).setInputFiles(pdf('npwp-baru.pdf'))
+  await page.getByRole('alertdialog').getByRole('checkbox').check()
+  await page.getByRole('button', { name: 'Setuju & unggah' }).click()
   await expect(page.getByText('Status: Verifikasi Dokumen')).toBeVisible()
 
   await page.goto('/profile')

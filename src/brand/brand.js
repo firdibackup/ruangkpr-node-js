@@ -2,6 +2,8 @@
 // Plain data without imports: vite.config.js reads it for index.html.
 export const brand = {
   name: 'Maxi',
+  legalOperator: '[Pengelola Maxi — belum ditetapkan]',
+  legalOperatorNotice: 'Identitas pengelola Maxi masih berupa placeholder dan perlu dilengkapi. Maxloan adalah layanan terpisah dalam RE/MAX Indonesia yang dikelola PT Signature Properties.',
   logo: '/maxi-logo-horizontal-color.svg',
   logoWhite: '/maxi-logo-horizontal-white.svg',
   favicon: '/brand/favicon.svg',

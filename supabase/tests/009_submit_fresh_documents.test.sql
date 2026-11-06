@@ -3,7 +3,7 @@
 -- document verified and a stage note, about to be retried at the same bank. B's app_t9r: waiting on a re-upload of NPWP.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(13);
 
 insert into auth.users (id, email, raw_user_meta_data, aud, role) values
   ('00000000-0000-4000-8000-0000000009a1', 'a9@test.local', '{}', 'authenticated', 'authenticated'),
@@ -36,7 +36,7 @@ select throws_ok($$update public.applications set doc = doc || '{"status":"docs_
 select throws_ok($$update public.applications set doc = jsonb_set(doc, '{documents}', '{"ktp":{"status":"uploaded"},"npwp":{"status":"uploaded"},"income_proof":{"status":"uploaded"},"property_document":{"status":"uploaded"}}') || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true}}' where id = 'app_t9'$$, 'P0001', 'Dokumen pengajuan perlu diunggah ulang sebelum dikirim.', 'a stage note from the earlier attempt cannot travel into a new submit');
 select throws_ok($$update public.applications set doc = jsonb_set(doc, '{documents}', '{"ktp":{"status":"uploaded"},"npwp":{"status":"uploaded","review":{"reasonCode":"blurry","note":"","at":"2026-10-06T02:00:00Z"}},"income_proof":{"status":"uploaded"},"property_document":{"status":"uploaded"}}') || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true},"stageNotes":{}}' where id = 'app_t9'$$, 'P0001', 'Dokumen pengajuan perlu diunggah ulang sebelum dikirim.', 'a review written by the user cannot be submitted');
 select throws_ok($$update public.applications set doc = jsonb_set(doc, '{documents}', '{"ktp":{"status":"uploaded"},"npwp":{"status":"uploaded"},"income_proof":{"status":"uploaded"},"property_document":{"status":"uploaded"},"additional":{"status":"verified"}}') || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true},"stageNotes":{}}' where id = 'app_t9'$$, 'P0001', 'Dokumen pengajuan perlu diunggah ulang sebelum dikirim.', 'an optional document the user marked verified cannot be submitted either');
-select lives_ok($$update public.applications set doc = jsonb_set(doc, '{documents}', '{"ktp":{"status":"uploaded","fileName":"ktp.pdf"},"npwp":{"status":"uploaded","fileName":"npwp.pdf"},"income_proof":{"status":"uploaded","fileName":"slip.pdf"},"property_document":{"status":"uploaded","fileName":"ppjb.pdf"}}') || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true},"stageNotes":{}}' where id = 'app_t9'$$, 'a submit of fresh uploads with no stage notes passes');
+select lives_ok($$update public.applications set doc = jsonb_set(doc, '{documents}', '{"ktp":{"status":"uploaded","fileName":"ktp.pdf"},"npwp":{"status":"uploaded","fileName":"npwp.pdf"},"income_proof":{"status":"uploaded","fileName":"slip.pdf"},"property_document":{"status":"uploaded","fileName":"ppjb.pdf"}}') || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true,"version":"2026-11-06","bankProductId":"bpr_t9"},"stageNotes":{}}' where id = 'app_t9'$$, 'a submit of fresh uploads with no stage notes passes');
 select is((select status from public.applications where id = 'app_t9'), 'docs_verification', 'the retried application goes straight to document verification');
 
 -- ---------- user B re-uploads: the history entry keeps a string timestamp ----------
@@ -45,5 +45,14 @@ select throws_ok($$update public.applications set doc = jsonb_set(jsonb_set(json
 select lives_ok($$update public.applications set doc = jsonb_set(jsonb_set(jsonb_set(doc, '{documents,npwp}', '{"status":"uploaded","fileName":"npwp-baru.pdf","invalidReason":null}'), '{pendingActions}', '[]'), '{statusHistory}', (doc -> 'statusHistory') || '[{"status":"docs_verification","at":"2026-10-04T02:00:00Z"}]') || '{"status":"docs_verification"}' where id = 'app_t9r'$$, 'a re-upload with a string timestamp still returns to verification');
 reset role;
 
+-- Server validation of evidence for a fresh submission, independently of client UI.
+reset role;
+update public.applications set doc = jsonb_set(doc, '{status}', '"draft"') where id='app_t9';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000009a1","role":"authenticated"}', true);
+select throws_ok($$update public.applications set doc = doc || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true,"version":"old","bankProductId":"bpr_t9"}}' where id='app_t9'$$, 'P0001', 'Tinjau dan setujui pengiriman dokumen ke program yang dipilih.', 'old consent version cannot submit');
+select throws_ok($$update public.applications set doc = doc || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true,"version":"2026-11-06","bankProductId":"other"}}' where id='app_t9'$$, 'P0001', 'Tinjau dan setujui pengiriman dokumen ke program yang dipilih.', 'consent must match selected program');
+select lives_ok($$update public.applications set doc = doc || '{"status":"docs_verification","consents":{"dataAccuracy":true,"sendToBank":true,"version":"2026-11-06","bankProductId":"bpr_t9","acceptedAt":"2000-01-01"}}' where id='app_t9'$$, 'current program consent submits');
+select is((select (doc #>> '{consents,acceptedAt}')::timestamptz from public.applications where id='app_t9'), now(), 'server replaces client consent timestamp');
 select * from finish();
 rollback;
